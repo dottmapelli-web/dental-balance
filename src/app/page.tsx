@@ -3,13 +3,13 @@
 
 import React, { useState } from 'react';
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription rimossa perché non usata qui
 import { TrendingUp, TrendingDown, ArrowRight, Upload, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
-import Link from "next/link";
+// Link rimosso perché "Vedi tutte" ora apre un dialog
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +44,7 @@ const expenseCategoriesData = [
     title: "Spese Fisse",
     value: 2370.50,
     itemCount: 8,
-    items: [
+    topItems: [ // Rinominato da items a topItems
       { name: "Affitto", amount: 1800.00 },
       { name: "Luce", amount: 320.50 },
       { name: "Spese condominiali", amount: 250.00 },
@@ -52,13 +52,13 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(260 70% 78%)",
+    pieFill: "hsl(260 70% 78%)", // Mantenuto più carico
   },
   {
     title: "Materiali",
     value: 3580.25,
     itemCount: 9,
-    items: [
+    topItems: [
       { name: "Materiale Impianti", amount: 2150.00 },
       { name: "Materiale Conservativa", amount: 780.25 },
       { name: "Materiale Chirurgia", amount: 650.00 },
@@ -66,13 +66,13 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(150 65% 72%)",
+    pieFill: "hsl(150 60% 70%)", // Mantenuto più carico
   },
   {
     title: "Personale",
     value: 5550.00,
     itemCount: 11,
-    items: [
+    topItems: [
       { name: "Stipendio Ilaria", amount: 1400.00 },
       { name: "Stipendio Daniela", amount: 1350.00 },
       { name: "Compenso Dr. Mapelli", amount: 2800.00 },
@@ -80,13 +80,13 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(340 80% 78%)",
+    pieFill: "hsl(340 80% 78%)", // Mantenuto più carico
   },
   {
     title: "Servizi Esterni",
     value: 2580.00,
     itemCount: 6,
-    items: [
+    topItems: [
       { name: "Lab. Baisotti", amount: 1250.00 },
       { name: "Lab. Ennevi (Orto)", amount: 980.00 },
       { name: "Commercialista", amount: 350.00 },
@@ -94,13 +94,13 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(50 80% 72%)",
+    pieFill: "hsl(50 75% 72%)", // Mantenuto più carico
   },
    {
-    title: "Altre spese", // Renamed to match config for consistency with pie chart
+    title: "Altre Spese", // Modificato per coerenza, era "Altre spese"
     value: 3500.00,
     itemCount: 5,
-    items: [
+    topItems: [
       { name: "Tasse", amount: 3200.00 },
       { name: "Marche da Bollo / Banca", amount: 120.00 },
       { name: "Regali", amount: 180.00 },
@@ -108,7 +108,7 @@ const expenseCategoriesData = [
     bgColor: "bg-red-100 dark:bg-red-900/30",
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(20 80% 75%)",
+    pieFill: "hsl(20 75% 75%)", // Mantenuto più carico
   },
 ];
 
@@ -122,13 +122,14 @@ const pieChartData = expenseCategoriesData.map(cat => ({
 interface ExpenseCategoryCardProps {
   title: string;
   itemCount: number;
-  items: Array<{ name: string; amount: number }>;
+  topItems: Array<{ name: string; amount: number }>;
   bgColor: string;
   textColor: string;
   borderColor: string;
+  onViewAllClick: (categoryName: string) => void;
 }
 
-const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCount, items, bgColor, textColor, borderColor }) => {
+const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCount, topItems, bgColor, textColor, borderColor, onViewAllClick }) => {
   return (
     <Card className={`${bgColor} ${borderColor} border shadow-lg hover:shadow-xl transition-shadow`}>
       <CardHeader className="pb-3">
@@ -141,25 +142,30 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1.5 text-sm">
-          {items.slice(0, 3).map((item, index) => (
+          {topItems.slice(0, 3).map((item, index) => (
             <li key={index} className="flex justify-between items-center">
               <span className="text-muted-foreground">{item.name}</span>
               <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </li>
           ))}
         </ul>
-        <Link href="/transactions" className={`mt-4 inline-flex items-center text-sm font-medium ${textColor} hover:underline`}>
+        <button
+            onClick={() => onViewAllClick(title)}
+            className={`mt-4 inline-flex items-center text-sm font-medium ${textColor} hover:underline focus:outline-none`}
+        >
           Vedi tutte <ArrowRight className="ml-1 h-4 w-4" />
-        </Link>
+        </button>
       </CardContent>
     </Card>
   );
 };
 
 export default function DashboardPage() {
-  const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
-  const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
-  const [transactionsForCategory, setTransactionsForCategory] = useState<Transaction[]>([]);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [detailDialogCategoryName, setDetailDialogCategoryName] = useState<string | null>(null);
+  const [detailDialogTitle, setDetailDialogTitle] = useState<string>("");
+  const [detailDialogDescription, setDetailDialogDescription] = useState<string>("");
+  const [transactionsForDialog, setTransactionsForDialog] = useState<Transaction[]>([]);
   const { toast } = useToast();
 
   const handleImportData = () => {
@@ -176,14 +182,11 @@ export default function DashboardPage() {
     });
   };
 
-  const handlePieSliceClick = (sliceData: any) => {
-    const categoryName = sliceData.name;
-    setSelectedPieCategory(categoryName);
-
+  const filterTransactionsForDialog = (categoryName: string): Transaction[] => {
     const currentMonth = getMonth(new Date());
     const currentYearValue = getYear(new Date());
 
-    const filtered = initialTransactions.filter(t => {
+    return initialTransactions.filter(t => {
       const transactionDate = parseISO(t.date);
       if (!isValid(transactionDate)) return false;
       return t.category === categoryName &&
@@ -191,9 +194,23 @@ export default function DashboardPage() {
              getMonth(transactionDate) === currentMonth &&
              getYear(transactionDate) === currentYearValue;
     });
+  };
 
-    setTransactionsForCategory(filtered);
-    setIsCategoryDetailOpen(true);
+  const handlePieSliceClick = (sliceData: any) => {
+    const categoryName = sliceData.name;
+    setDetailDialogCategoryName(categoryName);
+    setDetailDialogTitle(`Dettaglio Categoria: ${categoryName}`);
+    setDetailDialogDescription(`Elenco delle transazioni di tipo "Uscita" per la categoria ${categoryName} nel mese corrente.`);
+    setTransactionsForDialog(filterTransactionsForDialog(categoryName));
+    setIsDetailDialogOpen(true);
+  };
+
+  const handleViewAllClick = (categoryName: string) => {
+    setDetailDialogCategoryName(categoryName);
+    setDetailDialogTitle(`Transazioni per: ${categoryName}`);
+    setDetailDialogDescription(`Elenco completo delle transazioni di tipo "Uscita" per la categoria ${categoryName} nel mese corrente.`);
+    setTransactionsForDialog(filterTransactionsForDialog(categoryName));
+    setIsDetailDialogOpen(true);
   };
 
   const currentBalance = 3580;
@@ -261,7 +278,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite Mensili</CardTitle>
-            <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription>
+            {/* <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription> */}
           </CardHeader>
           <CardContent>
             <DashboardBarChart data={barChartData} config={barChartConfig} />
@@ -271,7 +288,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Distribuzione Spese</CardTitle>
-            <CardDescription>Categorie di spesa principali questo mese.</CardDescription>
+            {/* <CardDescription>Categorie di spesa principali questo mese.</CardDescription> */}
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
@@ -283,7 +300,11 @@ export default function DashboardPage() {
         <h2 className="text-2xl font-headline font-semibold mb-4 text-foreground">Categorie di Uscite</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {expenseCategoriesData.map((category) => (
-            <ExpenseCategoryCard key={category.title} {...category} />
+            <ExpenseCategoryCard 
+              key={category.title} 
+              {...category} 
+              onViewAllClick={handleViewAllClick}
+            />
           ))}
         </div>
       </div>
@@ -292,7 +313,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Flusso di Cassa Recente</CardTitle>
-            <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription>
+            {/* <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription> */}
           </CardHeader>
           <CardContent>
             <DashboardCashflowLineChart data={[]} config={lineChartConfig} />
@@ -329,28 +350,30 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Dialog open={isCategoryDetailOpen} onOpenChange={setIsCategoryDetailOpen}>
-        <DialogContent className="sm:max-w-2xl">
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="sm:max-w-3xl"> {/* Aumentata larghezza */}
           <DialogHeader>
-            <DialogTitle>Dettaglio Categoria: {selectedPieCategory}</DialogTitle>
+            <DialogTitle>{detailDialogTitle}</DialogTitle>
             <DialogDescriptionComponent>
-              Elenco delle transazioni di tipo "Uscita" per la categoria {selectedPieCategory} nel mese corrente.
+              {detailDialogDescription}
             </DialogDescriptionComponent>
           </DialogHeader>
-          {transactionsForCategory && transactionsForCategory.length > 0 ? (
-            <ScrollArea className="h-[300px] mt-4 border rounded-md">
+          {transactionsForDialog && transactionsForDialog.length > 0 ? (
+            <ScrollArea className="h-[400px] mt-4 border rounded-md"> {/* Aumentata altezza */}
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Data</TableHead>
+                    <TableHead>Sottocategoria</TableHead>
                     <TableHead>Descrizione</TableHead>
                     <TableHead className="text-right">Importo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactionsForCategory.map((transaction) => (
+                  {transactionsForDialog.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
+                      <TableCell>{transaction.subcategory || "N/A"}</TableCell>
                       <TableCell>{transaction.description || "N/A"}</TableCell>
                       <TableCell className="text-right text-red-600 dark:text-red-400">
                         €{Math.abs(transaction.amount).toFixed(2)}
@@ -363,7 +386,7 @@ export default function DashboardPage() {
           ) : (
             <div className="py-4">
               <p className="text-sm text-muted-foreground">
-                Nessuna transazione di spesa trovata per la categoria "{selectedPieCategory}" nel mese corrente.
+                Nessuna transazione di spesa trovata per la categoria "{detailDialogCategoryName}" nel mese corrente.
               </p>
             </div>
           )}
@@ -372,3 +395,4 @@ export default function DashboardPage() {
     </>
   );
 }
+

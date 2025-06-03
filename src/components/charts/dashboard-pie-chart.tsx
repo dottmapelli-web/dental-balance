@@ -29,8 +29,8 @@ export default function DashboardPieChart({ data, onSliceClick }: DashboardPieCh
             cx="50%" 
             cy="50%" 
             outerRadius={100} 
-            labelLine={false} 
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+            labelLine={false}
+            // label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} // Etichetta rimossa
             onClick={handlePieClick}
           >
             {data.map((entry, index) => (
@@ -43,3 +43,4 @@ export default function DashboardPieChart({ data, onSliceClick }: DashboardPieCh
     </ChartContainer>
   );
 }
+
