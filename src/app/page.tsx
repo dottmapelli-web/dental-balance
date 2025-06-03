@@ -1,10 +1,11 @@
 
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown, Users, LineChartIcon } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Line, LineChart as RechartsLineChart } from "recharts";
+import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
+import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
+import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
 
 const chartData = [
   { month: "Gen", income: 4000, expenses: 2400 },
@@ -23,9 +24,13 @@ const pieChartData = [
   { name: "Altro", value: 278, fill: "hsl(var(--chart-5))" },
 ];
 
-const chartConfig = {
+const barChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
   expenses: { label: "Uscite", color: "hsl(var(--chart-2))" },
+};
+
+const lineChartConfig = {
+  cashflow: { label: "Flusso di Cassa", color: "hsl(var(--chart-1))" },
 };
 
 export default function DashboardPage() {
@@ -75,19 +80,7 @@ export default function DashboardPage() {
             <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8}/>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-                  <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            <DashboardBarChart data={chartData} config={barChartConfig} />
           </CardContent>
         </Card>
 
@@ -97,19 +90,7 @@ export default function DashboardPage() {
             <CardDescription>Categorie di spesa principali questo mese.</CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
-            <ChartContainer config={{}} className="h-[300px] w-full max-w-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                    {pieChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            <DashboardPieChart data={pieChartData} />
           </CardContent>
         </Card>
       </div>
@@ -121,25 +102,7 @@ export default function DashboardPage() {
             <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={{ cashflow: { label: "Flusso di Cassa", color: "hsl(var(--chart-1))" } }} className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart
-                  data={[
-                    { date: "01/07", cashflow: 2000 }, { date: "05/07", cashflow: 2500 },
-                    { date: "10/07", cashflow: 1800 }, { date: "15/07", cashflow: 3000 },
-                    { date: "20/07", cashflow: 2200 }, { date: "25/07", cashflow: 3500 },
-                    { date: "30/07", cashflow: 3200 },
-                  ]}
-                  margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickFormatter={(value) => `€${value/1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
-                  <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                  <Line type="monotone" dataKey="cashflow" stroke="var(--color-cashflow)" strokeWidth={2} dot={true} />
-                </RechartsLineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            <DashboardCashflowLineChart data={[]} config={lineChartConfig} />
           </CardContent>
         </Card>
       </div>

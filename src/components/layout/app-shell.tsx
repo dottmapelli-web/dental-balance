@@ -1,4 +1,6 @@
 
+"use client";
+
 import React from 'react';
 import {
   SidebarProvider,
@@ -67,5 +69,3 @@ export default function AppShell({ children }: AppShellProps) {
     </SidebarProvider>
   );
 }
-
-    
