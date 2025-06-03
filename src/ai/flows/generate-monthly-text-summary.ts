@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { initialTransactions, type Transaction } from '@/app/transactions/page';
-import { format, getMonth, getYear, parseISO } from 'date-fns';
+import { format, getMonth, getYear, parseISO, isValid } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const GenerateMonthlyTextSummaryInputSchema = z.object({
@@ -31,12 +31,15 @@ export async function generateMonthlyTextSummary(input: GenerateMonthlyTextSumma
 
 // Helper function to format transactions for the prompt
 const formatTransactionsForPrompt = (transactions: Transaction[]): string => {
+  // Questa funzione non dovrebbe essere chiamata se transactions è vuoto,
+  // ma per sicurezza, la manteniamo così.
   if (transactions.length === 0) {
     return "Nessuna transazione registrata per questo periodo.";
   }
-  return transactions.map(t => 
-    `- Data: ${format(parseISO(t.date), "dd/MM/yyyy", { locale: it })}, Tipo: ${t.type}, Categoria: ${t.category}${t.subcategory ? ` (${t.subcategory})` : ''}, Importo: €${t.amount.toFixed(2)}${t.description ? `, Descrizione: ${t.description}` : ''}`
-  ).join('\n');
+  return transactions.map(t => {
+    const datePart = isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy", { locale: it }) : "Data non valida";
+    return `- Data: ${datePart}, Tipo: ${t.type}, Categoria: ${t.category}${t.subcategory ? ` (${t.subcategory})` : ''}, Importo: €${t.amount.toFixed(2)}${t.description ? `, Descrizione: ${t.description}` : ''}`;
+  }).join('\n');
 };
 
 const prompt = ai.definePrompt({
@@ -56,7 +59,6 @@ Lista delle transazioni per {{{monthName}}} {{{year}}}:
 {{{formattedTransactions}}}
 
 Fornisci un riepilogo conciso ma informativo.
-Se non ci sono transazioni, indicalo chiaramente.
 Inizia il riepilogo con "Nel mese di {{{monthName}}} {{{year}}}, l'attività finanziaria dello studio è stata caratterizzata da..."
 `,
 });
@@ -68,24 +70,24 @@ const generateMonthlyTextSummaryFlow = ai.defineFlow(
     outputSchema: GenerateMonthlyTextSummaryOutputSchema,
   },
   async ({ month, year }) => {
-    // In a real application, fetch transactions from a database for the given month and year.
-    // For now, we filter initialTransactions.
+    const monthName = format(new Date(year, month), "MMMM", { locale: it });
+
     const monthlyTransactions = initialTransactions.filter(t => {
       const transactionDate = parseISO(t.date);
-      return getMonth(transactionDate) === month && getYear(transactionDate) === year;
+      return isValid(transactionDate) && getMonth(transactionDate) === month && getYear(transactionDate) === year;
     });
 
+    if (monthlyTransactions.length === 0) {
+        return { summaryText: `Nessuna transazione registrata per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
+    }
+
     const formattedTransactions = formatTransactionsForPrompt(monthlyTransactions);
-    const monthName = format(new Date(year, month), "MMMM", { locale: it });
 
     const { output } = await prompt({ month, year, formattedTransactions, monthName });
     
-    if (!output) {
-        // Fallback if AI fails to generate for some reason
-        if (monthlyTransactions.length === 0) {
-            return { summaryText: `Nessuna transazione registrata per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
-        }
-        return { summaryText: `Riepilogo per ${monthName} ${year}:\n${formattedTransactions}\n\n(Riepilogo generato automaticamente basato sui dati grezzi. Potrebbe essere necessario elaborarlo ulteriormente.)`};
+    if (!output || !output.summaryText) {
+        // Fallback se AI fallisce a generare o l'output non è conforme
+        return { summaryText: `Riepilogo per ${monthName} ${year}:\n${formattedTransactions}\n\n(Riepilogo generato automaticamente basato sui dati grezzi. L'analisi AI potrebbe non essere stata completata correttamente. Si prega di rivedere.)`};
     }
     return output;
   }
