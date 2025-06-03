@@ -525,8 +525,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLAnchorElement, // Changed from HTMLButtonElement
-  React.ComponentProps<"a"> & { // Changed from React.ComponentProps<"button">
+  HTMLDivElement, // Changed from HTMLAnchorElement
+  React.HTMLAttributes<HTMLDivElement> & { // Changed from React.ComponentProps<"a">
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>
@@ -538,36 +538,37 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
-      children, // Children are now Icon and Span
-      ...props // href, onClick from Link are spread here
+      children,
+      ...props // href, onClick from Link will be spread here
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
 
-    const linkElement = (
-      <a // Now an 'a' tag
+    const buttonElement = ( // Renamed from linkElement to buttonElement for clarity
+      <div // Changed from 'a' to 'div'
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        {...props} // Spreads href, onClick etc.
+        className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+        role="link" // Added for accessibility as it acts like a link
+        tabIndex={props['aria-disabled'] ? -1 : 0} // Ensure focusability based on aria-disabled
+        {...props} // Spreads href, onClick etc. from Link
       >
-        {children} {/* Renders Icon and Span */}
-      </a>
+        {children}
+      </div>
     );
 
-    // Conditionally render Tooltip only when sidebar is collapsed and not on mobile
     if (!tooltip || (state === "expanded" && !isMobile) || isMobile) {
-      return linkElement;
+      return buttonElement;
     }
     
     const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
