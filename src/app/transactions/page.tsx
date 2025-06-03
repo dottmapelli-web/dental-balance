@@ -21,15 +21,15 @@ import { useToast } from '@/hooks/use-toast';
 
 interface RecurrenceDetails {
   frequency: RecurrenceFrequency;
-  startDate: string; 
-  endDate?: string; 
-  nextDueDate?: string; 
+  startDate: string;
+  endDate?: string;
+  nextDueDate?: string;
 }
 
 export interface Transaction {
   id: string;
-  date: string; 
-  description?: string; // Made optional
+  date: string;
+  description?: string;
   category: string;
   subcategory?: string;
   type: 'Entrata' | 'Uscita';
@@ -37,15 +37,22 @@ export interface Transaction {
   status: TransactionStatus;
   isRecurring?: boolean;
   recurrenceDetails?: RecurrenceDetails;
-  originalRecurringId?: string; 
+  originalRecurringId?: string;
 }
 
-const initialTransactions: Transaction[] = [
-  { id: "1", date: format(new Date(), "yyyy-MM-dd"), description: "Pagamento Fattura #123 - Mario Rossi", category: "Pazienti", type: "Entrata", amount: 150.00, status: "Completato" },
-  { id: "2", date: format(addMonths(new Date(), -1), "yyyy-MM-dd"), description: "Acquisto materiali dentali", category: "Materiali", subcategory: "Materiale Conservativa", type: "Uscita", amount: -320.50, status: "Completato" },
-  { id: "3", date: format(new Date(), "yyyy-MM-dd"), description: "Affitto Studio", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Pianificato", isRecurring: true, recurrenceDetails: { frequency: "Mensile", startDate: format(new Date(), "yyyy-MM-dd") } },
-  { id: "4", date: format(addMonths(new Date(), -2), "yyyy-MM-dd"), description: "Stipendio Ilaria", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1500.00, status: "Completato" },
+export const initialTransactions: Transaction[] = [
+  { id: "t1", date: format(new Date(), "yyyy-MM-dd"), description: "Pagamento Fattura #123 - Mario Rossi", category: "Pazienti", type: "Entrata", amount: 150.00, status: "Completato" },
+  { id: "t2", date: format(new Date(), "yyyy-MM-dd"), description: "Acquisto compositi", category: "Materiali", subcategory: "Materiale Conservativa", type: "Uscita", amount: -85.20, status: "Completato" },
+  { id: "t3", date: format(new Date(), "yyyy-MM-dd"), description: "Affitto Studio - Mese Corrente", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato" },
+  { id: "t4", date: format(addMonths(new Date(), -1), "yyyy-MM-dd"), description: "Stipendio Ilaria - Mese Prec.", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1500.00, status: "Completato" },
+  { id: "t5", date: format(new Date(), "yyyy-MM-dd"), description: "Fattura Laboratorio Baisotti", category: "Servizi Esterni", subcategory: "Lab. Baisotti", type: "Uscita", amount: -450.75, status: "Completato" },
+  { id: "t6", date: format(new Date(), "yyyy-MM-dd"), description: "Forniture Ufficio", category: "Spesa Studio", subcategory: "Forniture D’Ufficio", type: "Uscita", amount: -60.00, status: "Completato" },
+  { id: "t7", date: format(addMonths(new Date(), -1), "yyyy-MM-dd"), description: "Incasso Dr. Bianchi", category: "Pazienti", type: "Entrata", amount: 320.00, status: "Completato" },
+  { id: "t8", date: format(new Date(), "yyyy-MM-dd"), description: "Pulizia impianti", category: "Materiali", subcategory: "Materiale Impianti", type: "Uscita", amount: -120.50, status: "Pianificato" },
+  { id: "t9", date: format(new Date(new Date().setDate(new Date().getDate() - 5)), "yyyy-MM-dd"), description: "Marketing Facebook Ads", category: "Altre spese", subcategory: "Marketing", type: "Uscita", amount: -150.00, status: "Completato"},
+  { id: "t10", date: format(new Date(new Date().setDate(new Date().getDate() - 10)), "yyyy-MM-dd"), description: "Bolletta Luce", category: "Spese Fisse", subcategory: "Elettricità", type: "Uscita", amount: -95.60, status: "Completato"},
 ];
+
 
 const generateYears = () => {
   const currentYr = getYear(new Date());
@@ -58,7 +65,7 @@ export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
@@ -78,6 +85,7 @@ export default function TransactionsPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter(t => {
       const transactionDate = parseISO(t.date);
+      if (!isValid(transactionDate)) return false; // Skip invalid dates
       const matchesYear = getYear(transactionDate).toString() === selectedYear;
       const matchesMonth = getMonth(transactionDate).toString() === selectedMonth;
       const matchesSearch = (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -92,14 +100,20 @@ export default function TransactionsPage() {
         const valB = b[sortConfig.key!];
 
         if (valA === undefined || valB === undefined) return 0;
-        
+
         let comparison = 0;
         if (typeof valA === 'number' && typeof valB === 'number') {
           comparison = valA - valB;
         } else if (typeof valA === 'string' && typeof valB === 'string') {
           comparison = valA.localeCompare(valB);
         } else if (sortConfig.key === 'date') {
-            comparison = parseISO(a.date).getTime() - parseISO(b.date).getTime();
+            const dateA = parseISO(a.date);
+            const dateB = parseISO(b.date);
+            if (isValid(dateA) && isValid(dateB)) {
+              comparison = dateA.getTime() - dateB.getTime();
+            } else {
+              comparison = 0; // Handle invalid dates during sort
+            }
         }
         return sortConfig.direction === 'ascending' ? comparison : -comparison;
       });
@@ -117,7 +131,7 @@ export default function TransactionsPage() {
       description: data.description,
       category: data.category,
       subcategory: data.subcategory,
-      type: data.type, // Type is now part of TransactionFormData and set by modal logic
+      type: data.type,
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
       isRecurring: data.isRecurring,
@@ -128,46 +142,45 @@ export default function TransactionsPage() {
       } : undefined,
     };
 
-    if (id) { // Editing
+    if (id) {
       setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...transactionData, id: id } : t));
-    } else { // Adding new
+    } else {
       const newTransaction = { ...transactionData, id: crypto.randomUUID() };
       setTransactions(prev => [...prev, newTransaction]);
-      
+
       if (newTransaction.isRecurring && newTransaction.recurrenceDetails) {
           const instances: Transaction[] = [];
           let currentDate = parseISO(newTransaction.recurrenceDetails.startDate);
           const recurrenceEndDate = newTransaction.recurrenceDetails.endDate ? parseISO(newTransaction.recurrenceDetails.endDate) : undefined;
 
-          for (let i = 0; i < 3; i++) { 
+          for (let i = 0; i < 3; i++) {
               let nextDate = currentDate;
               switch(newTransaction.recurrenceDetails.frequency) {
                   case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                  // TODO: Add other frequencies for full demo (Bimestrale, Trimestrale, etc.)
                   default: nextDate = addMonths(currentDate, i + 1); break;
               }
               if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
-              
+
               instances.push({
                   ...newTransaction,
                   id: crypto.randomUUID(),
                   date: format(nextDate, "yyyy-MM-dd"),
-                  isRecurring: false, 
+                  isRecurring: false,
                   recurrenceDetails: undefined,
                   originalRecurringId: newTransaction.id,
-                  status: 'Pianificato' 
+                  status: 'Pianificato'
               });
           }
           setTransactions(prev => [...prev, ...instances]);
       }
     }
-    setEditingTransaction(null); // Clear editing state
+    setEditingTransaction(null);
   };
 
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
-    setTransactionTypeForModal(transaction.type); // Ensure modal knows the type for editing
+    setTransactionTypeForModal(transaction.type);
     setIsModalOpen(true);
   };
 
@@ -176,7 +189,7 @@ export default function TransactionsPage() {
     setTransactions(prev => prev.filter(t => t.originalRecurringId !== id));
      toast({ title: "Transazione Eliminata", description: "La transazione e le sue eventuali istanze sono state rimosse." });
   };
-  
+
   const handleBulkDelete = () => {
     const idsToDelete = Array.from(selectedRows);
     setTransactions(prev => prev.filter(t => !idsToDelete.includes(t.id) && !(t.originalRecurringId && idsToDelete.includes(t.originalRecurringId))));
@@ -199,13 +212,14 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleSelectAllRows = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
+  const handleSelectAllRows = (event: React.ChangeEvent<HTMLInputElement>) => { // Explicitly type event
+    if ((event.target as HTMLInputElement).checked) { // Type assertion
       setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
     } else {
       setSelectedRows(new Set());
     }
   };
+
 
   const openModalForNew = (type: 'Entrata' | 'Uscita') => {
     setEditingTransaction(null);
@@ -240,7 +254,7 @@ export default function TransactionsPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <TransactionModal
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -278,8 +292,8 @@ export default function TransactionsPage() {
                     <TableCell className="font-medium">{t.description}</TableCell>
                     <TableCell className={t.amount > 0 ? 'text-green-600' : 'text-red-600'}>€{t.amount.toFixed(2)}</TableCell>
                     <TableCell>{t.recurrenceDetails?.frequency}</TableCell>
-                    <TableCell>{t.recurrenceDetails?.startDate ? format(parseISO(t.recurrenceDetails.startDate), "dd/MM/yyyy") : '-'}</TableCell>
-                    <TableCell>{t.recurrenceDetails?.endDate ? format(parseISO(t.recurrenceDetails.endDate), "dd/MM/yyyy") : 'N/A'}</TableCell>
+                    <TableCell>{t.recurrenceDetails?.startDate ? format(parseISO(t.recurrenceDetails.startDate), "dd/MM/yyyy", { locale: it }) : '-'}</TableCell>
+                    <TableCell>{t.recurrenceDetails?.endDate ? format(parseISO(t.recurrenceDetails.endDate), "dd/MM/yyyy", { locale: it }) : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -305,7 +319,7 @@ export default function TransactionsPage() {
           )}
         </CardContent>
       </Card>
-      
+
       <Separator className="my-6"/>
 
       <Card>
@@ -358,7 +372,7 @@ export default function TransactionsPage() {
                 <TableHead className="w-[40px]">
                   <Checkbox
                     checked={selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0}
-                    onCheckedChange={(event: boolean | 'indeterminate') => { 
+                    onCheckedChange={(event: boolean | 'indeterminate') => {
                         if (event === true) {
                             setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
                         } else {
@@ -390,7 +404,7 @@ export default function TransactionsPage() {
                       aria-label={`Seleziona transazione ${transaction.description}`}
                     />
                   </TableCell>
-                  <TableCell>{format(parseISO(transaction.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
                   <TableCell className="font-medium flex items-center">
                     {transaction.description}
                     {transaction.isRecurring && !transaction.originalRecurringId && (
@@ -421,7 +435,7 @@ export default function TransactionsPage() {
                     €{transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>
-                     <Badge 
+                     <Badge
                         variant={transaction.status === "Completato" ? "default" : transaction.status === "In Attesa" ? "secondary" : "outline"}
                         className={
                             transaction.status === "Completato" ? "border-green-500 text-green-600 dark:border-green-600 dark:text-green-400 bg-green-500/10" :
@@ -435,8 +449,8 @@ export default function TransactionsPage() {
                   <TableCell className="text-right">
                      <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleEdit(transaction)} 
-                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false} 
+                            <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleEdit(transaction)}
+                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false}
                             >
                             <Edit3 className="h-4 w-4" />
                             </Button>
@@ -468,5 +482,3 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
-
-    

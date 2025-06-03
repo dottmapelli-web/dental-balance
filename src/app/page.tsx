@@ -13,6 +13,12 @@ import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format, parseISO, isValid, getMonth, getYear } from "date-fns";
+import { it } from "date-fns/locale";
+import type { Transaction } from '@/app/transactions/page';
+import { initialTransactions } from '@/app/transactions/page';
 
 
 const barChartData = [
@@ -46,7 +52,7 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(260 70% 78%)", // Vivid Pastel Purple/Lilac
+    pieFill: "hsl(260 70% 78%)",
   },
   {
     title: "Materiali",
@@ -60,7 +66,7 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(150 65% 72%)", // Vivid Pastel Mint Green
+    pieFill: "hsl(150 65% 72%)",
   },
   {
     title: "Personale",
@@ -74,7 +80,7 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(340 80% 78%)", // Vivid Pastel Pink
+    pieFill: "hsl(340 80% 78%)",
   },
   {
     title: "Servizi Esterni",
@@ -88,10 +94,10 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(50 80% 72%)", // Vivid Pastel Yellow
+    pieFill: "hsl(50 80% 72%)",
   },
    {
-    title: "Altre Spese",
+    title: "Altre spese", // Renamed to match config for consistency with pie chart
     value: 3500.00,
     itemCount: 5,
     items: [
@@ -99,10 +105,10 @@ const expenseCategoriesData = [
       { name: "Marche da Bollo / Banca", amount: 120.00 },
       { name: "Regali", amount: 180.00 },
     ],
-    bgColor: "bg-red-100 dark:bg-red-900/30", // This uses Tailwind bg, pieFill will be custom
+    bgColor: "bg-red-100 dark:bg-red-900/30",
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(20 80% 75%)", // Vivid Pastel Peach/Light Orange
+    pieFill: "hsl(20 80% 75%)",
   },
 ];
 
@@ -135,7 +141,7 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1.5 text-sm">
-          {items.slice(0, 3).map((item, index) => ( 
+          {items.slice(0, 3).map((item, index) => (
             <li key={index} className="flex justify-between items-center">
               <span className="text-muted-foreground">{item.name}</span>
               <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -153,6 +159,7 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
 export default function DashboardPage() {
   const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
+  const [transactionsForCategory, setTransactionsForCategory] = useState<Transaction[]>([]);
   const { toast } = useToast();
 
   const handleImportData = () => {
@@ -170,11 +177,26 @@ export default function DashboardPage() {
   };
 
   const handlePieSliceClick = (sliceData: any) => {
-    setSelectedPieCategory(sliceData.name);
+    const categoryName = sliceData.name;
+    setSelectedPieCategory(categoryName);
+
+    const currentMonth = getMonth(new Date());
+    const currentYearValue = getYear(new Date());
+
+    const filtered = initialTransactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      if (!isValid(transactionDate)) return false;
+      return t.category === categoryName &&
+             t.type === 'Uscita' &&
+             getMonth(transactionDate) === currentMonth &&
+             getYear(transactionDate) === currentYearValue;
+    });
+
+    setTransactionsForCategory(filtered);
     setIsCategoryDetailOpen(true);
   };
-  
-  const currentBalance = 3580; 
+
+  const currentBalance = 3580;
 
   return (
     <>
@@ -256,7 +278,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="mt-8">
         <h2 className="text-2xl font-headline font-semibold mb-4 text-foreground">Categorie di Uscite</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -277,7 +299,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="mt-6">
         <Card>
           <CardHeader>
@@ -308,20 +330,43 @@ export default function DashboardPage() {
       </div>
 
       <Dialog open={isCategoryDetailOpen} onOpenChange={setIsCategoryDetailOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Dettaglio Categoria: {selectedPieCategory}</DialogTitle>
             <DialogDescriptionComponent>
-              Elenco delle transazioni per la categoria {selectedPieCategory} nel mese corrente.
-              (Questa è una visualizzazione placeholder, l'elenco transazioni verrà implementato).
+              Elenco delle transazioni di tipo "Uscita" per la categoria {selectedPieCategory} nel mese corrente.
             </DialogDescriptionComponent>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              Nessuna transazione da mostrare per questa categoria (placeholder).
-              In una futura implementazione, qui verranno mostrate le transazioni filtrate.
-            </p>
-          </div>
+          {transactionsForCategory && transactionsForCategory.length > 0 ? (
+            <ScrollArea className="h-[300px] mt-4 border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Descrizione</TableHead>
+                    <TableHead className="text-right">Importo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactionsForCategory.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
+                      <TableCell>{transaction.description || "N/A"}</TableCell>
+                      <TableCell className="text-right text-red-600 dark:text-red-400">
+                        €{Math.abs(transaction.amount).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          ) : (
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground">
+                Nessuna transazione di spesa trovata per la categoria "{selectedPieCategory}" nel mese corrente.
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
