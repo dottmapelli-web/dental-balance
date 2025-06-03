@@ -186,11 +186,11 @@ export default function DashboardPage() {
         description="Panoramica finanziaria dello Studio De Vecchi & Mapelli."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleImportData} variant="outline" className="text-primary">
+            <Button onClick={handleImportData} variant="outline" className="text-blue-600 dark:text-blue-400">
               <Upload className="mr-2 h-4 w-4" />
               Importa
             </Button>
-            <Button onClick={handleExportData} variant="outline" className="text-primary">
+            <Button onClick={handleExportData} variant="outline" className="text-purple-600 dark:text-purple-400">
               <Download className="mr-2 h-4 w-4" />
               Esporta
             </Button>
