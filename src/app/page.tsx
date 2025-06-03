@@ -376,7 +376,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{totalMonthlyIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            {/* <p className="text-xs text-muted-foreground">+5.2% rispetto al mese scorso</p> */}
+            <p className="text-xs text-muted-foreground">+5.2% rispetto al mese scorso (esempio)</p>
           </CardContent>
         </Card>
         <Card>
@@ -386,7 +386,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{totalMonthlyExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            {/* <p className="text-xs text-muted-foreground">-1.8% rispetto al mese scorso</p> */}
+            <p className="text-xs text-muted-foreground">-1.8% rispetto al mese scorso (esempio)</p>
           </CardContent>
         </Card>
         <Card>
