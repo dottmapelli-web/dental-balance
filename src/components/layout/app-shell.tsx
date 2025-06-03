@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { UserCircle, PanelLeft } from 'lucide-react'; // Assicurati che PanelLeft sia importato se SidebarTrigger lo usa internamente
+import { UserCircle, PanelLeft } from 'lucide-react'; 
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
@@ -43,9 +43,27 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="sidebar" collapsible="icon" className="border-r">
-        <SidebarHeader className="p-3 flex items-center justify-between group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:py-3.5">
-           <BrandLogoIcon className="h-8 w-8 text-sidebar-primary group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9" />
-           <SidebarTrigger className="hidden group-data-[collapsible=icon]:hidden md:flex" />
+        <SidebarHeader className="p-3">
+          {/* Content for expanded sidebar */}
+          <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
+            <div className="flex items-center gap-2">
+              <BrandLogoIcon className="h-8 w-8 text-sidebar-primary flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-headline text-md font-semibold text-sidebar-foreground leading-tight">
+                  Dental Balance
+                </span>
+                <span className="text-xs text-sidebar-foreground/80 leading-tight">
+                  Studio De Vecchi &amp; Mapelli
+                </span>
+              </div>
+            </div>
+            <SidebarTrigger className="md:flex" /> {/* Desktop trigger */}
+          </div>
+
+          {/* Content for collapsed sidebar (only logo, centered) */}
+          <div className="hidden group-data-[collapsible=icon]:flex justify-center py-1.5"> {/* Adjusted padding for collapsed state */}
+            <BrandLogoIcon className="h-9 w-9 text-sidebar-primary" />
+          </div>
         </SidebarHeader>
         <SidebarContent>
           <MainSidebarNav items={siteConfig.navItems} />
@@ -61,17 +79,12 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Mobile Sidebar Trigger - keep on left for mobile */}
           <SidebarTrigger className="md:hidden -ml-2" />
 
-          {/* Branding - Logo and Text */}
+          {/* Branding in top bar - simplified */}
           <div className="flex items-center gap-2">
             <BrandLogoIcon className="h-7 w-7 text-primary flex-shrink-0" />
-            <div className="flex flex-col">
-              <span className="font-headline text-lg font-semibold text-foreground leading-tight">
-                Dental Balance
-              </span>
-              <span className="text-xs text-muted-foreground leading-tight hidden sm:block">
-                Studio De Vecchi &amp; Mapelli
-              </span>
-            </div>
+            <span className="font-headline text-lg font-semibold text-foreground leading-tight">
+              Dental Balance 
+            </span>
           </div>
 
           <div className="flex-1" /> {/* Spacer */}
