@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown, ArrowRight, PlusCircle, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, PlusCircle, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -12,7 +12,7 @@ import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-l
 import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
 
 const barChartData = [
   { month: "Gen", income: 4000, expenses: 2400 },
@@ -35,7 +35,7 @@ const lineChartConfig = {
 const expenseCategoriesData = [
   {
     title: "Spese Fisse",
-    value: 2370.50, // Sum of example items
+    value: 2370.50,
     itemCount: 8,
     items: [
       { name: "Affitto", amount: 1800.00 },
@@ -49,7 +49,7 @@ const expenseCategoriesData = [
   },
   {
     title: "Materiali",
-    value: 3580.25, // Sum of example items
+    value: 3580.25,
     itemCount: 9,
     items: [
       { name: "Materiale Impianti", amount: 2150.00 },
@@ -63,7 +63,7 @@ const expenseCategoriesData = [
   },
   {
     title: "Personale",
-    value: 5550.00, // Sum of example items
+    value: 5550.00,
     itemCount: 11,
     items: [
       { name: "Stipendio Ilaria", amount: 1400.00 },
@@ -77,7 +77,7 @@ const expenseCategoriesData = [
   },
   {
     title: "Servizi Esterni",
-    value: 2580.00, // Sum of example items
+    value: 2580.00,
     itemCount: 6,
     items: [
       { name: "Lab. Baisotti", amount: 1250.00 },
@@ -91,7 +91,7 @@ const expenseCategoriesData = [
   },
    {
     title: "Altre Spese",
-    value: 3500.00, // Sum of example items
+    value: 3500.00,
     itemCount: 5,
     items: [
       { name: "Tasse", amount: 3200.00 },
@@ -134,7 +134,7 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1.5 text-sm">
-          {items.slice(0, 3).map((item, index) => ( // Show only first 3 items for brevity
+          {items.slice(0, 3).map((item, index) => ( 
             <li key={index} className="flex justify-between items-center">
               <span className="text-muted-foreground">{item.name}</span>
               <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -155,14 +155,11 @@ export default function DashboardPage() {
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
 
   const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
-    // Idealmente, questo aprirebbe un modal. Per ora, naviga alla pagina transazioni.
-    // Potremmo passare un query param per pre-selezionare il tipo nel modal in futuro.
     router.push('/transactions'); 
     console.log(`Apri modal per nuova ${type.toLowerCase()}`);
   };
 
   const handleGenerateReport = () => {
-    // La logica di generazione report è complessa e verrà implementata in futuro.
     alert("Funzionalità Report in sviluppo!");
     console.log("Genera Report");
   };
@@ -172,18 +169,26 @@ export default function DashboardPage() {
     setIsCategoryDetailOpen(true);
   };
   
+  const currentBalance = 3580; // Esempio di saldo per icona condizionale
+
   return (
     <>
       <PageHeader
         title="Dashboard"
         description="Panoramica finanziaria dello Studio De Vecchi & Mapelli."
         actions={
-          <div className="flex gap-2">
-            <Button onClick={() => handleNewTransaction('Entrata')} variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              onClick={() => handleNewTransaction('Entrata')}
+              className="px-3 bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 dark:bg-green-800/30 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-800/50"
+            >
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuova Entrata
             </Button>
-            <Button onClick={() => handleNewTransaction('Uscita')} variant="outline">
+            <Button 
+              onClick={() => handleNewTransaction('Uscita')}
+              className="px-3 bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 dark:bg-red-800/30 dark:text-red-300 dark:border-red-700 dark:hover:bg-red-800/50"
+            >
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuova Uscita
             </Button>
@@ -198,7 +203,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Entrate Totali (Mese)</CardTitle>
-            <DollarSign className="h-5 w-5 text-muted-foreground" />
+            <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">€12,345</div>
@@ -208,7 +213,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Uscite Totali (Mese)</CardTitle>
-            <TrendingDown className="h-5 w-5 text-muted-foreground" />
+            <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">€8,765</div>
@@ -218,11 +223,17 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saldo Attuale</CardTitle>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            {currentBalance >= 0 ? (
+              <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
+            ) : (
+              <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€3,580</div>
-            <p className="text-xs text-muted-foreground">Bilancio positivo</p>
+            <div className="text-3xl font-bold">€{currentBalance.toLocaleString('it-IT')}</div>
+            <p className="text-xs text-muted-foreground">
+              {currentBalance >=0 ? "Bilancio positivo" : "Bilancio negativo"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -306,7 +317,6 @@ export default function DashboardPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            {/* Qui andrebbe la lista delle transazioni filtrate */}
             <p className="text-sm text-muted-foreground">
               Nessuna transazione da mostrare per questa categoria (placeholder).
             </p>
@@ -316,3 +326,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
