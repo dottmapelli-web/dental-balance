@@ -20,35 +20,23 @@ import TransactionModal, { type TransactionFormData } from '@/components/transac
 import { useToast } from '@/hooks/use-toast';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 200 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo" data-ai-hint="dental clinic logo">
+  <svg viewBox="0 0 140 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo" data-ai-hint="clinic logo vertical">
     <defs>
       <style>
         {`
           .logo-text { font-family: 'Literata', 'Georgia', serif; }
           .logo-text-main { fill: hsl(var(--sidebar-foreground)); }
           .logo-text-amp { fill: hsl(var(--sidebar-primary)); }
-          .tooth-shape { fill: hsl(var(--sidebar-foreground)); }
-          .tooth-accent-line { stroke: hsl(var(--sidebar-primary)); stroke-width:3.5; fill:none; }
-          .divider-line { stroke: hsl(var(--sidebar-border)); stroke-width:1.5; }
+          .divider-line { stroke: hsl(var(--sidebar-foreground)); stroke-width:1.5; }
         `}
       </style>
     </defs>
 
-    {/* Dente stilizzato */}
-    <g transform="translate(0,2) scale(0.85)">
-      <path className="tooth-accent-line" d="M28 10 C18 10, 12 18, 18 30 C12 40, 15 55, 28 58" />
-      <path className="tooth-shape" d="M28 10 C40 5, 55 7, 62 15 C72 25, 70 45, 62 58 C50 63, 38 63, 28 58 C15 55, 12 40, 18 30 C12 18, 18 10, 28 10 Z" />
-      <path className="tooth-shape" d="M38 26 Q46 22 54 27" strokeWidth="2.5" />
-      <path className="tooth-shape" d="M35 38 Q46 46 57 37" strokeWidth="2.5" />
-    </g>
-    
-    {/* Linea verticale */}
-    <line className="divider-line" x1="78" y1="8" x2="78" y2="62" />
+    <line className="divider-line" x1="15" y1="8" x2="15" y2="62" />
 
-    {/* Testo */}
-    <text x="90" y="26" fontSize="17" fontWeight="medium" className="logo-text logo-text-main">De Vecchi</text>
-    <text x="90" y="44" fontSize="15" fontWeight="bold" className="logo-text logo-text-amp">&</text>
-    <text x="90" y="61" fontSize="17" fontWeight="medium" className="logo-text logo-text-main">Mapelli</text>
+    <text x="30" y="26" fontSize="17" fontWeight="500" className="logo-text logo-text-main">De Vecchi</text>
+    <text x="30" y="44" fontSize="15" fontWeight="700" className="logo-text logo-text-amp">&</text>
+    <text x="30" y="61" fontSize="17" fontWeight="500" className="logo-text logo-text-main">Mapelli</text>
   </svg>
 );
 
