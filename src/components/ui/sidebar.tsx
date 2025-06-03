@@ -524,12 +524,17 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
+interface SidebarMenuButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof sidebarMenuButtonVariants> {
+  isActive?: boolean;
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  asChild?: boolean; // Explicitly define asChild
+}
+
 const SidebarMenuButton = React.forwardRef<
-  HTMLElement,
-  React.HTMLAttributes<HTMLElement> & {
-    isActive?: boolean;
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>;
-  } & VariantProps<typeof sidebarMenuButtonVariants>
+  HTMLButtonElement,
+  SidebarMenuButtonProps
 >(
   (
     {
@@ -539,14 +544,12 @@ const SidebarMenuButton = React.forwardRef<
       tooltip,
       className,
       children,
-      ...otherProps // Renamed to avoid conflict and capture all other props
+      asChild, // Destructure asChild from props
+      ...rest // 'rest' contains all other props, excluding asChild
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
-
-    // Check if asChild is passed from the parent (e.g., Link)
-    const { asChild, ...restProps } = otherProps as any;
     const Comp = asChild ? Slot : "button";
 
     const buttonElement = (
@@ -556,7 +559,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...restProps} // Pass the remaining props, excluding asChild
+        {...rest} // Spread 'rest', which does not include 'asChild'
       >
         {children}
       </Comp>
@@ -750,3 +753,4 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
