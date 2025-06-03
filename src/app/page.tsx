@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, ArrowRight, PlusCircle, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Upload, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -12,7 +12,8 @@ import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-l
 import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
-import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+// TransactionModal is now managed by AppShell
+// import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal'; 
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -154,31 +155,21 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
 export default function DashboardPage() {
   const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
-  const [isTransactionModalOpen, setTransactionModalOpen] = useState(false);
-  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
+  // TransactionModal state and handlers are now in AppShell
   const { toast } = useToast();
 
-
-  const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
-    setTransactionTypeForModal(type);
-    setTransactionModalOpen(true);
-  };
-
-  const handleTransactionSubmit = (data: TransactionFormData) => {
-    console.log("Dashboard transaction submitted (simulated):", data);
+  const handleImportData = () => {
     toast({
-      title: "Transazione Aggiunta (Simulato dalla Dashboard)",
-      description: `Aggiunta ${data.type}: ${data.description} - €${data.amount.toFixed(2)}`,
+        title: "Importa Dati",
+        description: "La funzionalità di importazione dati non è ancora implementata.",
     });
   };
 
-  const handleGenerateReport = () => {
-    toast({
-        title: "Funzionalità Report",
-        description: "La generazione di report PDF/stampa è in fase di sviluppo.",
-        variant: "default",
+  const handleExportData = () => {
+     toast({
+        title: "Esporta Dati",
+        description: "La funzionalità di esportazione dati non è ancora implementata.",
     });
-    console.log("Genera Report");
   };
 
   const handlePieSliceClick = (sliceData: any) => {
@@ -195,23 +186,13 @@ export default function DashboardPage() {
         description="Panoramica finanziaria dello Studio De Vecchi & Mapelli."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button 
-              onClick={() => handleNewTransaction('Entrata')}
-              className="px-3 bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 dark:bg-green-800/30 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-800/50"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nuova Entrata
+            <Button onClick={handleImportData} variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Importa
             </Button>
-            <Button 
-              onClick={() => handleNewTransaction('Uscita')}
-              className="px-3 bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 dark:bg-red-800/30 dark:text-red-300 dark:border-red-700 dark:hover:bg-red-800/50"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nuova Uscita
-            </Button>
-            <Button onClick={handleGenerateReport}>
-              <FileText className="mr-2 h-4 w-4" />
-              Report
+            <Button onClick={handleExportData} variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Esporta
             </Button>
           </div>
         }
@@ -347,13 +328,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <TransactionModal
-        isOpen={isTransactionModalOpen}
-        onOpenChange={setTransactionModalOpen}
-        transactionTypeInitial={transactionTypeForModal}
-        onSubmitSuccess={handleTransactionSubmit}
-      />
+      {/* TransactionModal is now rendered in AppShell */}
     </>
   );
 }
-    

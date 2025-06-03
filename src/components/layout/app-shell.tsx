@@ -1,11 +1,10 @@
 
 "use client";
 
-import React from 'react';
-import { UserCircle, PanelLeft } from 'lucide-react'; 
+import React, { useState } from 'react';
+import { UserCircle, PlusCircle, FileText } from 'lucide-react'; 
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
-// import { Toaster } from '@/components/ui/toaster'; // Toaster is already in RootLayout
 import {
   SidebarProvider,
   Sidebar,
@@ -17,6 +16,8 @@ import {
 } from '@/components/ui/sidebar';
 import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { cn } from '@/lib/utils';
+import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+import { useToast } from '@/hooks/use-toast';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg" className={cn("fill-none", className)} aria-label="Studio De Vecchi & Mapelli Logo Icon" data-ai-hint="tooth dental">
@@ -40,29 +41,47 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children }: AppShellProps) {
+  const [isTransactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
+  const { toast } = useToast();
+
+  const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
+    setTransactionTypeForModal(type);
+    setTransactionModalOpen(true);
+  };
+
+  const handleTransactionSubmit = (data: TransactionFormData) => {
+    // In AppShell, this will likely just show a toast.
+    // The actual data handling will be done via Firestore or a global state later.
+    console.log("AppShell transaction submitted (simulated):", data);
+    toast({
+      title: "Transazione Aggiunta (Simulato)",
+      description: `Aggiunta ${data.type}: ${data.description} - €${data.amount.toFixed(2)}`,
+    });
+    // setTransactionModalOpen(false); // Modal handles its own closing via onOpenChange
+  };
+
+  const handleGenerateReport = () => {
+    toast({
+        title: "Funzionalità Report",
+        description: "La generazione di report PDF/stampa è in fase di sviluppo.",
+        variant: "default",
+    });
+    console.log("Genera Report");
+  };
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="sidebar" collapsible="icon" className="border-r">
         <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
-          {/* Content for expanded sidebar */}
           <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
             <div className="flex items-center gap-2">
               <BrandLogoIcon className="h-8 w-8 text-sidebar-primary flex-shrink-0" />
-              <div className="flex flex-col">
-                <span className="font-headline text-md font-semibold text-sidebar-foreground leading-tight">
-                  Dental Balance
-                </span>
-                <span className="text-xs text-sidebar-foreground/80 leading-tight">
-                  Studio De Vecchi &amp; Mapelli
-                </span>
-              </div>
             </div>
-            <SidebarTrigger className="md:flex" /> {/* Desktop trigger for expanded state */}
+            <SidebarTrigger className="md:flex" />
           </div>
-
-          {/* Content for collapsed sidebar (only trigger, centered) */}
           <div className="hidden group-data-[collapsible=icon]:flex justify-center items-center h-full">
-             <SidebarTrigger className="md:flex" /> {/* Desktop trigger for collapsed state */}
+             <SidebarTrigger className="md:flex" />
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -75,23 +94,56 @@ export default function AppShell({ children }: AppShellProps) {
         )}
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-x-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6 print:hidden">
-          {/* Mobile Sidebar Trigger - keep on left for mobile */}
-          <SidebarTrigger className="md:hidden -ml-2" />
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-x-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 print:hidden">
+          <SidebarTrigger className="md:hidden -ml-2" /> {/* Mobile Sidebar Trigger */}
+          
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-foreground">Studio De Vecchi & Mapelli</h1>
+            <p className="text-xs text-muted-foreground">Dental Balance</p>
+          </div>
 
           <div className="flex-1" /> {/* Spacer */}
 
-          {/* User Profile */}
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <UserCircle className="h-6 w-6" />
-            <span className="sr-only">Profilo Utente</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => handleNewTransaction('Entrata')}
+              variant="outline"
+              size="sm"
+              className="px-3 bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 dark:bg-green-800/30 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-800/50"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuova Entrata
+            </Button>
+            <Button 
+              onClick={() => handleNewTransaction('Uscita')}
+              variant="outline"
+              size="sm"
+              className="px-3 bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 dark:bg-red-800/30 dark:text-red-300 dark:border-red-700 dark:hover:bg-red-800/50"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuova Uscita
+            </Button>
+            <Button onClick={handleGenerateReport} variant="outline" size="sm">
+              <FileText className="mr-2 h-4 w-4" />
+              Report
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <UserCircle className="h-6 w-6" />
+              <span className="sr-only">Profilo Utente</span>
+            </Button>
+          </div>
         </header>
         <main className="flex-1 overflow-auto p-4 sm:p-6">
           {children}
         </main>
       </SidebarInset>
-      {/* Toaster is now in RootLayout to avoid multiple instances */}
+      
+      <TransactionModal
+        isOpen={isTransactionModalOpen}
+        onOpenChange={setTransactionModalOpen}
+        transactionTypeInitial={transactionTypeForModal}
+        onSubmitSuccess={handleTransactionSubmit}
+      />
     </SidebarProvider>
   );
 }
