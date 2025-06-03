@@ -223,7 +223,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€12,345</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€12,345</div>
             <p className="text-xs text-muted-foreground">+5.2% rispetto al mese scorso</p>
           </CardContent>
         </Card>
@@ -233,7 +233,7 @@ export default function DashboardPage() {
             <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€8,765</div>
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€8,765</div>
             <p className="text-xs text-muted-foreground">-1.8% rispetto al mese scorso</p>
           </CardContent>
         </Card>
@@ -247,7 +247,9 @@ export default function DashboardPage() {
             )}
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€{currentBalance.toLocaleString('it-IT')}</div>
+            <div className={`text-3xl font-bold ${currentBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              €{currentBalance.toLocaleString('it-IT')}
+            </div>
             <p className="text-xs text-muted-foreground">
               {currentBalance >=0 ? "Bilancio positivo" : "Bilancio negativo"}
             </p>
