@@ -40,7 +40,7 @@ export default function AnnualSummaryPage() {
   return (
     <>
       <PageHeader
-        title="Riepilogo Annuale"
+        title="Report Annuale"
         description="Analisi storica delle performance finanziarie dello studio."
         actions={
           <Select value={currentYear} onValueChange={setCurrentYear}>
@@ -108,7 +108,7 @@ export default function AnnualSummaryPage() {
           </ChartContainer>
         </CardContent>
       </Card>
-      
+
       <Card>
         <CardHeader>
           <CardTitle className="font-headline">Andamento Profitto Netto Mensile - {currentYear}</CardTitle>
@@ -117,7 +117,7 @@ export default function AnnualSummaryPage() {
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[300px] w-full">
              <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart 
+                <RechartsLineChart
                   data={displayedAnnualData.map(d => ({ ...d, profit: d.income - d.expenses }))}
                   margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                 >

@@ -32,23 +32,23 @@ export const siteConfig: SiteConfig = {
       icon: ArrowRightLeft,
     },
     {
-      title: "Riepilogo Mensile",
+      title: "Report Mensile",
       href: "/monthly-summary",
       icon: CalendarDays,
     },
     {
-      title: "Riepilogo Annuale",
+      title: "Report Annuale",
       href: "/annual-summary",
       icon: BarChart3,
     },
     {
-      title: "Budget e Obiettivi",
+      title: "Budget & Obiettivi",
       href: "/budget-objectives",
       icon: Goal,
     },
   ],
   // Example for items at the bottom of the sidebar
-  // subHeaderNavItems: [ 
+  // subHeaderNavItems: [
   //   {
   //     title: "Impostazioni",
   //     href: "/settings",
@@ -56,5 +56,3 @@ export const siteConfig: SiteConfig = {
   //   }
   // ]
 };
-
-    

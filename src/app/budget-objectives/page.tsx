@@ -25,7 +25,7 @@ export default function BudgetObjectivesPage() {
   return (
     <>
       <PageHeader
-        title="Budget e Obiettivi"
+        title="Budget & Obiettivi"
         description="Imposta e monitora i budget di spesa e gli obiettivi finanziari dello studio."
         actions={
           <Button>
@@ -114,5 +114,3 @@ export default function BudgetObjectivesPage() {
     </>
   );
 }
-
-    

@@ -54,7 +54,7 @@ export default function MonthlySummaryPage() {
   return (
     <>
       <PageHeader
-        title="Riepilogo Mensile"
+        title="Report Mensile"
         description="Analizza i dati finanziari mensili e identifica anomalie con l'aiuto dell'IA."
       />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -157,12 +157,12 @@ export default function MonthlySummaryPage() {
                   {analysisResult.isConsistent ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                   <AlertTitle>{analysisResult.isConsistent ? "Bilancio Coerente" : "Incoerenze Rilevate"}</AlertTitle>
                   <AlertDescription>
-                    {analysisResult.isConsistent 
-                      ? "Il bilancio di questo mese sembra coerente con i dati forniti e/o i periodi precedenti." 
+                    {analysisResult.isConsistent
+                      ? "Il bilancio di questo mese sembra coerente con i dati forniti e/o i periodi precedenti."
                       : "Sono state rilevate potenziali incoerenze o discrepanze nel bilancio di questo mese."}
                   </AlertDescription>
                 </Alert>
-                
+
                 <Separator className="my-4" />
 
                 <h3 className="text-lg font-semibold mb-2">Dettaglio Anomalie:</h3>
@@ -188,5 +188,3 @@ export default function MonthlySummaryPage() {
     </>
   );
 }
-
-    
