@@ -20,7 +20,7 @@ import TransactionModal, { type TransactionFormData } from '@/components/transac
 import { useToast } from '@/hooks/use-toast';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 140 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo" data-ai-hint="clinic logo vertical">
+  <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
     <defs>
       <style>
         {`
@@ -28,15 +28,21 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
           .logo-text-main { fill: hsl(var(--sidebar-foreground)); }
           .logo-text-amp { fill: hsl(var(--sidebar-primary)); }
           .divider-line { stroke: hsl(var(--sidebar-foreground)); stroke-width:1.5; }
+          .tooth-icon { fill: hsl(var(--sidebar-primary)); }
         `}
       </style>
     </defs>
 
-    <line className="divider-line" x1="15" y1="8" x2="15" y2="62" />
+    {/* Stylized Tooth Icon */}
+    <g transform="translate(10, 22.5)" className="tooth-icon">
+      <path d="M3,2 C6,2 7,0 10,0 C13,0 14,2 17,2 C20,2 20,6 20,6 L20,15 C20,18 18,20 15,20 L13,20 L13,23 L11,25 L9,25 L7,23 L7,20 L5,20 C2,20 0,18 0,15 L0,6 C0,6 0,2 3,2 Z" />
+    </g>
 
-    <text x="30" y="26" fontSize="17" fontWeight="500" className="logo-text logo-text-main">De Vecchi</text>
-    <text x="30" y="44" fontSize="15" fontWeight="700" className="logo-text logo-text-amp">&</text>
-    <text x="30" y="61" fontSize="17" fontWeight="500" className="logo-text logo-text-main">Mapelli</text>
+    <line className="divider-line" x1="45" y1="8" x2="45" y2="62" />
+
+    <text x="60" y="26" fontSize="17" fontWeight="500" className="logo-text logo-text-main">De Vecchi</text>
+    <text x="60" y="44" fontSize="15" fontWeight="700" className="logo-text logo-text-amp">&</text>
+    <text x="60" y="61" fontSize="17" fontWeight="500" className="logo-text logo-text-main">Mapelli</text>
   </svg>
 );
 
