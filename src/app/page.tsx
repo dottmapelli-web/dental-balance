@@ -45,13 +45,13 @@ interface ExpenseCategoryDisplayData {
 
 const initialExpenseCategoriesDisplayData: ExpenseCategoryDisplayData[] = (Object.keys(expenseCategoryConfig) as Array<keyof typeof expenseCategoryConfig>).map((categoryKey, index) => {
     const colors = [
-      { pieFill: "hsl(var(--chart-4))", bgColor: "bg-purple-100 dark:bg-purple-900/30", textColor: "text-purple-700 dark:text-purple-300", borderColor: "border-purple-300 dark:border-purple-700" },
-      { pieFill: "hsl(var(--chart-1))", bgColor: "bg-green-100 dark:bg-green-900/30", textColor: "text-green-700 dark:text-green-300", borderColor: "border-green-300 dark:border-green-700" },
-      { pieFill: "hsl(var(--chart-5))", bgColor: "bg-pink-100 dark:bg-pink-900/30", textColor: "text-pink-700 dark:text-pink-300", borderColor: "border-pink-300 dark:border-pink-700" },
-      { pieFill: "hsl(50 75% 70%)", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", textColor: "text-yellow-700 dark:text-yellow-300", borderColor: "border-yellow-300 dark:border-yellow-700" },
-      { pieFill: "hsl(var(--chart-2))", bgColor: "bg-red-100 dark:bg-red-900/30", textColor: "text-red-700 dark:text-red-300", borderColor: "border-red-300 dark:border-red-700" },
-      { pieFill: "hsl(var(--chart-3))", bgColor: "bg-blue-100 dark:bg-blue-900/30", textColor: "text-blue-700 dark:text-blue-300", borderColor: "border-blue-300 dark:border-blue-700" },
-      { pieFill: "hsl(30 80% 70%)", bgColor: "bg-orange-100 dark:bg-orange-900/30", textColor: "text-orange-700 dark:text-orange-300", borderColor: "border-orange-300 dark:border-orange-700" },
+      { pieFill: "hsl(260 70% 75%)", bgColor: "bg-purple-100 dark:bg-purple-900/30", textColor: "text-purple-700 dark:text-purple-300", borderColor: "border-purple-300 dark:border-purple-700" },
+      { pieFill: "hsl(150 60% 70%)", bgColor: "bg-green-100 dark:bg-green-900/30", textColor: "text-green-700 dark:text-green-300", borderColor: "border-green-300 dark:border-green-700" },
+      { pieFill: "hsl(340 80% 75%)", bgColor: "bg-pink-100 dark:bg-pink-900/30", textColor: "text-pink-700 dark:text-pink-300", borderColor: "border-pink-300 dark:border-pink-700" },
+      { pieFill: "hsl(50 80% 70%)", bgColor: "bg-yellow-100 dark:bg-yellow-900/30", textColor: "text-yellow-700 dark:text-yellow-300", borderColor: "border-yellow-300 dark:border-yellow-700" },
+      { pieFill: "hsl(0 75% 72%)", bgColor: "bg-red-100 dark:bg-red-900/30", textColor: "text-red-700 dark:text-red-300", borderColor: "border-red-300 dark:border-red-700" },
+      { pieFill: "hsl(200 75% 70%)", bgColor: "bg-blue-100 dark:bg-blue-900/30", textColor: "text-blue-700 dark:text-blue-300", borderColor: "border-blue-300 dark:border-blue-700" },
+      { pieFill: "hsl(20 80% 72%)", bgColor: "bg-orange-100 dark:bg-orange-900/30", textColor: "text-orange-700 dark:text-orange-300", borderColor: "border-orange-300 dark:border-orange-700" },
     ];
     const color = colors[index % colors.length];
     return {
@@ -324,7 +324,7 @@ export default function DashboardPage() {
         }
       />
 
-      <Card className="mb-6 bg-primary text-primary-foreground p-4 rounded-lg shadow-xl">
+      <Card className="mb-6 bg-primary text-primary-foreground p-2 rounded-lg shadow-xl">
         <div className="flex justify-between items-start">
           <div>
             <h2 className="text-lg font-semibold">Saldo Attuale Studio</h2>
