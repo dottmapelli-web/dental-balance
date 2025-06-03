@@ -20,21 +20,38 @@ import TransactionModal, { type TransactionFormData } from '@/components/transac
 import { useToast } from '@/hooks/use-toast';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg" className={cn("fill-none", className)} aria-label="Studio De Vecchi & Mapelli Logo Icon" data-ai-hint="tooth dental">
-   <defs>
-    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style={{stopColor: 'hsl(var(--sidebar-primary-foreground))', stopOpacity: 0.7}} />
-      <stop offset="100%" style={{stopColor: 'hsl(var(--sidebar-primary))', stopOpacity: 1}} />
-    </linearGradient>
-  </defs>
-  <g>
-    <path d="M35.2,63.5 C31.5,63.5 28.5,60.7 28.5,57.3 C28.5,53.9 31.5,51.1 35.2,51.1 C38.9,51.1 41.9,53.9 41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5 M35.2,45 C26.3,45 19.2,51.6 19.2,59.7 C19.2,69.5 28.8,79.5 30.1,81.2 C30.9,82.3 32.9,85 35.2,85 C37.5,85 39.5,82.3 40.3,81.2 C41.6,79.5 51.2,69.5 51.2,59.7 C51.2,51.6 44.1,45 35.2,45"
-        strokeWidth="5" stroke="currentColor" fill="hsl(var(--sidebar-background))" />
-    <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="5" stroke="url(#goldGradient)" />
-    <path d="M28.5,57.3 C28.5,60.7 31.5,63.5 35.2,63.5 M41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5" strokeWidth="4" stroke="currentColor" />
-  </g>
-</svg>
+  <svg viewBox="0 0 200 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo" data-ai-hint="dental clinic logo">
+    <defs>
+      <style>
+        {`
+          .logo-text { font-family: 'Literata', 'Georgia', serif; }
+          .logo-text-main { fill: hsl(var(--sidebar-foreground)); }
+          .logo-text-amp { fill: hsl(var(--sidebar-primary)); }
+          .tooth-shape { fill: hsl(var(--sidebar-foreground)); }
+          .tooth-accent-line { stroke: hsl(var(--sidebar-primary)); stroke-width:3.5; fill:none; }
+          .divider-line { stroke: hsl(var(--sidebar-border)); stroke-width:1.5; }
+        `}
+      </style>
+    </defs>
+
+    {/* Dente stilizzato */}
+    <g transform="translate(0,2) scale(0.85)">
+      <path className="tooth-accent-line" d="M28 10 C18 10, 12 18, 18 30 C12 40, 15 55, 28 58" />
+      <path className="tooth-shape" d="M28 10 C40 5, 55 7, 62 15 C72 25, 70 45, 62 58 C50 63, 38 63, 28 58 C15 55, 12 40, 18 30 C12 18, 18 10, 28 10 Z" />
+      <path className="tooth-shape" d="M38 26 Q46 22 54 27" strokeWidth="2.5" />
+      <path className="tooth-shape" d="M35 38 Q46 46 57 37" strokeWidth="2.5" />
+    </g>
+    
+    {/* Linea verticale */}
+    <line className="divider-line" x1="78" y1="8" x2="78" y2="62" />
+
+    {/* Testo */}
+    <text x="90" y="26" fontSize="17" fontWeight="medium" className="logo-text logo-text-main">De Vecchi</text>
+    <text x="90" y="44" fontSize="15" fontWeight="bold" className="logo-text logo-text-amp">&</text>
+    <text x="90" y="61" fontSize="17" fontWeight="medium" className="logo-text logo-text-main">Mapelli</text>
+  </svg>
 );
+
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -76,7 +93,7 @@ export default function AppShell({ children }: AppShellProps) {
         <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
           <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
             <div className="flex items-center gap-2">
-              <BrandLogoIcon className="h-8 w-8 text-sidebar-primary flex-shrink-0" />
+              <BrandLogoIcon className="h-10 w-auto flex-shrink-0" />
             </div>
             <SidebarTrigger className="md:flex" />
           </div>

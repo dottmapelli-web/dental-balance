@@ -22,8 +22,8 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "10.5rem" // Ridotto da 16rem
-const SIDEBAR_WIDTH_MOBILE = "12rem" // Ridotto da 18rem
+const SIDEBAR_WIDTH = "12.5rem" // Modificato da 10.5rem
+const SIDEBAR_WIDTH_MOBILE = "14rem" // Modificato da 12rem
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -544,8 +544,8 @@ const SidebarMenuButton = React.forwardRef<
       tooltip,
       className,
       children,
-      asChild: isAsChild = false,
-      ...otherProps
+      asChild: isAsChild = false, // Renamed and default to false
+      ...otherProps // Contains all other props including those from Link
     },
     ref
   ) => {
