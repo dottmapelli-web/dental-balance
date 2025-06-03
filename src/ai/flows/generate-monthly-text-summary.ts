@@ -31,8 +31,6 @@ export async function generateMonthlyTextSummary(input: GenerateMonthlyTextSumma
 
 // Helper function to format transactions for the prompt
 const formatTransactionsForPrompt = (transactions: Transaction[]): string => {
-  // Questa funzione non dovrebbe essere chiamata se transactions è vuoto,
-  // ma per sicurezza, la manteniamo così.
   if (transactions.length === 0) {
     return "Nessuna transazione registrata per questo periodo.";
   }
@@ -83,12 +81,23 @@ const generateMonthlyTextSummaryFlow = ai.defineFlow(
 
     const formattedTransactions = formatTransactionsForPrompt(monthlyTransactions);
 
-    const { output } = await prompt({ month, year, formattedTransactions, monthName });
+    try {
+      const response = await prompt({ month, year, formattedTransactions, monthName });
     
-    if (!output || !output.summaryText) {
-        // Fallback se AI fallisce a generare o l'output non è conforme
-        return { summaryText: `Riepilogo per ${monthName} ${year}:\n${formattedTransactions}\n\n(Riepilogo generato automaticamente basato sui dati grezzi. L'analisi AI potrebbe non essere stata completata correttamente. Si prega di rivedere.)`};
+      if (response && response.output && typeof response.output.summaryText === 'string') {
+        return response.output;
+      } else {
+        console.error('AI output is not in the expected format or missing summaryText. Response:', response);
+        const outputDetails = response && response.output ? JSON.stringify(response.output) : 'Nessun output ricevuto.';
+        return { 
+          summaryText: `Impossibile generare il riepilogo AI per ${monthName} ${year}. L'output del modello non era nel formato previsto o il campo summaryText era mancante. Dettagli output: ${outputDetails}\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+        };
+      }
+    } catch (flowError: any) {
+        console.error('Error during AI prompt execution in generateMonthlyTextSummaryFlow:', flowError);
+        return { 
+          summaryText: `Errore durante la generazione del riepilogo AI per ${monthName} ${year}: ${flowError.message || 'Errore sconosciuto durante l\'esecuzione del prompt.'}.\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+        };
     }
-    return output;
   }
 );
