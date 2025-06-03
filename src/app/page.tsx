@@ -1,11 +1,12 @@
 
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
+import Link from "next/link";
 
 const chartData = [
   { month: "Gen", income: 4000, expenses: 2400 },
@@ -32,6 +33,108 @@ const barChartConfig = {
 const lineChartConfig = {
   cashflow: { label: "Flusso di Cassa", color: "hsl(var(--chart-1))" },
 };
+
+// Mock data for expense categories, inspired by the reference image
+const expenseCategoriesData = [
+  {
+    title: "Spese Fisse",
+    itemCount: 8,
+    items: [
+      { name: "Affitto", amount: 1800.00 },
+      { name: "Luce", amount: 320.50 },
+      { name: "Spese condominiali", amount: 250.00 },
+    ],
+    bgColor: "bg-purple-100 dark:bg-purple-900/30",
+    textColor: "text-purple-700 dark:text-purple-300",
+    borderColor: "border-purple-300 dark:border-purple-700",
+  },
+  {
+    title: "Materiali",
+    itemCount: 9,
+    items: [
+      { name: "Materiale Impianti", amount: 2150.00 },
+      { name: "Materiale Conservativa", amount: 780.25 },
+      { name: "Materiale Chirurgia", amount: 650.00 },
+    ],
+    bgColor: "bg-green-100 dark:bg-green-900/30",
+    textColor: "text-green-700 dark:text-green-300",
+    borderColor: "border-green-300 dark:border-green-700",
+  },
+  {
+    title: "Personale",
+    itemCount: 11,
+    items: [
+      { name: "Stipendio Ilaria", amount: 1400.00 },
+      { name: "Stipendio Daniela", amount: 1350.00 },
+      { name: "Compenso Dr. Mapelli", amount: 2800.00 },
+    ],
+    bgColor: "bg-pink-100 dark:bg-pink-900/30",
+    textColor: "text-pink-700 dark:text-pink-300",
+    borderColor: "border-pink-300 dark:border-pink-700",
+  },
+  {
+    title: "Servizi Esterni",
+    itemCount: 6,
+    items: [
+      { name: "Lab. Baisotti", amount: 1250.00 },
+      { name: "Lab. Ennevi (Orto)", amount: 980.00 },
+      { name: "Commercialista", amount: 350.00 },
+    ],
+    bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+    textColor: "text-yellow-700 dark:text-yellow-300",
+    borderColor: "border-yellow-300 dark:border-yellow-700",
+  },
+   {
+    title: "Altre Spese",
+    itemCount: 5,
+    items: [
+      { name: "Tasse", amount: 3200.00 },
+      { name: "Marche da Bollo / Banca", amount: 120.00 },
+      { name: "Regali", amount: 180.00 },
+    ],
+    bgColor: "bg-red-100 dark:bg-red-900/30",
+    textColor: "text-red-700 dark:text-red-300",
+    borderColor: "border-red-300 dark:border-red-700",
+  },
+];
+
+interface ExpenseCategoryCardProps {
+  title: string;
+  itemCount: number;
+  items: Array<{ name: string; amount: number }>;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+}
+
+const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCount, items, bgColor, textColor, borderColor }) => {
+  return (
+    <Card className={`${bgColor} ${borderColor} border shadow-lg hover:shadow-xl transition-shadow`}>
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-center">
+          <CardTitle className={`text-xl font-headline ${textColor}`}>{title}</CardTitle>
+          <Badge variant="secondary" className={`${textColor} ${bgColor === 'bg-red-100 dark:bg-red-900/30' ? 'bg-red-200 dark:bg-red-700' : bgColor === 'bg-yellow-100 dark:bg-yellow-900/30' ? 'bg-yellow-200 dark:bg-yellow-700' : bgColor === 'bg-pink-100 dark:bg-pink-900/30' ? 'bg-pink-200 dark:bg-pink-700' : bgColor === 'bg-green-100 dark:bg-green-900/30' ? 'bg-green-200 dark:bg-green-700' : 'bg-purple-200 dark:bg-purple-700'} border-none`}>
+            {itemCount} voci
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <ul className="space-y-1.5 text-sm">
+          {items.map((item, index) => (
+            <li key={index} className="flex justify-between items-center">
+              <span className="text-muted-foreground">{item.name}</span>
+              <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </li>
+          ))}
+        </ul>
+        <Link href="/transactions" className={`mt-4 inline-flex items-center text-sm font-medium ${textColor} hover:underline`}>
+          Vedi tutte <ArrowRight className="ml-1 h-4 w-4" />
+        </Link>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 export default function DashboardPage() {
   return (
@@ -73,7 +176,16 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 mt-6 md:grid-cols-2">
+      <div className="mt-8">
+        <h2 className="text-2xl font-headline font-semibold mb-4 text-gray-700 dark:text-gray-300">Categorie di Uscite</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {expenseCategoriesData.map((category) => (
+            <ExpenseCategoryCard key={category.title} {...category} />
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 mt-8 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite Mensili</CardTitle>

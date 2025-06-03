@@ -9,17 +9,17 @@ body {
 
 @layer base {
   :root {
-    --background: 210 30% 97%; /* Very Light Cool Gray */
-    --foreground: 220 30% 20%; /* Dark Cool Gray */
+    --background: 220 60% 97%; /* Very Light Cool Blue-Gray */
+    --foreground: 220 15% 25%; /* Dark Cool Gray */
 
     --card: 0 0% 100%; /* White */
-    --card-foreground: 220 30% 20%; /* Dark Cool Gray */
+    --card-foreground: 220 15% 25%; /* Dark Cool Gray */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 220 30% 20%; /* Dark Cool Gray */
+    --popover-foreground: 220 15% 25%; /* Dark Cool Gray */
 
-    --primary: 30 59% 65%; /* Brand Gold #D4A276 */
-    --primary-foreground: 220 30% 15%; /* Dark Blue for contrast on Gold */
+    --primary: 214 80% 50%; /* Vibrant Blue */
+    --primary-foreground: 0 0% 100%; /* White */
 
     --secondary: 210 30% 90%; /* Lighter Cool Gray */
     --secondary-foreground: 220 30% 25%; /* Darker Cool Gray */
@@ -27,37 +27,24 @@ body {
     --muted: 210 30% 94%; /* Light Cool Gray for subtle backgrounds/text */
     --muted-foreground: 210 30% 50%; /* Grayish Cool, less prominent text */
 
-    --accent: 210 70% 55%; /* Steel Blue */
-    --accent-foreground: 0 0% 98%; /* Almost White for contrast on Steel Blue */
+    --accent: 200 80% 55%; /* Slightly lighter, more cyan blue */
+    --accent-foreground: 0 0% 100%; /* White for contrast */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 210 20% 88%; /* Light Gray */
     --input: 210 20% 92%; /* Slightly darker light gray for inputs */
-    --ring: 30 59% 55%; /* Darker Brand Gold for focus rings */
+    --ring: 214 80% 45%; /* Darker Vibrant Blue for focus rings */
     
     --radius: 0.5rem;
 
-    /* Chart Colors - Aligned with new theme */
-    --chart-1: 30 59% 65%;   /* Brand Gold */
-    --chart-2: 210 70% 55%;  /* Steel Blue (Accent) */
-    --chart-3: 180 50% 60%;  /* A Teal/Cyan */
-    --chart-4: 340 70% 65%;  /* A Soft Coral/Pink */
-    --chart-5: 260 60% 70%;  /* A Lavender */
-    
-    /* Sidebar specific theme variables */
-    --sidebar-background: 220 30% 20%; /* Dark Blue */
-    --sidebar-foreground: 210 20% 88%; /* Light Gray for text */
-    
-    --sidebar-primary: 30 59% 70%; /* Slightly Lighter Brand Gold for prominent icons/elements in sidebar */
-    --sidebar-primary-foreground: 0 0% 98%; /* Almost White for text on sidebar primary */
-    
-    --sidebar-accent: 30 59% 65%; /* Brand Gold for active/hover nav item background */
-    --sidebar-accent-foreground: 220 30% 15%; /* Dark Blue/Black for text on gold accent background */
-        
-    --sidebar-border: 220 30% 30%; /* Slightly Lighter Dark Blue for borders within sidebar */
-    --sidebar-ring: 30 59% 55%; /* Darker Brand Gold for focus rings in sidebar */
+    /* Chart Colors - General Palette */
+    --chart-1: 214 80% 50%;   /* Primary Blue */
+    --chart-2: 30 80% 60%;    /* Orange/Coral Accent */
+    --chart-3: 150 60% 50%;   /* Teal/Green Accent */
+    --chart-4: 260 70% 65%;   /* Purple Accent */
+    --chart-5: 340 80% 70%;   /* Pink Accent */
   }
 
   .dark {
@@ -70,8 +57,8 @@ body {
     --popover: 220 25% 15%;
     --popover-foreground: 210 30% 90%;
 
-    --primary: 30 59% 60%; /* Slightly desaturated Brand Gold for dark mode */
-    --primary-foreground: 220 40% 95%; /* Very Light for contrast */
+    --primary: 214 70% 55%; /* Vibrant Blue (Dark Mode) */
+    --primary-foreground: 0 0% 98%;
 
     --secondary: 220 20% 25%; /* Darker Muted Blue-Gray */
     --secondary-foreground: 210 30% 85%;
@@ -79,7 +66,7 @@ body {
     --muted: 220 20% 20%;
     --muted-foreground: 210 30% 65%;
 
-    --accent: 210 60% 50%; /* Slightly desaturated Steel Blue */
+    --accent: 200 70% 60%; /* Cyan Blue (Dark Mode) */
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 70% 55%;
@@ -87,27 +74,14 @@ body {
 
     --border: 220 20% 30%;
     --input: 220 20% 35%;
-    --ring: 30 59% 50%; /* Darker Gold for rings */
+    --ring: 214 70% 50%; /* Darker Blue for rings */
 
     /* Chart Colors - Dark Mode */
-    --chart-1: 30 59% 60%; 
-    --chart-2: 210 60% 50%;
-    --chart-3: 180 50% 55%;
-    --chart-4: 340 60% 60%;
-    --chart-5: 260 50% 65%;
-
-    /* Sidebar Dark Theme Variables */
-    --sidebar-background: 220 30% 15%; /* Even Darker Blue for sidebar */
-    --sidebar-foreground: 210 20% 85%; /* Light Gray text */
-    
-    --sidebar-primary: 30 59% 65%; /* Brand Gold */
-    --sidebar-primary-foreground: 0 0% 98%;
-    
-    --sidebar-accent: 30 59% 55%; /* Slightly darker Gold for active/hover background */
-    --sidebar-accent-foreground: 220 30% 95%; /* Very light text on gold */
-        
-    --sidebar-border: 220 30% 25%;
-    --sidebar-ring: 30 59% 50%;
+    --chart-1: 214 70% 55%; 
+    --chart-2: 30 70% 65%;
+    --chart-3: 150 50% 55%;
+    --chart-4: 260 60% 70%;
+    --chart-5: 340 70% 75%;
   }
 }
 
