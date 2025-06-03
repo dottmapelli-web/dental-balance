@@ -34,7 +34,6 @@ const lineChartConfig = {
   cashflow: { label: "Flusso di Cassa", color: "hsl(var(--chart-1))" },
 };
 
-// Mock data for expense categories, inspired by the reference image
 const expenseCategoriesData = [
   {
     title: "Spese Fisse",
@@ -135,7 +134,6 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
   );
 };
 
-
 export default function DashboardPage() {
   return (
     <>
@@ -177,7 +175,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="text-2xl font-headline font-semibold mb-4 text-gray-700 dark:text-gray-300">Categorie di Uscite</h2>
+        <h2 className="text-2xl font-headline font-semibold mb-4 text-foreground">Categorie di Uscite</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {expenseCategoriesData.map((category) => (
             <ExpenseCategoryCard key={category.title} {...category} />
