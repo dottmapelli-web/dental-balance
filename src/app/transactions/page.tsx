@@ -97,6 +97,24 @@ const generateYears = () => {
 };
 const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), "MMMM", { locale: it }) }));
 
+// Definisci l'ordine delle colonne e i loro nomi visualizzati
+const columnOrder: Array<keyof Transaction | 'actions'> = ['date', 'type', 'category', 'subcategory', 'amount', 'description', 'status'];
+const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
+  date: 'Data',
+  type: 'Tipo',
+  category: 'Categoria',
+  subcategory: 'Sottocategoria',
+  amount: 'Importo',
+  description: 'Descrizione',
+  status: 'Stato',
+  id: 'ID', // Aggiunto per completezza, anche se non visualizzato come colonna sortable
+  isRecurring: 'Ricorrente',
+  recurrenceDetails: 'Dettagli Ricorrenza',
+  originalRecurringId: 'ID Ricorrenza Originale',
+  actions: 'Azioni', // Placeholder per la colonna Azioni
+};
+
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -421,16 +439,16 @@ export default function TransactionsPage() {
                     aria-label="Seleziona tutte"
                   />
                 </TableHead>
-                {(['date', 'description', 'category', 'subcategory', 'type', 'amount', 'status'] as const).map(key => (
+                {columnOrder.map(key => (
                     <TableHead key={key} onClick={() => handleSort(key as keyof Transaction)} className="cursor-pointer hover:bg-muted/50">
                         <div className="flex items-center">
-                            {key === 'date' ? 'Data' : key === 'description' ? 'Descrizione' : key === 'category' ? 'Categoria' : key === 'subcategory' ? 'Sottocategoria' : key === 'type' ? 'Tipo' : key === 'amount' ? 'Importo' : 'Stato'}
+                            {columnDisplayNames[key as keyof Transaction]}
                             {sortConfig.key === key && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
                             {sortConfig.key !== key && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
                         </div>
                     </TableHead>
                 ))}
-                <TableHead className="text-right">Azioni</TableHead>
+                <TableHead className="text-right">{columnDisplayNames['actions']}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -444,6 +462,20 @@ export default function TransactionsPage() {
                     />
                   </TableCell>
                   <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
+                  <TableCell>
+                    <Badge variant={transaction.type === "Entrata" ? "default" : "destructive"} className={transaction.type === "Entrata" ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 border-green-200 dark:border-green-700" : "bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-300 border-red-200 dark:border-red-700"}>
+                      {transaction.type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{transaction.category}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
+                  </TableCell>
+                   <TableCell className={`text-right font-semibold ${transaction.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    €{transaction.amount.toFixed(2)}
+                  </TableCell>
                   <TableCell className="font-medium flex items-center">
                     {transaction.description}
                     {transaction.isRecurring && !transaction.originalRecurringId && (
@@ -459,20 +491,6 @@ export default function TransactionsPage() {
                       </Tooltip>
                     )}
                     </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{transaction.category}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={transaction.type === "Entrata" ? "default" : "destructive"} className={transaction.type === "Entrata" ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 border-green-200 dark:border-green-700" : "bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-300 border-red-200 dark:border-red-700"}>
-                      {transaction.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className={`text-right font-semibold ${transaction.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{transaction.amount.toFixed(2)}
-                  </TableCell>
                   <TableCell>
                      <Badge
                         variant={transaction.status === "Completato" ? "default" : transaction.status === "In Attesa" ? "secondary" : "outline"}
