@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription here
 import { TrendingUp, TrendingDown, ArrowRight, PlusCircle, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
@@ -11,8 +11,10 @@ import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
 import Link from "next/link";
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useRouter } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog"; // Aliased DialogDescription to avoid conflict if any (though not strictly necessary here)
+import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+import { useToast } from '@/hooks/use-toast';
+
 
 const barChartData = [
   { month: "Gen", income: 4000, expenses: 2400 },
@@ -45,7 +47,7 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(var(--chart-1))",
+    pieFill: "hsl(var(--chart-1))", // Corresponds to --chart-1
   },
   {
     title: "Materiali",
@@ -59,7 +61,7 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(var(--chart-2))",
+    pieFill: "hsl(var(--chart-2))", // Corresponds to --chart-2
   },
   {
     title: "Personale",
@@ -73,7 +75,7 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(var(--chart-3))",
+    pieFill: "hsl(var(--chart-3))", // Corresponds to --chart-3
   },
   {
     title: "Servizi Esterni",
@@ -87,7 +89,7 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(var(--chart-4))",
+    pieFill: "hsl(var(--chart-4))", // Corresponds to --chart-4
   },
    {
     title: "Altre Spese",
@@ -101,7 +103,7 @@ const expenseCategoriesData = [
     bgColor: "bg-red-100 dark:bg-red-900/30",
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(var(--chart-5))",
+    pieFill: "hsl(var(--chart-5))", // Corresponds to --chart-5
   },
 ];
 
@@ -150,17 +152,32 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
 };
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
+  const [isTransactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
+  const { toast } = useToast();
+
 
   const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
-    router.push('/transactions'); 
-    console.log(`Apri modal per nuova ${type.toLowerCase()}`);
+    setTransactionTypeForModal(type);
+    setTransactionModalOpen(true);
+  };
+
+  const handleTransactionSubmit = (data: TransactionFormData) => {
+    console.log("Dashboard transaction submitted (simulated):", data);
+    toast({
+      title: "Transazione Aggiunta (Simulato dalla Dashboard)",
+      description: `Aggiunta ${data.type}: ${data.description} - €${data.amount.toFixed(2)}`,
+    });
   };
 
   const handleGenerateReport = () => {
-    alert("Funzionalità Report in sviluppo!");
+    toast({
+        title: "Funzionalità Report",
+        description: "La generazione di report PDF/stampa è in fase di sviluppo.",
+        variant: "default",
+    });
     console.log("Genera Report");
   };
 
@@ -169,7 +186,7 @@ export default function DashboardPage() {
     setIsCategoryDetailOpen(true);
   };
   
-  const currentBalance = 3580; // Esempio di saldo per icona condizionale
+  const currentBalance = 3580; 
 
   return (
     <>
@@ -242,6 +259,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite Mensili</CardTitle>
+            <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription>
           </CardHeader>
           <CardContent>
             <DashboardBarChart data={barChartData} config={barChartConfig} />
@@ -251,6 +269,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Distribuzione Spese</CardTitle>
+            <CardDescription>Categorie di spesa principali questo mese.</CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
@@ -271,6 +290,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Flusso di Cassa Recente</CardTitle>
+            <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription>
           </CardHeader>
           <CardContent>
             <DashboardCashflowLineChart data={[]} config={lineChartConfig} />
@@ -311,20 +331,27 @@ export default function DashboardPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Dettaglio Categoria: {selectedPieCategory}</DialogTitle>
-            <DialogDescription>
+            <DialogDescriptionComponent> {/* Using aliased import */}
               Elenco delle transazioni per la categoria {selectedPieCategory} nel mese corrente.
               (Questa è una visualizzazione placeholder, l'elenco transazioni verrà implementato).
-            </DialogDescription>
+            </DialogDescriptionComponent>
           </DialogHeader>
           <div className="py-4">
+            {/* Placeholder per l'elenco delle transazioni */}
             <p className="text-sm text-muted-foreground">
               Nessuna transazione da mostrare per questa categoria (placeholder).
+              In una futura implementazione, qui verranno mostrate le transazioni filtrate.
             </p>
           </div>
         </DialogContent>
       </Dialog>
+
+      <TransactionModal
+        isOpen={isTransactionModalOpen}
+        onOpenChange={setTransactionModalOpen}
+        transactionTypeInitial={transactionTypeForModal}
+        onSubmitSuccess={handleTransactionSubmit}
+      />
     </>
-  );
-}
 
     
