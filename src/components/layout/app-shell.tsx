@@ -5,7 +5,7 @@ import React from 'react';
 import { UserCircle, PanelLeft } from 'lucide-react'; 
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/toaster';
+// import { Toaster } from '@/components/ui/toaster'; // Toaster is already in RootLayout
 import {
   SidebarProvider,
   Sidebar,
@@ -22,8 +22,8 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg" className={cn("fill-none", className)} aria-label="Studio De Vecchi & Mapelli Logo Icon" data-ai-hint="tooth dental">
    <defs>
     <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style={{stopColor: '#E6C68A', stopOpacity: 1}} />
-      <stop offset="100%" style={{stopColor: '#D4A276', stopOpacity: 1}} />
+      <stop offset="0%" style={{stopColor: 'hsl(var(--sidebar-primary-foreground))', stopOpacity: 0.7}} />
+      <stop offset="100%" style={{stopColor: 'hsl(var(--sidebar-primary))', stopOpacity: 1}} />
     </linearGradient>
   </defs>
   <g>
@@ -43,7 +43,7 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="sidebar" collapsible="icon" className="border-r">
-        <SidebarHeader className="p-3">
+        <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
           {/* Content for expanded sidebar */}
           <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
             <div className="flex items-center gap-2">
@@ -57,12 +57,12 @@ export default function AppShell({ children }: AppShellProps) {
                 </span>
               </div>
             </div>
-            <SidebarTrigger className="md:flex" /> {/* Desktop trigger */}
+            <SidebarTrigger className="md:flex" /> {/* Desktop trigger for expanded state */}
           </div>
 
-          {/* Content for collapsed sidebar (only logo, centered) */}
-          <div className="hidden group-data-[collapsible=icon]:flex justify-center py-1.5"> {/* Adjusted padding for collapsed state */}
-            <BrandLogoIcon className="h-9 w-9 text-sidebar-primary" />
+          {/* Content for collapsed sidebar (only trigger, centered) */}
+          <div className="hidden group-data-[collapsible=icon]:flex justify-center items-center h-full">
+             <SidebarTrigger className="md:flex" /> {/* Desktop trigger for collapsed state */}
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -91,7 +91,7 @@ export default function AppShell({ children }: AppShellProps) {
           {children}
         </main>
       </SidebarInset>
-      <Toaster />
+      {/* Toaster is now in RootLayout to avoid multiple instances */}
     </SidebarProvider>
   );
 }
