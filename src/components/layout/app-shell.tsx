@@ -79,14 +79,6 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Mobile Sidebar Trigger - keep on left for mobile */}
           <SidebarTrigger className="md:hidden -ml-2" />
 
-          {/* Branding in top bar - simplified */}
-          <div className="flex items-center gap-2">
-            <BrandLogoIcon className="h-7 w-7 text-primary flex-shrink-0" />
-            <span className="font-headline text-lg font-semibold text-foreground leading-tight">
-              Dental Balance 
-            </span>
-          </div>
-
           <div className="flex-1" /> {/* Spacer */}
 
           {/* User Profile */}
