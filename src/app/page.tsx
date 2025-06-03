@@ -1,17 +1,18 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // CardDescription rimossa perché non usata qui
-import { TrendingUp, TrendingDown, ArrowRight, Upload, Download } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
-// Link rimosso perché "Vedi tutte" ora apre un dialog
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,7 +45,7 @@ const expenseCategoriesData = [
     title: "Spese Fisse",
     value: 2370.50,
     itemCount: 8,
-    topItems: [ // Rinominato da items a topItems
+    topItems: [
       { name: "Affitto", amount: 1800.00 },
       { name: "Luce", amount: 320.50 },
       { name: "Spese condominiali", amount: 250.00 },
@@ -52,7 +53,7 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(260 70% 78%)", // Mantenuto più carico
+    pieFill: "hsl(260 70% 78%)",
   },
   {
     title: "Materiali",
@@ -66,7 +67,7 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(150 60% 70%)", // Mantenuto più carico
+    pieFill: "hsl(150 60% 70%)",
   },
   {
     title: "Personale",
@@ -80,7 +81,7 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(340 80% 78%)", // Mantenuto più carico
+    pieFill: "hsl(340 80% 78%)",
   },
   {
     title: "Servizi Esterni",
@@ -94,10 +95,10 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(50 75% 72%)", // Mantenuto più carico
+    pieFill: "hsl(50 75% 72%)",
   },
    {
-    title: "Altre Spese", // Modificato per coerenza, era "Altre spese"
+    title: "Altre Spese",
     value: 3500.00,
     itemCount: 5,
     topItems: [
@@ -108,7 +109,7 @@ const expenseCategoriesData = [
     bgColor: "bg-red-100 dark:bg-red-900/30",
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(20 75% 75%)", // Mantenuto più carico
+    pieFill: "hsl(20 75% 75%)",
   },
 ];
 
@@ -166,7 +167,40 @@ export default function DashboardPage() {
   const [detailDialogTitle, setDetailDialogTitle] = useState<string>("");
   const [detailDialogDescription, setDetailDialogDescription] = useState<string>("");
   const [transactionsForDialog, setTransactionsForDialog] = useState<Transaction[]>([]);
+  
+  const [studioTotalBalance, setStudioTotalBalance] = useState<number>(50000);
+  const [isEditBalanceDialogOpen, setIsEditBalanceDialogOpen] = useState<boolean>(false);
+  const [newBalanceInputValue, setNewBalanceInputValue] = useState<string>("50000");
+
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Simulate fetching initial balance or set from a more persistent source in a real app
+    setNewBalanceInputValue(studioTotalBalance.toString());
+  }, [studioTotalBalance]);
+
+  const handleOpenEditBalanceDialog = () => {
+    setNewBalanceInputValue(studioTotalBalance.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false}));
+    setIsEditBalanceDialogOpen(true);
+  };
+
+  const handleSaveBalance = () => {
+    const newBalance = parseFloat(newBalanceInputValue.replace(/\./g, '').replace(',', '.'));
+    if (!isNaN(newBalance) && newBalance >= 0) {
+      setStudioTotalBalance(newBalance);
+      toast({
+        title: "Saldo Studio Aggiornato",
+        description: `Il nuovo saldo dello studio è €${newBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+      });
+      setIsEditBalanceDialogOpen(false);
+    } else {
+      toast({
+        title: "Errore Input",
+        description: "Inserisci un importo valido.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleImportData = () => {
     toast({
@@ -213,7 +247,7 @@ export default function DashboardPage() {
     setIsDetailDialogOpen(true);
   };
 
-  const currentBalance = 3580;
+  const currentBalance = 3580; // This seems to be a monthly balance, distinct from studioTotalBalance
 
   return (
     <>
@@ -233,6 +267,51 @@ export default function DashboardPage() {
           </div>
         }
       />
+
+      <Card className="mb-6 bg-primary text-primary-foreground p-6 rounded-lg shadow-xl">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-lg font-semibold">Saldo Attuale Studio</h2>
+            <p className="text-4xl font-bold mt-1">
+              €{studioTotalBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-primary-foreground/80 mt-1">Giacenza bancaria e liquidità totali.</p>
+          </div>
+          <Button variant="secondary" onClick={handleOpenEditBalanceDialog} className="bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground">
+            <Edit className="mr-2 h-4 w-4" />
+            Modifica
+          </Button>
+        </div>
+      </Card>
+
+      <Dialog open={isEditBalanceDialogOpen} onOpenChange={setIsEditBalanceDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifica Saldo Attuale Studio</DialogTitle>
+            <DialogDescriptionComponent>
+              Aggiorna la giacenza bancaria e la liquidità totale dello studio.
+            </DialogDescriptionComponent>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="newBalance" className="mb-2 block">Nuovo Saldo Totale (€)</Label>
+            <Input
+              id="newBalance"
+              type="text" // Use text to better handle locale formatting on input change
+              value={newBalanceInputValue}
+              onChange={(e) => setNewBalanceInputValue(e.target.value)}
+              placeholder="Es. 50000"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Annulla</Button>
+            </DialogClose>
+            <Button type="button" onClick={handleSaveBalance}>Salva Modifiche</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -256,7 +335,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Attuale</CardTitle>
+            <CardTitle className="text-sm font-medium">Saldo Attuale (Mese)</CardTitle> {/* Clarified this is monthly */}
             {currentBalance >= 0 ? (
               <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
             ) : (
@@ -268,7 +347,7 @@ export default function DashboardPage() {
               €{currentBalance.toLocaleString('it-IT')}
             </div>
             <p className="text-xs text-muted-foreground">
-              {currentBalance >=0 ? "Bilancio positivo" : "Bilancio negativo"}
+              {currentBalance >=0 ? "Bilancio mensile positivo" : "Bilancio mensile negativo"}
             </p>
           </CardContent>
         </Card>
@@ -278,7 +357,6 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite Mensili</CardTitle>
-            {/* <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription> */}
           </CardHeader>
           <CardContent>
             <DashboardBarChart data={barChartData} config={barChartConfig} />
@@ -288,7 +366,6 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Distribuzione Spese</CardTitle>
-            {/* <CardDescription>Categorie di spesa principali questo mese.</CardDescription> */}
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
@@ -313,7 +390,6 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Flusso di Cassa Recente</CardTitle>
-            {/* <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription> */}
           </CardHeader>
           <CardContent>
             <DashboardCashflowLineChart data={[]} config={lineChartConfig} />
@@ -351,7 +427,7 @@ export default function DashboardPage() {
       </div>
 
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="sm:max-w-3xl"> {/* Aumentata larghezza */}
+        <DialogContent className="sm:max-w-3xl"> 
           <DialogHeader>
             <DialogTitle>{detailDialogTitle}</DialogTitle>
             <DialogDescriptionComponent>
@@ -359,7 +435,7 @@ export default function DashboardPage() {
             </DialogDescriptionComponent>
           </DialogHeader>
           {transactionsForDialog && transactionsForDialog.length > 0 ? (
-            <ScrollArea className="h-[400px] mt-4 border rounded-md"> {/* Aumentata altezza */}
+            <ScrollArea className="h-[400px] mt-4 border rounded-md"> 
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -396,3 +472,4 @@ export default function DashboardPage() {
   );
 }
 
+    
