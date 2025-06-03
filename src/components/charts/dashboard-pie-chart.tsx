@@ -7,40 +7,37 @@ import type { PieProps } from "recharts";
 
 interface DashboardPieChartProps {
   data: Array<{ name: string; value: number; fill: string }>;
-  onSliceClick?: (data: any, index: number) => void; // data is the slice payload
+  onSliceClick?: (data: any, index: number) => void;
 }
 
-// Funzione personalizzata per renderizzare le etichette
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, ...props }: any) => {
-  const RADIAN = Math.PI / 180;
-  // Posiziona l'etichetta leggermente all'interno della fetta, non troppo al centro né troppo all'esterno
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.6; 
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-  const percentage = (percent * 100).toFixed(0);
+// Componente personalizzato per il contenuto dell'etichetta
+const CustomizedLabelContent = (props: any) => {
+  const { cx, x, y, name, percent } = props;
 
-  // Non mostrare l'etichetta se la fetta è troppo piccola (es. < 4%) per evitare sovrapposizioni
-  if (percent * 100 < 4) {
+  // Non mostrare l'etichetta se la fetta è troppo piccola (es. < 4%) o se mancano dati
+  if (!name || typeof percent !== 'number' || percent * 100 < 4) {
     return null;
   }
+
+  const textAnchor = x >= cx ? 'start' : 'end';
 
   return (
     <text
       x={x}
       y={y}
-      fill="var(--card-foreground)" // Colore di contrasto per leggibilità
-      textAnchor={x > cx ? 'start' : 'end'} // Ancoraggio del testo
-      dominantBaseline="central" // Allineamento verticale
-      fontSize="11px" // Dimensione font ridotta
-      fontWeight="500" // Leggermente bold per risaltare
+      fill="var(--foreground)"
+      textAnchor={textAnchor}
+      dominantBaseline="central"
+      fontSize="11px"
+      className="recharts-pie-label-text"
     >
-      {`${name} (${percentage}%)`}
+      {`${name} (${(percent * 100).toFixed(0)}%)`}
     </text>
   );
 };
 
 export default function DashboardPieChart({ data, onSliceClick }: DashboardPieChartProps) {
-  const handlePieClick: PieProps['onClick'] = (slicePayload, index, e) => { // slicePayload è il nome corretto
+  const handlePieClick: PieProps['onClick'] = (slicePayload, index, e) => {
     if (onSliceClick) {
       onSliceClick(slicePayload, index);
     }
@@ -49,17 +46,17 @@ export default function DashboardPieChart({ data, onSliceClick }: DashboardPieCh
   return (
     <ChartContainer config={{}} className="h-[300px] w-full max-w-[400px]">
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+        <PieChart margin={{ top: 5, right: 45, bottom: 5, left: 45 }}> {/* Aggiunti margini per le etichette */}
           <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-          <Pie 
-            data={data} 
-            dataKey="value" 
-            nameKey="name" 
-            cx="50%" 
-            cy="50%" 
-            outerRadius={100} 
-            labelLine={false} // Manteniamo false per etichette interne
-            label={renderCustomizedLabel} // Usiamo la funzione personalizzata
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={75} // Ridotto per dare spazio alle etichette esterne
+            labelLine={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }} // Linee guida per le etichette esterne
+            label={<CustomizedLabelContent />} // Usa il componente personalizzato per il testo dell'etichetta
             onClick={handlePieClick}
           >
             {data.map((entry, index) => (
