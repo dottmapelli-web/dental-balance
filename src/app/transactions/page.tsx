@@ -48,13 +48,13 @@ export const initialTransactions: Transaction[] = [
   // Mese Corrente
   { id: "t1", date: format(today, "yyyy-MM-dd"), description: "Pagamento Fattura #123 - Mario Rossi", category: "Pazienti", type: "Entrata", amount: 150.00, status: "Completato" },
   { id: "t2", date: format(today, "yyyy-MM-dd"), description: "Acquisto compositi", category: "Materiali", subcategory: "Materiale Conservativa", type: "Uscita", amount: -85.20, status: "Completato" },
-  { id: "t3", date: format(today, "yyyy-MM-dd"), description: "Affitto Studio - Mese Corrente", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato" },
+  { id: "t3", date: format(today, "yyyy-MM-dd"), description: "Affitto Studio - Mese Corrente", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato", isRecurring: true, recurrenceDetails: { frequency: "Mensile", startDate: format(new Date(currentYear, 0, 15), "yyyy-MM-dd") } },
   { id: "t5", date: format(subDays(today, 2), "yyyy-MM-dd"), description: "Fattura Laboratorio Baisotti", category: "Servizi Esterni", subcategory: "Lab. Baisotti", type: "Uscita", amount: -450.75, status: "Completato" },
   { id: "t6", date: format(subDays(today, 3), "yyyy-MM-dd"), description: "Forniture Ufficio", category: "Spesa Studio", subcategory: "Forniture D’Ufficio", type: "Uscita", amount: -60.00, status: "Completato" },
   { id: "t8", date: format(subDays(today, 1), "yyyy-MM-dd"), description: "Pulizia impianti", category: "Materiali", subcategory: "Materiale Impianti", type: "Uscita", amount: -120.50, status: "Pianificato" },
   { id: "t9", date: format(new Date(currentYear, currentMonth, 5), "yyyy-MM-dd"), description: "Marketing Facebook Ads", category: "Altre spese", subcategory: "Marketing", type: "Uscita", amount: -150.00, status: "Completato"},
   { id: "t10", date: format(new Date(currentYear, currentMonth, 10), "yyyy-MM-dd"), description: "Bolletta Luce", category: "Spese Fisse", subcategory: "Elettricità", type: "Uscita", amount: -95.60, status: "Completato"},
-  { id: "t11", date: format(new Date(currentYear, currentMonth, 3), "yyyy-MM-dd"), description: "Stipendio Ilaria - Mese Corrente", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato"},
+  { id: "t11", date: format(new Date(currentYear, currentMonth, 3), "yyyy-MM-dd"), description: "Stipendio Ilaria - Mese Corrente", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato", isRecurring: true, recurrenceDetails: { frequency: "Mensile", startDate: format(new Date(currentYear, 0, 3), "yyyy-MM-dd") } },
   { id: "t12", date: format(new Date(currentYear, currentMonth, 12), "yyyy-MM-dd"), description: "Incasso Dr. Verdi", category: "Pazienti", type: "Entrata", amount: 280.00, status: "Completato"},
   { id: "t13", date: format(new Date(currentYear, currentMonth, 15), "yyyy-MM-dd"), description: "Tasse", category: "Spese Finanziarie", subcategory: "Tasse", type: "Uscita", amount: -3200.00, status: "Completato"},
   { id: "t14", date: format(new Date(currentYear, currentMonth, 8), "yyyy-MM-dd"), description: "Materiale Ortodonzia", category: "Materiali", subcategory: "Materiale Ortodonzia", type: "Uscita", amount: -210.00, status: "Completato"},
@@ -66,15 +66,17 @@ export const initialTransactions: Transaction[] = [
   // Mese Precedente
   { id: "t4", date: format(subMonths(today, 1), "yyyy-MM-dd"), description: "Stipendio Daniela - Mese Prec.", category: "Personale", subcategory: "Stipendio Daniela", type: "Uscita", amount: -1350.00, status: "Completato" },
   { id: "t7", date: format(subMonths(today, 1), "yyyy-MM-dd"), description: "Incasso Dr. Bianchi - Mese Prec.", category: "Pazienti", type: "Entrata", amount: 320.00, status: "Completato" },
-  { id: "t16", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 15), "yyyy-MM-dd"), description: "Affitto Studio - Mese Prec.", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato"},
+  { id: "t16", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 15), "yyyy-MM-dd"), description: "Affitto Studio - Mese Prec.", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato", originalRecurringId: "t3"},
   { id: "t17", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 10), "yyyy-MM-dd"), description: "Materiale Impianti - Mese Prec.", category: "Materiali", subcategory: "Materiale Impianti", type: "Uscita", amount: -2150.00, status: "Completato"},
   { id: "t18", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 5), "yyyy-MM-dd"), description: "Entrata Sig. Rossi - Mese Prec.", category: "Pazienti", type: "Entrata", amount: 500.00, status: "Completato"},
+  { id: "t31", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 3), "yyyy-MM-dd"), description: "Stipendio Ilaria - Mese Prec.", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato", originalRecurringId: "t11"},
+
 
   // Due Mesi Fa
   { id: "t19", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Pagamento Consulente del Lavoro", category: "Servizi Esterni", subcategory: "Consulente del Lavoro", type: "Uscita", amount: -300.00, status: "Completato" },
   { id: "t20", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Incasso Sig. Verdi", category: "Pazienti", type: "Entrata", amount: 200.00, status: "Completato" },
-  { id: "t21", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Affitto Studio - Due Mesi Fa", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato"},
-  { id: "t22", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Stipendio Ilaria - Due Mesi Fa", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato"},
+  { id: "t21", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Affitto Studio - Due Mesi Fa", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato", originalRecurringId: "t3"},
+  { id: "t22", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Stipendio Ilaria - Due Mesi Fa", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato", originalRecurringId: "t11"},
 
 
   // Tre Mesi Fa
@@ -97,8 +99,7 @@ const generateYears = () => {
 };
 const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), "MMMM", { locale: it }) }));
 
-// Definisci l'ordine delle colonne e i loro nomi visualizzati
-const columnOrder: Array<keyof Transaction | 'actions'> = ['date', 'type', 'category', 'subcategory', 'amount', 'description', 'status'];
+const columnOrder: Array<keyof Transaction | 'actions'> = ['date', 'type', 'category', 'subcategory', 'amount', 'description', 'status', 'actions'];
 const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
   date: 'Data',
   type: 'Tipo',
@@ -107,11 +108,11 @@ const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
   amount: 'Importo',
   description: 'Descrizione',
   status: 'Stato',
-  id: 'ID', // Aggiunto per completezza, anche se non visualizzato come colonna sortable
+  id: 'ID', 
   isRecurring: 'Ricorrente',
   recurrenceDetails: 'Dettagli Ricorrenza',
   originalRecurringId: 'ID Ricorrenza Originale',
-  actions: 'Azioni', // Placeholder per la colonna Azioni
+  actions: 'Azioni',
 };
 
 
@@ -140,7 +141,7 @@ export default function TransactionsPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter(t => {
       const transactionDate = parseISO(t.date);
-      if (!isValid(transactionDate)) return false; // Skip invalid dates
+      if (!isValid(transactionDate)) return false; 
       const matchesYear = getYear(transactionDate).toString() === selectedYear;
       const matchesMonth = getMonth(transactionDate).toString() === selectedMonth;
       const matchesSearch = (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -167,7 +168,7 @@ export default function TransactionsPage() {
             if (isValid(dateA) && isValid(dateB)) {
               comparison = dateA.getTime() - dateB.getTime();
             } else {
-              comparison = 0; // Handle invalid dates during sort
+              comparison = 0; 
             }
         }
         return sortConfig.direction === 'ascending' ? comparison : -comparison;
@@ -208,11 +209,11 @@ export default function TransactionsPage() {
           let currentDate = parseISO(newTransaction.recurrenceDetails.startDate);
           const recurrenceEndDate = newTransaction.recurrenceDetails.endDate ? parseISO(newTransaction.recurrenceDetails.endDate) : undefined;
 
-          for (let i = 0; i < 3; i++) { // Generate for next 3 occurrences as example
+          for (let i = 0; i < 3; i++) { 
               let nextDate = currentDate;
               switch(newTransaction.recurrenceDetails.frequency) {
                   case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                  // TODO: Implement other frequencies if needed
+                  
                   default: nextDate = addMonths(currentDate, i + 1); break;
               }
               if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
@@ -242,7 +243,7 @@ export default function TransactionsPage() {
 
   const handleDelete = (id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id && t.originalRecurringId !== id));
-    // Also remove instances if deleting a recurring definition
+    
     setTransactions(prev => prev.filter(t => t.originalRecurringId !== id));
      toast({ title: "Transazione Eliminata", description: "La transazione e le sue eventuali istanze sono state rimosse." });
   };
@@ -269,8 +270,8 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleSelectAllRows = (event: React.ChangeEvent<HTMLInputElement>) => { // Explicitly type event
-    if ((event.target as HTMLInputElement).checked) { // Type assertion
+  const handleSelectAllRows = (event: React.ChangeEvent<HTMLInputElement>) => { 
+    if ((event.target as HTMLInputElement).checked) { 
       setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
     } else {
       setSelectedRows(new Set());
@@ -335,21 +336,50 @@ export default function TransactionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Descrizione</TableHead>
+                  <TableHead>Data Inizio</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Sottocategoria</TableHead>
                   <TableHead>Importo</TableHead>
+                  <TableHead>Descrizione</TableHead>
+                  <TableHead>Stato</TableHead>
                   <TableHead>Frequenza</TableHead>
-                  <TableHead>Inizio</TableHead>
-                  <TableHead>Fine</TableHead>
+                  <TableHead>Data Fine</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recurringTransactionsDefinitions.map((t) => (
                   <TableRow key={t.id}>
+                    <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
+                    <TableCell>
+                      <Badge variant={t.type === "Entrata" ? "default" : "destructive"} className={t.type === "Entrata" ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 border-green-200 dark:border-green-700" : "bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-300 border-red-200 dark:border-red-700"}>
+                        {t.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{t.category}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {t.subcategory ? <Badge variant="outline">{t.subcategory}</Badge> : "-"}
+                    </TableCell>
+                    <TableCell className={`font-semibold ${t.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      €{t.amount.toFixed(2)}
+                    </TableCell>
                     <TableCell className="font-medium">{t.description}</TableCell>
-                    <TableCell className={t.amount > 0 ? 'text-green-600' : 'text-red-600'}>€{t.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={t.status === "Completato" ? "default" : t.status === "In Attesa" ? "secondary" : "outline"}
+                        className={
+                            t.status === "Completato" ? "border-green-500 text-green-600 dark:border-green-600 dark:text-green-400 bg-green-500/10" :
+                            t.status === "In Attesa" ? "border-yellow-500 text-yellow-600 dark:border-yellow-600 dark:text-yellow-400 bg-yellow-500/10" :
+                            "border-blue-500 text-blue-600 dark:border-blue-600 dark:text-blue-400 bg-blue-500/10"
+                        }
+                      >
+                        {t.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{t.recurrenceDetails?.frequency}</TableCell>
-                    <TableCell>{t.recurrenceDetails?.startDate ? format(parseISO(t.recurrenceDetails.startDate), "dd/MM/yyyy", { locale: it }) : '-'}</TableCell>
                     <TableCell>{t.recurrenceDetails?.endDate ? format(parseISO(t.recurrenceDetails.endDate), "dd/MM/yyyy", { locale: it }) : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Tooltip>
@@ -440,15 +470,14 @@ export default function TransactionsPage() {
                   />
                 </TableHead>
                 {columnOrder.map(key => (
-                    <TableHead key={key} onClick={() => handleSort(key as keyof Transaction)} className="cursor-pointer hover:bg-muted/50">
+                    <TableHead key={key} onClick={() => key !== 'actions' && handleSort(key as keyof Transaction)} className={key !== 'actions' ? "cursor-pointer hover:bg-muted/50" : ""}>
                         <div className="flex items-center">
-                            {columnDisplayNames[key as keyof Transaction]}
-                            {sortConfig.key === key && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
-                            {sortConfig.key !== key && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
+                            {columnDisplayNames[key as keyof Transaction | 'actions']}
+                            {sortConfig.key === key && key !== 'actions' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+                            {sortConfig.key !== key && key !== 'actions' && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
                         </div>
                     </TableHead>
                 ))}
-                <TableHead className="text-right">{columnDisplayNames['actions']}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -527,7 +556,7 @@ export default function TransactionsPage() {
               ))}
               {filteredAndSortedTransactions.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground h-24">
+                    <TableCell colSpan={columnOrder.length + 1} className="text-center text-muted-foreground h-24"> {/* +1 per la checkbox */}
                         Nessuna transazione trovata per i filtri selezionati.
                     </TableCell>
                 </TableRow>
@@ -539,5 +568,7 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
