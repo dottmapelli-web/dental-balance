@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { initialTransactions, type Transaction } from '@/app/transactions/page';
+import { initialTransactions, type Transaction } from '@/data/transactions-data';
 import { format, getMonth, getYear, parseISO, isValid } from 'date-fns';
 import { it } from 'date-fns/locale';
 

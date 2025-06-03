@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getYear, getMonth, format, parseISO, isValid } from "date-fns";
 import { it } from "date-fns/locale";
-import { initialTransactions } from '@/app/transactions/page'; // Used to determine available months/years
+import { initialTransactions } from '@/data/transactions-data'; // Used to determine available months/years
 
 const formSchema = z.object({
   summaryText: z.string().min(10, { message: "Il riepilogo testuale è troppo corto (min 10 caratteri)." }).optional(),

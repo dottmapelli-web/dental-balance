@@ -18,8 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, formatISO } from "date-fns";
 import { it } from "date-fns/locale";
-import type { Transaction } from '@/app/transactions/page';
-import { initialTransactions } from '@/app/transactions/page'; // Import from transactions page
+import type { Transaction } from '@/data/transactions-data';
+import { initialTransactions } from '@/data/transactions-data'; 
 import { expenseCategories as expenseCategoryConfig } from '@/config/transaction-categories';
 
 
@@ -527,5 +527,7 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
 
     

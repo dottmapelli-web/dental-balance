@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarIcon } from "lucide-react";
-import type { Transaction } from '@/app/transactions/page'; 
+import type { Transaction } from '@/data/transactions-data'; 
 import { allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies, transactionStatuses, type RecurrenceFrequency, type TransactionStatus } from "@/config/transaction-categories";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -349,4 +349,5 @@ export default function TransactionModal({
     </Dialog>
   );
 }
+
 
