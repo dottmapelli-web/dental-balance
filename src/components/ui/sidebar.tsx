@@ -525,28 +525,29 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    asChild?: boolean; // Added asChild prop
+  HTMLElement,
+  React.HTMLAttributes<HTMLElement> & {
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
     {
-      asChild = false, // Default to false
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
       children,
-      ...props
+      ...otherProps // Renamed to avoid conflict and capture all other props
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
-    const Comp = asChild ? Slot : "div"; // Use Slot if asChild is true, otherwise div
+
+    // Check if asChild is passed from the parent (e.g., Link)
+    const { asChild, ...restProps } = otherProps as any;
+    const Comp = asChild ? Slot : "button";
 
     const buttonElement = (
       <Comp
@@ -555,9 +556,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        role={!asChild ? "link" : undefined}
-        tabIndex={!asChild && (props as any)['aria-disabled'] ? -1 : !asChild ? 0 : undefined}
-        {...props}
+        {...restProps} // Pass the remaining props, excluding asChild
       >
         {children}
       </Comp>
