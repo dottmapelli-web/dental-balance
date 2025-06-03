@@ -47,13 +47,13 @@ body {
     --chart-5: 30 80% 72%;   /* Vivid Pastel Orange/Peach Accent */
 
     /* Sidebar specific colors (light theme example) */
-    --sidebar-background: 220 25% 98%; /* Very light gray, almost white */
-    --sidebar-foreground: 220 15% 30%; /* Dark gray for text */
-    --sidebar-border: 220 15% 90%;    /* Light border */
-    --sidebar-primary: 214 80% 50%; /* Vibrant Blue for active/icons */
-    --sidebar-primary-foreground: 0 0% 100%; /* White text on primary */
-    --sidebar-accent: 210 30% 92%; /* Light gray for hover */
-    --sidebar-accent-foreground: 214 80% 50%; /* Vibrant Blue for text on hover */
+    --sidebar-background: 220 40% 96%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-border: 220 25% 88%;
+    --sidebar-primary: 214 80% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 60% 93%;
+    --sidebar-accent-foreground: 214 75% 45%;
     --sidebar-ring: 214 80% 45%;
   }
 
@@ -94,13 +94,13 @@ body {
     --chart-5: 30 70% 70%;  /* Dark Vivid Pastel Orange/Peach */
 
     /* Sidebar specific colors (dark theme example) */
-    --sidebar-background: 220 25% 10%; /* Very dark blue-gray */
-    --sidebar-foreground: 210 30% 85%; /* Light gray for text */
-    --sidebar-border: 220 20% 20%;    /* Darker border */
-    --sidebar-primary: 214 70% 55%; /* Vibrant Blue for active/icons */
-    --sidebar-primary-foreground: 0 0% 98%; /* White text on primary */
-    --sidebar-accent: 220 20% 18%; /* Slightly lighter dark for hover */
-    --sidebar-accent-foreground: 214 70% 55%; /* Vibrant Blue for text on hover */
+    --sidebar-background: 220 15% 12%;
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-border: 220 15% 25%;
+    --sidebar-primary: 214 70% 55%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 220 15% 20%;
+    --sidebar-accent-foreground: 214 75% 65%;
     --sidebar-ring: 214 70% 50%;
   }
 }
