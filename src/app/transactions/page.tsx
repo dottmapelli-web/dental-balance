@@ -29,7 +29,7 @@ interface RecurrenceDetails {
 export interface Transaction {
   id: string;
   date: string; 
-  description: string;
+  description?: string; // Made optional
   category: string;
   subcategory?: string;
   type: 'Entrata' | 'Uscita';
@@ -80,7 +80,7 @@ export default function TransactionsPage() {
       const transactionDate = parseISO(t.date);
       const matchesYear = getYear(transactionDate).toString() === selectedYear;
       const matchesMonth = getMonth(transactionDate).toString() === selectedMonth;
-      const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             (t.subcategory && t.subcategory.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesYear && matchesMonth && matchesSearch;
@@ -117,7 +117,7 @@ export default function TransactionsPage() {
       description: data.description,
       category: data.category,
       subcategory: data.subcategory,
-      type: data.type,
+      type: data.type, // Type is now part of TransactionFormData and set by modal logic
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
       isRecurring: data.isRecurring,
@@ -167,7 +167,7 @@ export default function TransactionsPage() {
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
-    setTransactionTypeForModal(transaction.type);
+    setTransactionTypeForModal(transaction.type); // Ensure modal knows the type for editing
     setIsModalOpen(true);
   };
 
@@ -223,7 +223,7 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openModalForNew('Entrata')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium">Nuova Entrata</CardTitle>
+            <CardTitle className="text-lg font-medium text-green-600 dark:text-green-400">Nuova Entrata</CardTitle>
             <CalendarPlus className="h-6 w-6 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -232,7 +232,7 @@ export default function TransactionsPage() {
         </Card>
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openModalForNew('Uscita')}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium">Nuova Uscita</CardTitle>
+            <CardTitle className="text-lg font-medium text-red-600 dark:text-red-400">Nuova Uscita</CardTitle>
             <CalendarMinus className="h-6 w-6 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -358,7 +358,7 @@ export default function TransactionsPage() {
                 <TableHead className="w-[40px]">
                   <Checkbox
                     checked={selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0}
-                    onCheckedChange={(event: boolean | 'indeterminate') => { // Updated type
+                    onCheckedChange={(event: boolean | 'indeterminate') => { 
                         if (event === true) {
                             setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
                         } else {
@@ -436,7 +436,7 @@ export default function TransactionsPage() {
                      <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleEdit(transaction)} 
-                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false} // Disable edit for generated instances directly, edit definition instead
+                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false} 
                             >
                             <Edit3 className="h-4 w-4" />
                             </Button>
@@ -468,3 +468,5 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
+
+    

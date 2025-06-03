@@ -16,19 +16,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
 import { CalendarIcon } from "lucide-react";
-import type { Transaction } from '@/app/transactions/page'; // Assuming Transaction type is exported
+import type { Transaction } from '@/app/transactions/page'; 
 import { allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies, transactionStatuses, type RecurrenceFrequency, type TransactionStatus } from "@/config/transaction-categories";
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export const transactionFormSchema = z.object({
   type: z.enum(['Entrata', 'Uscita']),
   date: z.date({ required_error: "La data è obbligatoria." }),
-  description: z.string().min(3, { message: "La descrizione deve avere almeno 3 caratteri." }),
+  description: z.string().optional(), // Made optional
   amount: z.coerce.number().positive({ message: "L'importo deve essere positivo." }),
   category: z.string().min(1, { message: "La categoria è obbligatoria." }),
   subcategory: z.string().optional(),
-  status: z.enum(transactionStatuses as [string, ...string[]]), // Zod needs a non-empty array for enums
+  status: z.enum(transactionStatuses as [string, ...string[]]), 
   isRecurring: z.boolean().default(false),
   recurrenceFrequency: z.enum(recurrenceFrequencies as [string, ...string[]]).optional(),
   recurrenceEndDate: z.date().optional(),
@@ -49,7 +51,7 @@ interface TransactionModalProps {
   onOpenChange: (open: boolean) => void;
   transactionTypeInitial: 'Entrata' | 'Uscita';
   editingTransaction?: Transaction | null;
-  onSubmitSuccess: (data: TransactionFormData, id?: string) => void; // id is for editing
+  onSubmitSuccess: (data: TransactionFormData, id?: string) => void; 
 }
 
 export default function TransactionModal({
@@ -63,10 +65,11 @@ export default function TransactionModal({
   const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      type: transactionTypeInitial,
+      type: transactionTypeInitial, // Set initial type
       status: 'Completato',
       isRecurring: false,
       date: new Date(),
+      description: '',
     }
   });
 
@@ -75,19 +78,25 @@ export default function TransactionModal({
   const watchedIsRecurring = watch("isRecurring");
 
   useEffect(() => {
-    if (isOpen) { // Reset form when modal opens or editingTransaction/type changes
+    if (isOpen) { 
+      const defaultType = editingTransaction ? editingTransaction.type : transactionTypeInitial;
+      setValue('type', defaultType); // Ensure type is correctly set on open
+
       if (editingTransaction) {
         const date = parseISO(editingTransaction.date);
         reset({
           ...editingTransaction,
+          type: editingTransaction.type, // Explicitly set type for editing
           date: isValid(date) ? date : new Date(),
           amount: Math.abs(editingTransaction.amount),
+          description: editingTransaction.description || '',
           recurrenceFrequency: editingTransaction.recurrenceDetails?.frequency as RecurrenceFrequency | undefined,
           recurrenceEndDate: editingTransaction.recurrenceDetails?.endDate ? parseISO(editingTransaction.recurrenceDetails.endDate) : undefined,
+          status: editingTransaction.status || 'Completato',
         });
       } else {
         reset({
-          type: transactionTypeInitial,
+          type: transactionTypeInitial, // Set for new transactions
           date: new Date(),
           description: '',
           amount: 0,
@@ -100,7 +109,7 @@ export default function TransactionModal({
         });
       }
     }
-  }, [isOpen, editingTransaction, transactionTypeInitial, reset]);
+  }, [isOpen, editingTransaction, transactionTypeInitial, reset, setValue]);
 
 
   const availableCategories = useMemo(() => {
@@ -113,51 +122,42 @@ export default function TransactionModal({
   }, [watchedType, watchedCategory]);
 
   const processSubmit: SubmitHandler<TransactionFormData> = (data) => {
+    // The 'type' is already part of 'data' due to watch/setValue in useEffect
     onSubmitSuccess(data, editingTransaction?.id);
-    onOpenChange(false); // Close modal on success
+    onOpenChange(false); 
     toast({
       title: editingTransaction ? "Transazione Modificata" : "Transazione Aggiunta",
-      description: `${data.description} - €${data.amount.toFixed(2)}`,
+      description: `${data.description || 'N/A'} - €${data.amount.toFixed(2)}`,
     });
   };
+  
+  // This ensures the 'type' field in the form data is always up-to-date
+  // with the initial type, especially for new transactions.
+  useEffect(() => {
+    if (!editingTransaction) {
+      setValue('type', transactionTypeInitial);
+    }
+  }, [transactionTypeInitial, editingTransaction, setValue]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       onOpenChange(open);
-      if (!open) {
-        // Optional: reset form when closing via X or overlay click if not submitted
-        // reset(); // This might be too aggressive, consider user experience
-      }
     }}>
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingTransaction ? "Modifica Transazione" : `Nuova ${transactionTypeInitial}`}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
+          
           <div>
-            <Label htmlFor="type">Tipo</Label>
-            <Controller
-              name="type"
-              control={control}
-              render={({ field }) => (
-                <Select 
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    setValue('category', ''); // Reset category when type changes
-                    setValue('subcategory', undefined);
-                  }} 
-                  value={field.value}
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Seleziona tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Entrata">Entrata</SelectItem>
-                    <SelectItem value="Uscita">Uscita</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <Label htmlFor="transactionTypeDisplay">Tipo</Label>
+            <p id="transactionTypeDisplay" className={cn(
+                "w-full h-10 flex items-center rounded-md border border-input bg-muted px-3 py-2 text-sm",
+                watchedType === 'Entrata' ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
+              )}>
+              {watchedType}
+            </p>
           </div>
 
           <div>
@@ -190,13 +190,7 @@ export default function TransactionModal({
             />
             {errors.date && <p className="text-sm text-destructive mt-1">{errors.date.message}</p>}
           </div>
-
-          <div>
-            <Label htmlFor="description">Descrizione</Label>
-            <Input id="description" {...register("description")} />
-            {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
-          </div>
-
+          
           <div>
             <Label htmlFor="amount">Importo</Label>
             <Input id="amount" type="number" step="0.01" {...register("amount")} />
@@ -243,24 +237,12 @@ export default function TransactionModal({
           )}
           
           <div>
-            <Label htmlFor="status">Stato</Label>
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Seleziona stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(transactionStatuses as readonly string[]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            <Label htmlFor="description">Descrizione (Opzionale)</Label>
+            <Textarea id="description" {...register("description")} />
+            {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 pt-2">
             <Controller
               name="isRecurring"
               control={control}
@@ -321,6 +303,26 @@ export default function TransactionModal({
               </div>
             </>
           )}
+          
+          <div>
+            <Label htmlFor="status">Stato</Label>
+            <Controller
+              name="status"
+              control={control}
+              defaultValue="Completato" // Ensure default is set here as well
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Seleziona stato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(transactionStatuses as readonly string[]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
@@ -333,3 +335,4 @@ export default function TransactionModal({
   );
 }
 
+    
