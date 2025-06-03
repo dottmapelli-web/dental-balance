@@ -9,102 +9,105 @@ body {
 
 @layer base {
   :root {
-    --background: 208 100% 97%; /* AliceBlue #F0F8FF */
-    --foreground: 220 25% 30%; /* Dark grayish blue */
+    --background: 210 30% 97%; /* Very Light Cool Gray */
+    --foreground: 220 30% 20%; /* Dark Cool Gray */
 
-    --card: 208 100% 99%; /* Slightly off-white */
-    --card-foreground: 220 25% 30%;
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 220 30% 20%; /* Dark Cool Gray */
 
-    --popover: 208 100% 99%;
-    --popover-foreground: 220 25% 30%;
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 220 30% 20%; /* Dark Cool Gray */
 
-    --primary: 203 59% 79%; /* Light Blue #A7D1EA */
-    --primary-foreground: 220 40% 15%; /* Dark blue for contrast */
+    --primary: 30 59% 65%; /* Brand Gold #D4A276 */
+    --primary-foreground: 220 30% 15%; /* Dark Blue for contrast on Gold */
 
-    --secondary: 203 50% 90%; /* Lighter, muted primary */
-    --secondary-foreground: 220 30% 25%;
+    --secondary: 210 30% 90%; /* Lighter Cool Gray */
+    --secondary-foreground: 220 30% 25%; /* Darker Cool Gray */
 
-    --muted: 208 75% 94%; /* Very light, for subtle backgrounds/text */
-    --muted-foreground: 210 30% 50%; /* Grayish, less prominent text */
+    --muted: 210 30% 94%; /* Light Cool Gray for subtle backgrounds/text */
+    --muted-foreground: 210 30% 50%; /* Grayish Cool, less prominent text */
 
-    --accent: 240 100% 25%; /* Navy #000080 */
-    --accent-foreground: 0 0% 98%; /* White/Light gray */
+    --accent: 210 70% 55%; /* Steel Blue */
+    --accent-foreground: 0 0% 98%; /* Almost White for contrast on Steel Blue */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 203 50% 88%;
-    --input: 203 50% 92%;
-    --ring: 203 59% 70%; /* Slightly darker/more saturated primary for focus rings */
-
-    --chart-1: 203 59% 79%; /* primary */
-    --chart-2: 240 100% 25%; /* accent */
-    --chart-3: 180 50% 60%; /* a teal/cyan */
-    --chart-4: 30 80% 70%; /* an orange */
-    --chart-5: 280 60% 75%; /* a purple */
+    --border: 210 20% 88%; /* Light Gray */
+    --input: 210 20% 92%; /* Slightly darker light gray for inputs */
+    --ring: 30 59% 55%; /* Darker Brand Gold for focus rings */
     
     --radius: 0.5rem;
 
+    /* Chart Colors - Aligned with new theme */
+    --chart-1: 30 59% 65%;   /* Brand Gold */
+    --chart-2: 210 70% 55%;  /* Steel Blue (Accent) */
+    --chart-3: 180 50% 60%;  /* A Teal/Cyan */
+    --chart-4: 340 70% 65%;  /* A Soft Coral/Pink */
+    --chart-5: 260 60% 70%;  /* A Lavender */
+    
     /* Sidebar specific theme variables */
-    --sidebar-background: 215 40% 92%; /* Light grayish-blue */
-    --sidebar-foreground: 220 25% 30%; /* Dark grayish blue, same as main fg */
+    --sidebar-background: 220 30% 20%; /* Dark Blue */
+    --sidebar-foreground: 210 20% 88%; /* Light Gray for text */
     
-    /* For active/hover states in sidebar navigation */
-    --sidebar-accent: 203 59% 79%; /* Main primary color for bg */
-    --sidebar-accent-foreground: 220 40% 15%; /* Main primary-foreground for text */
+    --sidebar-primary: 30 59% 70%; /* Slightly Lighter Brand Gold for prominent icons/elements in sidebar */
+    --sidebar-primary-foreground: 0 0% 98%; /* Almost White for text on sidebar primary */
     
-    /* If specific primary colors are needed for other sidebar elements (e.g. buttons within sidebar) */
-    --sidebar-primary: 240 100% 25%; /* Main accent color */
-    --sidebar-primary-foreground: 0 0% 98%; /* Main accent-foreground */
-    
-    --sidebar-border: 203 40% 80%;
-    --sidebar-ring: 203 59% 70%;
+    --sidebar-accent: 30 59% 65%; /* Brand Gold for active/hover nav item background */
+    --sidebar-accent-foreground: 220 30% 15%; /* Dark Blue/Black for text on gold accent background */
+        
+    --sidebar-border: 220 30% 30%; /* Slightly Lighter Dark Blue for borders within sidebar */
+    --sidebar-ring: 30 59% 55%; /* Darker Brand Gold for focus rings in sidebar */
   }
 
   .dark {
-    /* Define dark theme variables if needed, for now sticking to light as per proposal */
-    --background: 220 25% 10%;
-    --foreground: 210 40% 98%;
+    --background: 220 25% 12%; /* Darker Blue-Gray */
+    --foreground: 210 30% 90%; /* Lighter Gray for text */
 
-    --card: 220 25% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 25% 15%; /* Slightly lighter than background */
+    --card-foreground: 210 30% 90%;
 
-    --popover: 220 25% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 25% 15%;
+    --popover-foreground: 210 30% 90%;
 
-    --primary: 203 59% 65%; 
-    --primary-foreground: 220 40% 98%;
+    --primary: 30 59% 60%; /* Slightly desaturated Brand Gold for dark mode */
+    --primary-foreground: 220 40% 95%; /* Very Light for contrast */
 
-    --secondary: 203 50% 55%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 20% 25%; /* Darker Muted Blue-Gray */
+    --secondary-foreground: 210 30% 85%;
 
     --muted: 220 20% 20%;
-    --muted-foreground: 210 30% 70%;
+    --muted-foreground: 210 30% 65%;
 
-    --accent: 240 100% 60%; 
-    --accent-foreground: 0 0% 10%;
+    --accent: 210 60% 50%; /* Slightly desaturated Steel Blue */
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 50.6%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 20% 25%;
-    --input: 220 20% 28%;
-    --ring: 203 59% 60%;
+    --border: 220 20% 30%;
+    --input: 220 20% 35%;
+    --ring: 30 59% 50%; /* Darker Gold for rings */
 
-    --chart-1: 203 59% 65%;
-    --chart-2: 240 100% 60%;
-    --chart-3: 180 50% 50%;
-    --chart-4: 30 80% 60%;
-    --chart-5: 280 60% 65%;
+    /* Chart Colors - Dark Mode */
+    --chart-1: 30 59% 60%; 
+    --chart-2: 210 60% 50%;
+    --chart-3: 180 50% 55%;
+    --chart-4: 340 60% 60%;
+    --chart-5: 260 50% 65%;
 
-    --sidebar-background: 220 25% 15%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 203 59% 65%;
-    --sidebar-accent-foreground: 220 40% 98%;
-    --sidebar-primary: 240 100% 60%;
-    --sidebar-primary-foreground: 0 0% 10%;
-    --sidebar-border: 220 20% 22%;
-    --sidebar-ring: 203 59% 60%;
+    /* Sidebar Dark Theme Variables */
+    --sidebar-background: 220 30% 15%; /* Even Darker Blue for sidebar */
+    --sidebar-foreground: 210 20% 85%; /* Light Gray text */
+    
+    --sidebar-primary: 30 59% 65%; /* Brand Gold */
+    --sidebar-primary-foreground: 0 0% 98%;
+    
+    --sidebar-accent: 30 59% 55%; /* Slightly darker Gold for active/hover background */
+    --sidebar-accent-foreground: 220 30% 95%; /* Very light text on gold */
+        
+    --sidebar-border: 220 30% 25%;
+    --sidebar-ring: 30 59% 50%;
   }
 }
 
@@ -117,5 +120,3 @@ body {
     font-feature-settings: "rlig" 1,"calt" 1; /* Enable common ligatures */
   }
 }
-
-    

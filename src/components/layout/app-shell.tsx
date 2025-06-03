@@ -15,40 +15,16 @@ import MainSidebarNav from './main-sidebar-nav';
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
 import { PanelLeft, UserCircle } from 'lucide-react';
+import { cn } from '@/lib/utils'; // Added missing import
 
-// Logo SVG completo per la vista espansa
-const FullLogo = () => (
-  <svg viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg" className="h-10 w-auto" aria-label="Studio De Vecchi & Mapelli Logo">
-    {/* Tooth Icon */}
-    <g transform="translate(-5, -12) scale(0.45)">
-      <path d="M35.2,63.5 C31.5,63.5 28.5,60.7 28.5,57.3 C28.5,53.9 31.5,51.1 35.2,51.1 C38.9,51.1 41.9,53.9 41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5 M35.2,45 C26.3,45 19.2,51.6 19.2,59.7 C19.2,69.5 28.8,79.5 30.1,81.2 C30.9,82.3 32.9,85 35.2,85 C37.5,85 39.5,82.3 40.3,81.2 C41.6,79.5 51.2,69.5 51.2,59.7 C51.2,51.6 44.1,45 35.2,45"
-          strokeWidth="6" stroke="white" fill="none" />
-      <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="6" stroke="#D4A276" fill="none" />
-      <path d="M28.5,57.3 C28.5,60.7 31.5,63.5 35.2,63.5 M41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5" strokeWidth="5" stroke="white" fill="none" />
-    </g>
-    {/* Vertical Separator */}
-    <line x1="50" y1="8" x2="50" y2="62" stroke="white" strokeWidth="1" />
-    {/* Text: De Vecchi & Mapelli */}
-    <text x="65" y="22" fontFamily="Verdana, Geneva, sans-serif" fontSize="13" fontWeight="bold" fontStyle="italic" fill="white">De Vecchi</text>
-    <text x="65" y="40" fontFamily="Verdana, Geneva, sans-serif" fontSize="11" fill="#D4A276" fontWeight="bold" fontStyle="italic">&</text>
-    <text x="65" y="58" fontFamily="Verdana, Geneva, sans-serif" fontSize="13" fontWeight="bold" fontStyle="italic" fill="white">Mapelli</text>
-    {/* Horizontal Line (under text, above tagline if it existed) */}
-    <line x1="5" y1="68" x2="215" y2="68" stroke="#D4A276" strokeWidth="1" />
-    {/* Tagline could be added here if space allows and desired */}
-    {/* <text x="110" y="78" fontFamily="Verdana, Geneva, sans-serif" fontSize="7" fill="white" textAnchor="middle">Odontoiatria, Estetica e Innovazione</text> */}
-  </svg>
-);
-
-// Icona del dente semplificata per la vista compressa
-const ToothIcon = () => (
- <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary" aria-label="Studio De Vecchi & Mapelli Logo Icon" data-ai-hint="tooth dental">
+// Icona del dente specifica per il brand
+const BrandLogoIcon = ({ className }: { className?: string }) => (
+ <svg viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg" className={cn("fill-none", className)} aria-label="Studio De Vecchi & Mapelli Logo Icon" data-ai-hint="tooth dental">
   <g>
     <path d="M35.2,63.5 C31.5,63.5 28.5,60.7 28.5,57.3 C28.5,53.9 31.5,51.1 35.2,51.1 C38.9,51.1 41.9,53.9 41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5 M35.2,45 C26.3,45 19.2,51.6 19.2,59.7 C19.2,69.5 28.8,79.5 30.1,81.2 C30.9,82.3 32.9,85 35.2,85 C37.5,85 39.5,82.3 40.3,81.2 C41.6,79.5 51.2,69.5 51.2,59.7 C51.2,51.6 44.1,45 35.2,45"
-        strokeWidth="6" stroke="currentColor" fill="none" />
-    {/* This part is the orange stroke on the left side of the tooth in the original logo */}
-    <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="6" stroke="#D4A276" fill="none" /> 
-     {/* The "smile" part of the tooth */}
-    <path d="M28.5,57.3 C28.5,60.7 31.5,63.5 35.2,63.5 M41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5" strokeWidth="5" stroke="currentColor" fill="none" />
+        strokeWidth="6" stroke="currentColor" />
+    <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="6" stroke="#D4A276" /> 
+    <path d="M28.5,57.3 C28.5,60.7 31.5,63.5 35.2,63.5 M41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5" strokeWidth="5" stroke="currentColor" />
   </g>
 </svg>
 );
@@ -66,15 +42,19 @@ export default function AppShell({ children }: AppShellProps) {
         collapsible="icon"
         className="border-r"
       >
-        <SidebarHeader className="p-4 flex items-center justify-center h-[70px]"> {/* Fixed height and centered content */}
-          {/* Expanded View: Full Logo */}
-          <div className="group-data-[collapsible=icon]:hidden">
-            <FullLogo />
+        <SidebarHeader className="p-3 flex items-center h-[70px] justify-center group-data-[collapsible=icon]:justify-center">
+          {/* Expanded View: Icon + Text */}
+          <div className="group-data-[collapsible=icon]:hidden flex items-center space-x-2.5 overflow-hidden">
+            <BrandLogoIcon className="h-10 w-10 text-sidebar-primary-foreground flex-shrink-0" />
+            <div className="flex flex-col justify-center overflow-hidden">
+              <h1 className="text-md font-headline font-semibold text-sidebar-primary-foreground truncate">Dental Balance</h1>
+              <p className="text-xs text-sidebar-foreground/80 truncate">Studio De Vecchi & Mapelli</p>
+            </div>
           </div>
           
-          {/* Collapsed View: Tooth Icon */}
+          {/* Collapsed View: Icon Only */}
           <div className="hidden group-data-[collapsible=icon]:block">
-            <ToothIcon />
+            <BrandLogoIcon className="h-8 w-8 text-sidebar-accent" />
           </div>
         </SidebarHeader>
         <SidebarContent>
