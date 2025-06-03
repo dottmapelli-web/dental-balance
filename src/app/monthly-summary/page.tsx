@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,13 +13,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { analyzeMonthlySummary, type AnalyzeMonthlySummaryInput, type AnalyzeMonthlySummaryOutput } from "@/ai/flows/analyze-monthly-summary";
 import { generateMonthlyTextSummary } from "@/ai/flows/generate-monthly-text-summary";
-import { AlertCircle, CheckCircle2, Loader2, BotMessageSquare, Wand2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, BotMessageSquare, Wand2, Printer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getYear, getMonth, format, parseISO, isValid } from "date-fns";
 import { it } from "date-fns/locale";
-import { initialTransactions } from '@/data/transactions-data'; // Used to determine available months/years
+import { initialTransactions, type Transaction } from '@/data/transactions-data';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
+import { LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line } from "recharts";
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   summaryText: z.string().min(10, { message: "Il riepilogo testuale è troppo corto (min 10 caratteri)." }).optional(),
@@ -33,14 +36,13 @@ const formSchema = z.object({
 type MonthlySummaryFormData = z.infer<typeof formSchema>;
 
 const generateAvailablePeriods = () => {
-  const periods = new Set<string>(); // Store as "YYYY-MM"
+  const periods = new Set<string>();
   initialTransactions.forEach(t => {
     const date = parseISO(t.date);
     if (isValid(date)) {
       periods.add(format(date, "yyyy-MM"));
     }
   });
-  // Add current month if not present
   periods.add(format(new Date(), "yyyy-MM"));
   
   const sortedPeriods = Array.from(periods).sort().reverse();
@@ -60,7 +62,6 @@ const generateAvailablePeriods = () => {
       label: format(new Date(parseInt(yearStr), monthIndex), "MMMM", { locale: it }),
     });
   });
-  // Ensure months are unique and sorted for each year
    for (const year in monthsByYear) {
     monthsByYear[year] = Array.from(new Set(monthsByYear[year].map(m => m.value)))
       .map(value => monthsByYear[year].find(m => m.value === value)!)
@@ -73,34 +74,72 @@ const generateAvailablePeriods = () => {
   };
 };
 
+const monthlyChartConfig = {
+  income: { label: "Entrate", color: "hsl(var(--chart-1))" },
+  expenses: { label: "Uscite", color: "hsl(var(--chart-2))" },
+  balance: { label: "Saldo Mensile", color: "hsl(var(--chart-3))" },
+} satisfies ChartConfig;
+
 
 export default function MonthlySummaryPage() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeMonthlySummaryOutput | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [isLoadingSummaryGeneration, setIsLoadingSummaryGeneration] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const { years: availableYears, monthsByYear } = React.useMemo(() => generateAvailablePeriods(), []);
+  const { years: availableYearsForForm, monthsByYear } = React.useMemo(() => generateAvailablePeriods(), []);
+  const availableYearsForChart = availableYearsForForm; // Can be the same or derived differently if needed
+
+  const [chartSelectedYear, setChartSelectedYear] = useState<string>(() => availableYearsForChart[0] || getYear(new Date()).toString());
+  const [monthlyChartData, setMonthlyChartData] = useState<any[]>([]);
   
-  const [selectedYear, setSelectedYear] = useState<string>(() => availableYears[0] || getYear(new Date()).toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const currentYear = availableYears[0] || getYear(new Date()).toString();
+  const [formSelectedYear, setFormSelectedYear] = useState<string>(() => availableYearsForForm[0] || getYear(new Date()).toString());
+  const [formSelectedMonth, setFormSelectedMonth] = useState<string>(() => {
+    const currentYear = availableYearsForForm[0] || getYear(new Date()).toString();
     const yearMonths = monthsByYear[currentYear] || [];
     const currentMonthActual = getMonth(new Date()).toString();
     return yearMonths.find(m => m.value === currentMonthActual)?.value || yearMonths[0]?.value || getMonth(new Date()).toString();
   });
-  const [availableMonthsForSelectedYear, setAvailableMonthsForSelectedYear] = useState(monthsByYear[selectedYear] || []);
+  const [availableMonthsForForm, setAvailableMonthsForForm] = useState(monthsByYear[formSelectedYear] || []);
 
   useEffect(() => {
-    setAvailableMonthsForSelectedYear(monthsByYear[selectedYear] || []);
-    // If current selectedMonth is not in the new list of available months, reset it
-    if (!(monthsByYear[selectedYear] || []).find(m => m.value === selectedMonth)) {
-      setSelectedMonth((monthsByYear[selectedYear] || [])[0]?.value || getMonth(new Date()).toString());
+    const year = parseInt(chartSelectedYear);
+    const dataForYear = Array.from({ length: 12 }).map((_, i) => ({
+      month: format(new Date(year, i), "MMM", { locale: it }),
+      income: 0,
+      expenses: 0,
+      balance: 0,
+    }));
+
+    initialTransactions.forEach(t => {
+      const transactionDate = parseISO(t.date);
+      if (isValid(transactionDate) && getYear(transactionDate) === year) {
+        const monthIndex = getMonth(transactionDate);
+        if (t.type === 'Entrata') {
+          dataForYear[monthIndex].income += t.amount;
+        } else if (t.type === 'Uscita') {
+          dataForYear[monthIndex].expenses += Math.abs(t.amount);
+        }
+      }
+    });
+
+    dataForYear.forEach(monthData => {
+      monthData.balance = monthData.income - monthData.expenses;
+    });
+    setMonthlyChartData(dataForYear);
+  }, [chartSelectedYear, initialTransactions]);
+
+
+  useEffect(() => {
+    setAvailableMonthsForForm(monthsByYear[formSelectedYear] || []);
+    if (!(monthsByYear[formSelectedYear] || []).find(m => m.value === formSelectedMonth)) {
+      setFormSelectedMonth((monthsByYear[formSelectedYear] || [])[0]?.value || getMonth(new Date()).toString());
     }
-  }, [selectedYear, monthsByYear, selectedMonth]);
+  }, [formSelectedYear, monthsByYear, formSelectedMonth]);
 
 
-  const { register, handleSubmit, formState: { errors }, setValue, control, watch } = useForm<MonthlySummaryFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, control } = useForm<MonthlySummaryFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
         budgetedIncome: 0,
@@ -113,13 +152,12 @@ export default function MonthlySummaryPage() {
   const handleGenerateSummary = async () => {
     setIsLoadingSummaryGeneration(true);
     setError(null);
-    setValue("summaryText", ""); // Clear previous summary
+    setValue("summaryText", ""); 
     try {
-      const month = parseInt(selectedMonth);
-      const year = parseInt(selectedYear);
+      const month = parseInt(formSelectedMonth);
+      const year = parseInt(formSelectedYear);
       const result = await generateMonthlyTextSummary({ month, year });
       setValue("summaryText", result.summaryText);
-      // If summaryText contains an error message from the flow, display it as a general error too
       if (result.summaryText.toLowerCase().includes("errore") || result.summaryText.toLowerCase().includes("impossibile generare")) {
         setError("Problema durante la generazione del riepilogo. Controlla il testo generato per i dettagli.");
       }
@@ -173,47 +211,118 @@ export default function MonthlySummaryPage() {
     }
   };
 
+  const handlePrintReport = () => {
+    toast({
+      title: "Stampa Report",
+      description: "La funzionalità di stampa del report non è ancora implementata.",
+    });
+  };
+
   return (
     <>
       <PageHeader
         title="Report Mensile"
-        description="Analizza i dati finanziari mensili e identifica anomalie con l'aiuto dell'IA."
+        description="Analizza i dati finanziari mensili, genera riepiloghi e identifica anomalie con l'aiuto dell'IA."
+        actions={
+          <div className="flex items-center gap-2">
+            <Select value={chartSelectedYear} onValueChange={setChartSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Anno Grafico" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYearsForChart.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={handlePrintReport}>
+              <Printer className="mr-2 h-4 w-4" />
+              Stampa Report
+            </Button>
+          </div>
+        }
       />
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="font-headline">Andamento Finanziario Mensile ({chartSelectedYear})</CardTitle>
+          <CardDescription>Visualizzazione delle entrate, uscite e saldo mensile per l'anno selezionato.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={monthlyChartConfig} className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsLineChart data={monthlyChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip
+                  cursor={false}
+                  content={
+                    <ChartTooltipContent
+                      indicator="line"
+                      labelFormatter={(value, payload) => {
+                        if (payload && payload.length > 0) {
+                            return `Mese: ${payload[0].payload.month}, ${chartSelectedYear}`;
+                        }
+                        return value;
+                      }}
+                      formatter={(value, name, props) => {
+                        const formattedValue = typeof value === 'number' 
+                            ? `€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                            : value;
+                        
+                        let label = props.name;
+                        if (props.dataKey === 'income') label = 'Entrate';
+                        else if (props.dataKey === 'expenses') label = 'Uscite';
+                        else if (props.dataKey === 'balance') label = 'Saldo Mensile';
+                        
+                        return [formattedValue, label];
+                      }}
+                    />
+                  }
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-income)" }} activeDot={{ r: 6 }} name="Entrate" />
+                <Line type="monotone" dataKey="expenses" stroke="var(--color-expenses)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-expenses)" }} activeDot={{ r: 6 }} name="Uscite" />
+                <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 4, fill: "var(--color-balance)" }} activeDot={{ r: 6 }} name="Saldo Mensile" />
+              </RechartsLineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle className="font-headline">Inserisci Dati del Mese</CardTitle>
+            <CardTitle className="font-headline">Inserisci Dati e Genera Riepilogo AI</CardTitle>
             <CardDescription>
-              Seleziona mese/anno, genera o scrivi un riepilogo dell'attività finanziaria, e inserisci i relativi importi. 
-              L'AI analizzerà questi dati per individuare anomalie e coerenze.
+              Seleziona mese/anno per il riepilogo, genera o scrivi un testo sull'attività finanziaria, e inserisci i relativi importi.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmitAnalysis)} className="space-y-6">
               <div className="space-y-2">
-                <Label>Periodo per il Riepilogo</Label>
+                <Label>Periodo per il Riepilogo AI</Label>
                 <div className="flex gap-2 items-center">
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <Select value={formSelectedMonth} onValueChange={setFormSelectedMonth}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Mese" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableMonthsForSelectedYear.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
+                      {availableMonthsForForm.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Select value={selectedYear} onValueChange={(value) => {
-                      setSelectedYear(value);
-                      // Reset month to the first available for the new year or current actual month if available
+                  <Select value={formSelectedYear} onValueChange={(value) => {
+                      setFormSelectedYear(value);
                       const newYearMonths = monthsByYear[value] || [];
                       const currentActualMonth = getMonth(new Date()).toString();
                       const newDefaultMonth = newYearMonths.find(m=>m.value === currentActualMonth)?.value || newYearMonths[0]?.value || "0";
-                      setSelectedMonth(newDefaultMonth);
+                      setFormSelectedMonth(newDefaultMonth);
                     }}>
                     <SelectTrigger className="w-full sm:w-[120px]">
                       <SelectValue placeholder="Anno" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                      {availableYearsForForm.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -221,7 +330,7 @@ export default function MonthlySummaryPage() {
               
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <Label htmlFor="summaryText">Riepilogo Testuale del Mese Corrente</Label>
+                  <Label htmlFor="summaryText">Riepilogo Testuale del Mese Selezionato</Label>
                   <Button
                     type="button"
                     onClick={handleGenerateSummary}
@@ -355,7 +464,7 @@ export default function MonthlySummaryPage() {
             )}
             {!isLoadingAnalysis && !isLoadingSummaryGeneration && !analysisResult && !error && (
               <p className="text-sm text-muted-foreground text-center py-10">
-                Genera o inserisci un riepilogo e compila i dati numerici, poi avvia l'analisi.
+                Compila i dati e avvia l'analisi, oppure genera prima un riepilogo testuale con l'AI.
               </p>
             )}
           </CardContent>
@@ -364,3 +473,6 @@ export default function MonthlySummaryPage() {
     </>
   );
 }
+
+
+    
