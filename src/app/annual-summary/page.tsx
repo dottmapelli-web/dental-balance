@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart as RechartsLineChart } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react"; // Removed DollarSign
 import React from 'react';
 
 
@@ -36,6 +36,10 @@ export default function AnnualSummaryPage() {
     expenses: d.expenses * (parseInt(currentYear) / 2024),
   }));
 
+  const totalAnnualIncome = displayedAnnualData.reduce((acc, item) => acc + item.income, 0);
+  const totalAnnualExpenses = displayedAnnualData.reduce((acc, item) => acc + item.expenses, 0);
+  const netProfit = totalAnnualIncome - totalAnnualExpenses;
+
 
   return (
     <>
@@ -58,30 +62,36 @@ export default function AnnualSummaryPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Entrate Annuali ({currentYear})</CardTitle>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+            <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€{displayedAnnualData.reduce((acc, item) => acc + item.income, 0).toLocaleString()}</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{totalAnnualIncome.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+15% rispetto all'anno precedente (esempio)</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Uscite Annuali ({currentYear})</CardTitle>
-            <TrendingDown className="h-5 w-5 text-muted-foreground" />
+            <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">€{displayedAnnualData.reduce((acc, item) => acc + item.expenses, 0).toLocaleString()}</div>
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{totalAnnualExpenses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+12% rispetto all'anno precedente (esempio)</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Profitto Netto ({currentYear})</CardTitle>
-            <DollarSign className="h-5 w-5 text-muted-foreground" />
+            {netProfit >= 0 ? (
+                <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
+            ) : (
+                <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
+            )}
           </CardHeader>
           <CardContent>
-             <div className="text-3xl font-bold">€{(displayedAnnualData.reduce((acc, item) => acc + item.income, 0) - displayedAnnualData.reduce((acc, item) => acc + item.expenses, 0)).toLocaleString()}</div>
+             <div className={`text-3xl font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                €{netProfit.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">+21% rispetto all'anno precedente (esempio)</p>
           </CardContent>
         </Card>
