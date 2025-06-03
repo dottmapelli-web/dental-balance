@@ -12,7 +12,6 @@ import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-l
 import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
-// TransactionModal is now managed by AppShell
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -47,7 +46,7 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(260 70% 82%)", // Pastel Purple/Lilac
+    pieFill: "hsl(260 70% 78%)", // Vivid Pastel Purple/Lilac
   },
   {
     title: "Materiali",
@@ -61,7 +60,7 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(150 60% 78%)", // Pastel Mint Green
+    pieFill: "hsl(150 65% 72%)", // Vivid Pastel Mint Green
   },
   {
     title: "Personale",
@@ -75,7 +74,7 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(340 80% 82%)", // Pastel Pink
+    pieFill: "hsl(340 80% 78%)", // Vivid Pastel Pink
   },
   {
     title: "Servizi Esterni",
@@ -89,7 +88,7 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(50 80% 78%)", // Pastel Yellow
+    pieFill: "hsl(50 80% 72%)", // Vivid Pastel Yellow
   },
    {
     title: "Altre Spese",
@@ -103,7 +102,7 @@ const expenseCategoriesData = [
     bgColor: "bg-red-100 dark:bg-red-900/30", // This uses Tailwind bg, pieFill will be custom
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(20 80% 80%)", // Pastel Peach/Light Orange
+    pieFill: "hsl(20 80% 75%)", // Vivid Pastel Peach/Light Orange
   },
 ];
 

@@ -39,12 +39,12 @@ body {
     
     --radius: 0.5rem;
 
-    /* Chart Colors - Pastel Palette */
-    --chart-1: 145 55% 72%;   /* Pastel Green (Income) */
-    --chart-2: 0 70% 78%;    /* Pastel Red/Pink (Expenses) */
-    --chart-3: 200 70% 75%;   /* Pastel Blue (Profit/Accent) */
-    --chart-4: 260 65% 80%;   /* Pastel Purple Accent */
-    --chart-5: 30 75% 78%;   /* Pastel Orange/Peach Accent */
+    /* Chart Colors - Vivid Pastel Palette */
+    --chart-1: 145 60% 68%;   /* Vivid Pastel Green (Income) */
+    --chart-2: 0 75% 72%;    /* Vivid Pastel Red/Pink (Expenses) */
+    --chart-3: 200 75% 70%;   /* Vivid Pastel Blue (Profit/Accent) */
+    --chart-4: 260 70% 75%;   /* Vivid Pastel Purple Accent */
+    --chart-5: 30 80% 72%;   /* Vivid Pastel Orange/Peach Accent */
 
     /* Sidebar specific colors (light theme example) */
     --sidebar-background: 220 25% 98%; /* Very light gray, almost white */
@@ -86,12 +86,12 @@ body {
     --input: 220 20% 35%;
     --ring: 214 70% 50%; /* Darker Blue for rings */
 
-    /* Chart Colors - Dark Mode Pastel Palette */
-    --chart-1: 145 50% 60%; /* Dark Pastel Green */
-    --chart-2: 0 60% 65%;  /* Dark Pastel Red/Pink */
-    --chart-3: 200 60% 62%; /* Dark Pastel Blue */
-    --chart-4: 260 55% 68%; /* Dark Pastel Purple */
-    --chart-5: 30 65% 68%;  /* Dark Pastel Orange/Peach */
+    /* Chart Colors - Dark Mode Vivid Pastel Palette */
+    --chart-1: 145 55% 62%; /* Dark Vivid Pastel Green */
+    --chart-2: 0 65% 68%;  /* Dark Vivid Pastel Red/Pink */
+    --chart-3: 200 65% 65%; /* Dark Vivid Pastel Blue */
+    --chart-4: 260 60% 72%; /* Dark Vivid Pastel Purple */
+    --chart-5: 30 70% 70%;  /* Dark Vivid Pastel Orange/Peach */
 
     /* Sidebar specific colors (dark theme example) */
     --sidebar-background: 220 25% 10%; /* Very dark blue-gray */
