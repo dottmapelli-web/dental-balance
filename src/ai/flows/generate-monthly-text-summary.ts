@@ -68,35 +68,44 @@ const generateMonthlyTextSummaryFlow = ai.defineFlow(
     outputSchema: GenerateMonthlyTextSummaryOutputSchema,
   },
   async ({ month, year }) => {
-    const monthName = format(new Date(year, month), "MMMM", { locale: it });
-
-    const monthlyTransactions = initialTransactions.filter(t => {
-      const transactionDate = parseISO(t.date);
-      return isValid(transactionDate) && getMonth(transactionDate) === month && getYear(transactionDate) === year;
-    });
-
-    if (monthlyTransactions.length === 0) {
-        return { summaryText: `Nessuna transazione registrata per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
-    }
-
-    const formattedTransactions = formatTransactionsForPrompt(monthlyTransactions);
-
     try {
-      const response = await prompt({ month, year, formattedTransactions, monthName });
-    
-      if (response && response.output && typeof response.output.summaryText === 'string') {
-        return response.output;
-      } else {
-        console.error('AI output is not in the expected format or missing summaryText. Response:', response);
-        const outputDetails = response && response.output ? JSON.stringify(response.output) : 'Nessun output ricevuto.';
-        return { 
-          summaryText: `Impossibile generare il riepilogo AI per ${monthName} ${year}. L'output del modello non era nel formato previsto o il campo summaryText era mancante. Dettagli output: ${outputDetails}\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
-        };
+      const monthName = format(new Date(year, month), "MMMM", { locale: it });
+
+      const monthlyTransactions = initialTransactions.filter(t => {
+        const transactionDate = parseISO(t.date);
+        return isValid(transactionDate) && getMonth(transactionDate) === month && getYear(transactionDate) === year;
+      });
+
+      if (monthlyTransactions.length === 0) {
+          return { summaryText: `Nessuna transazione registrata per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
       }
-    } catch (flowError: any) {
-        console.error('Error during AI prompt execution in generateMonthlyTextSummaryFlow:', flowError);
+
+      const formattedTransactions = formatTransactionsForPrompt(monthlyTransactions);
+
+      // Inner try-catch for the AI prompt call
+      try {
+        const response = await prompt({ month, year, formattedTransactions, monthName });
+      
+        if (response && response.output && typeof response.output.summaryText === 'string') {
+          return response.output;
+        } else {
+          console.error('AI output is not in the expected format or missing summaryText. Response:', response);
+          const outputDetails = response && response.output ? JSON.stringify(response.output) : 'Nessun output ricevuto.';
+          return { 
+            summaryText: `Impossibile generare il riepilogo AI per ${monthName} ${year}. L'output del modello non era nel formato previsto o il campo summaryText era mancante. Dettagli output: ${outputDetails}\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+          };
+        }
+      } catch (promptError: any) {
+          console.error('Error during AI prompt execution in generateMonthlyTextSummaryFlow:', promptError);
+          return { 
+            summaryText: `Errore durante la generazione del riepilogo AI per ${monthName} ${year}: ${promptError.message || 'Errore sconosciuto durante l\'esecuzione del prompt.'}.\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+          };
+      }
+    } catch (flowError: any) { // Outer catch for any other error in the flow logic
+        console.error('Error in generateMonthlyTextSummaryFlow preparation stages:', flowError);
+        const monthForError = isValid(new Date(year, month)) ? format(new Date(year, month), "MMMM yyyy", { locale: it }) : `mese ${month + 1}, anno ${year}`;
         return { 
-          summaryText: `Errore durante la generazione del riepilogo AI per ${monthName} ${year}: ${flowError.message || 'Errore sconosciuto durante l\'esecuzione del prompt.'}.\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+          summaryText: `Si è verificato un errore imprevisto durante la preparazione dei dati per il riepilogo di ${monthForError}. Dettagli errore: ${flowError.message || 'Errore sconosciuto nella preparazione dei dati.'}`
         };
     }
   }

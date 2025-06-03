@@ -17,7 +17,7 @@ import { AlertCircle, CheckCircle2, Loader2, BotMessageSquare, Wand2 } from "luc
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getYear, getMonth, format } from "date-fns";
+import { getYear, getMonth, format, parseISO, isValid } from "date-fns";
 import { it } from "date-fns/locale";
 import { initialTransactions } from '@/app/transactions/page'; // Used to determine available months/years
 
@@ -32,14 +32,46 @@ const formSchema = z.object({
 
 type MonthlySummaryFormData = z.infer<typeof formSchema>;
 
-const generateYears = () => {
-  const uniqueYears = new Set(initialTransactions.map(t => getYear(new Date(t.date))));
-  const currentYr = getYear(new Date());
-  uniqueYears.add(currentYr); // Ensure current year is always an option
-  return Array.from(uniqueYears).sort((a, b) => b - a).map(String);
-};
+const generateAvailablePeriods = () => {
+  const periods = new Set<string>(); // Store as "YYYY-MM"
+  initialTransactions.forEach(t => {
+    const date = parseISO(t.date);
+    if (isValid(date)) {
+      periods.add(format(date, "yyyy-MM"));
+    }
+  });
+  // Add current month if not present
+  periods.add(format(new Date(), "yyyy-MM"));
+  
+  const sortedPeriods = Array.from(periods).sort().reverse();
+  
+  const years = new Set<string>();
+  const monthsByYear: Record<string, { value: string; label: string }[]> = {};
 
-const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), "MMMM", { locale: it }) }));
+  sortedPeriods.forEach(period => {
+    const [yearStr, monthStr] = period.split('-');
+    years.add(yearStr);
+    if (!monthsByYear[yearStr]) {
+      monthsByYear[yearStr] = [];
+    }
+    const monthIndex = parseInt(monthStr, 10) - 1;
+    monthsByYear[yearStr].push({
+      value: monthIndex.toString(),
+      label: format(new Date(parseInt(yearStr), monthIndex), "MMMM", { locale: it }),
+    });
+  });
+  // Ensure months are unique and sorted for each year
+   for (const year in monthsByYear) {
+    monthsByYear[year] = Array.from(new Set(monthsByYear[year].map(m => m.value)))
+      .map(value => monthsByYear[year].find(m => m.value === value)!)
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value));
+  }
+
+  return {
+    years: Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)),
+    monthsByYear,
+  };
+};
 
 
 export default function MonthlySummaryPage() {
@@ -48,9 +80,24 @@ export default function MonthlySummaryPage() {
   const [isLoadingSummaryGeneration, setIsLoadingSummaryGeneration] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
-  const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
-  const availableYears = React.useMemo(() => generateYears(), []);
+  const { years: availableYears, monthsByYear } = React.useMemo(() => generateAvailablePeriods(), []);
+  
+  const [selectedYear, setSelectedYear] = useState<string>(() => availableYears[0] || getYear(new Date()).toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const currentYear = availableYears[0] || getYear(new Date()).toString();
+    const yearMonths = monthsByYear[currentYear] || [];
+    const currentMonthActual = getMonth(new Date()).toString();
+    return yearMonths.find(m => m.value === currentMonthActual)?.value || yearMonths[0]?.value || getMonth(new Date()).toString();
+  });
+  const [availableMonthsForSelectedYear, setAvailableMonthsForSelectedYear] = useState(monthsByYear[selectedYear] || []);
+
+  useEffect(() => {
+    setAvailableMonthsForSelectedYear(monthsByYear[selectedYear] || []);
+    // If current selectedMonth is not in the new list of available months, reset it
+    if (!(monthsByYear[selectedYear] || []).find(m => m.value === selectedMonth)) {
+      setSelectedMonth((monthsByYear[selectedYear] || [])[0]?.value || getMonth(new Date()).toString());
+    }
+  }, [selectedYear, monthsByYear, selectedMonth]);
 
 
   const { register, handleSubmit, formState: { errors }, setValue, control, watch } = useForm<MonthlySummaryFormData>({
@@ -62,19 +109,33 @@ export default function MonthlySummaryPage() {
         actualExpenses: 0,
     }
   });
-  const currentSummaryText = watch("summaryText");
 
   const handleGenerateSummary = async () => {
     setIsLoadingSummaryGeneration(true);
     setError(null);
+    setValue("summaryText", ""); // Clear previous summary
     try {
       const month = parseInt(selectedMonth);
       const year = parseInt(selectedYear);
       const result = await generateMonthlyTextSummary({ month, year });
       setValue("summaryText", result.summaryText);
-    } catch (e) {
+      // If summaryText contains an error message from the flow, display it as a general error too
+      if (result.summaryText.toLowerCase().includes("errore") || result.summaryText.toLowerCase().includes("impossibile generare")) {
+        setError("Problema durante la generazione del riepilogo. Controlla il testo generato per i dettagli.");
+      }
+    } catch (e: any) {
       console.error("Error generating summary:", e);
-      setError("Si è verificato un errore durante la generazione del riepilogo. Riprova più tardi.");
+      let errorMessage = "Si è verificato un errore durante la generazione del riepilogo. Riprova più tardi.";
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      } else if (typeof e === 'string') {
+        errorMessage = e;
+      } else if (e && typeof e.details === 'string') {
+        errorMessage = e.details;
+      } else if (e && typeof e.message === 'string') {
+         errorMessage = e.message;
+      }
+      setError(errorMessage);
     } finally {
       setIsLoadingSummaryGeneration(false);
     }
@@ -94,9 +155,19 @@ export default function MonthlySummaryPage() {
     try {
       const result = await analyzeMonthlySummary(data as AnalyzeMonthlySummaryInput);
       setAnalysisResult(result);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error analyzing summary:", e);
-      setError("Si è verificato un errore durante l'analisi. Riprova più tardi.");
+      let analysisErrorMessage = "Si è verificato un errore durante l'analisi. Riprova più tardi.";
+       if (e instanceof Error) {
+        analysisErrorMessage = e.message;
+      } else if (typeof e === 'string') {
+        analysisErrorMessage = e;
+      } else if (e && typeof e.details === 'string') {
+        analysisErrorMessage = e.details;
+      } else if (e && typeof e.message === 'string') {
+         analysisErrorMessage = e.message;
+      }
+      setError(analysisErrorMessage);
     } finally {
       setIsLoadingAnalysis(false);
     }
@@ -127,10 +198,17 @@ export default function MonthlySummaryPage() {
                       <SelectValue placeholder="Mese" />
                     </SelectTrigger>
                     <SelectContent>
-                      {months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
+                      {availableMonthsForSelectedYear.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <Select value={selectedYear} onValueChange={(value) => {
+                      setSelectedYear(value);
+                      // Reset month to the first available for the new year or current actual month if available
+                      const newYearMonths = monthsByYear[value] || [];
+                      const currentActualMonth = getMonth(new Date()).toString();
+                      const newDefaultMonth = newYearMonths.find(m=>m.value === currentActualMonth)?.value || newYearMonths[0]?.value || "0";
+                      setSelectedMonth(newDefaultMonth);
+                    }}>
                     <SelectTrigger className="w-full sm:w-[120px]">
                       <SelectValue placeholder="Anno" />
                     </SelectTrigger>
@@ -210,7 +288,7 @@ export default function MonthlySummaryPage() {
                 </div>
               </div>
 
-              <Button type="submit" disabled={isLoadingAnalysis} className="w-full sm:w-auto">
+              <Button type="submit" disabled={isLoadingAnalysis || isLoadingSummaryGeneration} className="w-full sm:w-auto">
                 {isLoadingAnalysis ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -236,7 +314,7 @@ export default function MonthlySummaryPage() {
             <CardDescription>Anomalie e coerenza rilevate dall'intelligenza artificiale.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {(isLoadingAnalysis || isLoadingSummaryGeneration) && (
+            {(isLoadingAnalysis || isLoadingSummaryGeneration) && !error && (
               <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mb-2" />
                 <p>{isLoadingSummaryGeneration ? "Generazione riepilogo..." : "Caricamento analisi..."}</p>
