@@ -529,7 +529,7 @@ interface SidebarMenuButtonProps
     VariantProps<typeof sidebarMenuButtonVariants> {
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
-  asChild?: boolean; // Explicitly define asChild
+  asChild?: boolean;
 }
 
 const SidebarMenuButton = React.forwardRef<
@@ -544,13 +544,13 @@ const SidebarMenuButton = React.forwardRef<
       tooltip,
       className,
       children,
-      asChild, // Destructure asChild from props
-      ...rest // 'rest' contains all other props, excluding asChild
+      asChild: isAsChild = false, // Renamed to avoid conflict, default to false
+      ...otherProps // Contains all other props (e.g., href from Link)
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
-    const Comp = asChild ? Slot : "button";
+    const Comp = isAsChild ? Slot : "button";
 
     const buttonElement = (
       <Comp
@@ -559,7 +559,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...rest} // Spread 'rest', which does not include 'asChild'
+        {...otherProps} // Spread otherProps, which does not include asChild
       >
         {children}
       </Comp>
