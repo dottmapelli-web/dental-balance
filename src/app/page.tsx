@@ -13,7 +13,6 @@ import Link from "next/link";
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDescriptionComponent } from "@/components/ui/dialog";
 // TransactionModal is now managed by AppShell
-// import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal'; 
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -48,7 +47,7 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
-    pieFill: "hsl(var(--chart-1))",
+    pieFill: "hsl(260 70% 82%)", // Pastel Purple/Lilac
   },
   {
     title: "Materiali",
@@ -62,7 +61,7 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
-    pieFill: "hsl(var(--chart-2))",
+    pieFill: "hsl(150 60% 78%)", // Pastel Mint Green
   },
   {
     title: "Personale",
@@ -76,7 +75,7 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
-    pieFill: "hsl(var(--chart-3))",
+    pieFill: "hsl(340 80% 82%)", // Pastel Pink
   },
   {
     title: "Servizi Esterni",
@@ -90,7 +89,7 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
-    pieFill: "hsl(var(--chart-4))",
+    pieFill: "hsl(50 80% 78%)", // Pastel Yellow
   },
    {
     title: "Altre Spese",
@@ -101,10 +100,10 @@ const expenseCategoriesData = [
       { name: "Marche da Bollo / Banca", amount: 120.00 },
       { name: "Regali", amount: 180.00 },
     ],
-    bgColor: "bg-red-100 dark:bg-red-900/30",
+    bgColor: "bg-red-100 dark:bg-red-900/30", // This uses Tailwind bg, pieFill will be custom
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
-    pieFill: "hsl(var(--chart-5))",
+    pieFill: "hsl(20 80% 80%)", // Pastel Peach/Light Orange
   },
 ];
 
@@ -155,7 +154,6 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
 export default function DashboardPage() {
   const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
   const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
-  // TransactionModal state and handlers are now in AppShell
   const { toast } = useToast();
 
   const handleImportData = () => {
@@ -327,10 +325,6 @@ export default function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* TransactionModal is now rendered in AppShell */}
     </>
   );
 }
-
-    

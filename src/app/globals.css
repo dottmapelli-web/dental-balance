@@ -39,12 +39,12 @@ body {
     
     --radius: 0.5rem;
 
-    /* Chart Colors - General Palette */
-    --chart-1: 214 80% 50%;   /* Primary Blue */
-    --chart-2: 30 80% 60%;    /* Orange/Coral Accent */
-    --chart-3: 150 60% 50%;   /* Teal/Green Accent */
-    --chart-4: 260 70% 65%;   /* Purple Accent */
-    --chart-5: 340 80% 70%;   /* Pink Accent */
+    /* Chart Colors - Pastel Palette */
+    --chart-1: 145 55% 72%;   /* Pastel Green (Income) */
+    --chart-2: 0 70% 78%;    /* Pastel Red/Pink (Expenses) */
+    --chart-3: 200 70% 75%;   /* Pastel Blue (Profit/Accent) */
+    --chart-4: 260 65% 80%;   /* Pastel Purple Accent */
+    --chart-5: 30 75% 78%;   /* Pastel Orange/Peach Accent */
 
     /* Sidebar specific colors (light theme example) */
     --sidebar-background: 220 25% 98%; /* Very light gray, almost white */
@@ -86,12 +86,12 @@ body {
     --input: 220 20% 35%;
     --ring: 214 70% 50%; /* Darker Blue for rings */
 
-    /* Chart Colors - Dark Mode */
-    --chart-1: 214 70% 55%; 
-    --chart-2: 30 70% 65%;
-    --chart-3: 150 50% 55%;
-    --chart-4: 260 60% 70%;
-    --chart-5: 340 70% 75%;
+    /* Chart Colors - Dark Mode Pastel Palette */
+    --chart-1: 145 50% 60%; /* Dark Pastel Green */
+    --chart-2: 0 60% 65%;  /* Dark Pastel Red/Pink */
+    --chart-3: 200 60% 62%; /* Dark Pastel Blue */
+    --chart-4: 260 55% 68%; /* Dark Pastel Purple */
+    --chart-5: 30 65% 68%;  /* Dark Pastel Orange/Peach */
 
     /* Sidebar specific colors (dark theme example) */
     --sidebar-background: 220 25% 10%; /* Very dark blue-gray */
