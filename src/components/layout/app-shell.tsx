@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, PanelLeft } from 'lucide-react'; // Assicurati che PanelLeft sia importato se SidebarTrigger lo usa internamente
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/toaster';
@@ -27,17 +27,13 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
     </linearGradient>
   </defs>
   <g>
-    {/* Main tooth shape with subtle gradient or solid color */}
     <path d="M35.2,63.5 C31.5,63.5 28.5,60.7 28.5,57.3 C28.5,53.9 31.5,51.1 35.2,51.1 C38.9,51.1 41.9,53.9 41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5 M35.2,45 C26.3,45 19.2,51.6 19.2,59.7 C19.2,69.5 28.8,79.5 30.1,81.2 C30.9,82.3 32.9,85 35.2,85 C37.5,85 39.5,82.3 40.3,81.2 C41.6,79.5 51.2,69.5 51.2,59.7 C51.2,51.6 44.1,45 35.2,45"
         strokeWidth="5" stroke="currentColor" fill="hsl(var(--sidebar-background))" />
-    {/* Highlight with gold gradient */}
-    <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="5" stroke="url(#goldGradient)" /> 
-    {/* Inner details can use currentColor or a contrasting shade */}
+    <path d="M19.2,59.7 C19.2,51.6 26.3,45 35.2,45" strokeWidth="5" stroke="url(#goldGradient)" />
     <path d="M28.5,57.3 C28.5,60.7 31.5,63.5 35.2,63.5 M41.9,57.3 C41.9,60.7 38.9,63.5 35.2,63.5" strokeWidth="4" stroke="currentColor" />
   </g>
 </svg>
 );
-
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -47,19 +43,9 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="sidebar" collapsible="icon" className="border-r">
-        <SidebarHeader className="p-3 flex flex-col items-center group-data-[collapsible=icon]:gap-2 group-data-[state=expanded]:items-start">
-          <div className="flex items-center gap-2 w-full">
-            <BrandLogoIcon className="h-8 w-8 flex-shrink-0 text-sidebar-primary group-data-[state=expanded]:h-9 group-data-[state=expanded]:w-9" />
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="font-headline text-lg font-semibold text-sidebar-foreground leading-tight">
-                Dental Balance
-              </span>
-              <span className="text-xs text-sidebar-foreground/80 leading-tight">
-                Studio De Vecchi & Mapelli
-              </span>
-            </div>
-            <SidebarTrigger className="ml-auto hidden group-data-[collapsible=icon]:hidden md:flex" />
-          </div>
+        <SidebarHeader className="p-3 flex items-center justify-between group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:py-3.5">
+           <BrandLogoIcon className="h-8 w-8 text-sidebar-primary group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9" />
+           <SidebarTrigger className="hidden group-data-[collapsible=icon]:hidden md:flex" />
         </SidebarHeader>
         <SidebarContent>
           <MainSidebarNav items={siteConfig.navItems} />
@@ -71,10 +57,26 @@ export default function AppShell({ children }: AppShellProps) {
         )}
       </Sidebar>
       <SidebarInset className="flex flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6 print:hidden">
-          <SidebarTrigger className="md:hidden" />
-          {/* Placeholder for potential breadcrumbs or page title if needed in the top bar */}
-          <div className="flex-1" /> 
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-x-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:h-16 sm:px-6 print:hidden">
+          {/* Mobile Sidebar Trigger - keep on left for mobile */}
+          <SidebarTrigger className="md:hidden -ml-2" />
+
+          {/* Branding - Logo and Text */}
+          <div className="flex items-center gap-2">
+            <BrandLogoIcon className="h-7 w-7 text-primary flex-shrink-0" />
+            <div className="flex flex-col">
+              <span className="font-headline text-lg font-semibold text-foreground leading-tight">
+                Dental Balance
+              </span>
+              <span className="text-xs text-muted-foreground leading-tight hidden sm:block">
+                Studio De Vecchi &amp; Mapelli
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-1" /> {/* Spacer */}
+
+          {/* User Profile */}
           <Button variant="ghost" size="icon" className="rounded-full">
             <UserCircle className="h-6 w-6" />
             <span className="sr-only">Profilo Utente</span>
