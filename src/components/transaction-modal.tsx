@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 export const transactionFormSchema = z.object({
   type: z.enum(['Entrata', 'Uscita']),
   date: z.date({ required_error: "La data è obbligatoria." }),
-  description: z.string().optional(), // Made optional
+  description: z.string().optional(),
   amount: z.coerce.number().positive({ message: "L'importo deve essere positivo." }),
   category: z.string().min(1, { message: "La categoria è obbligatoria." }),
   subcategory: z.string().optional(),
@@ -65,11 +65,12 @@ export default function TransactionModal({
   const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      type: transactionTypeInitial, // Set initial type
+      type: transactionTypeInitial,
       status: 'Completato',
       isRecurring: false,
       date: new Date(),
       description: '',
+      amount: 0, // Default amount to 0
     }
   });
 
@@ -80,27 +81,28 @@ export default function TransactionModal({
   useEffect(() => {
     if (isOpen) { 
       const defaultType = editingTransaction ? editingTransaction.type : transactionTypeInitial;
-      setValue('type', defaultType); // Ensure type is correctly set on open
+      setValue('type', defaultType); 
 
       if (editingTransaction) {
         const date = parseISO(editingTransaction.date);
         reset({
           ...editingTransaction,
-          type: editingTransaction.type, // Explicitly set type for editing
+          type: editingTransaction.type,
           date: isValid(date) ? date : new Date(),
           amount: Math.abs(editingTransaction.amount),
           description: editingTransaction.description || '',
           recurrenceFrequency: editingTransaction.recurrenceDetails?.frequency as RecurrenceFrequency | undefined,
           recurrenceEndDate: editingTransaction.recurrenceDetails?.endDate ? parseISO(editingTransaction.recurrenceDetails.endDate) : undefined,
           status: editingTransaction.status || 'Completato',
+          isRecurring: editingTransaction.isRecurring || false,
         });
       } else {
         reset({
-          type: transactionTypeInitial, // Set for new transactions
+          type: transactionTypeInitial,
           date: new Date(),
           description: '',
           amount: 0,
-          category: '',
+          category: transactionTypeInitial === 'Entrata' ? 'Pazienti' : '',
           subcategory: '',
           status: 'Completato',
           isRecurring: false,
@@ -122,17 +124,20 @@ export default function TransactionModal({
   }, [watchedType, watchedCategory]);
 
   const processSubmit: SubmitHandler<TransactionFormData> = (data) => {
-    // The 'type' is already part of 'data' due to watch/setValue in useEffect
-    onSubmitSuccess(data, editingTransaction?.id);
+    const finalData = {
+      ...data,
+      isRecurring: watchedType === 'Uscita' ? data.isRecurring : false,
+      recurrenceFrequency: watchedType === 'Uscita' && data.isRecurring ? data.recurrenceFrequency : undefined,
+      recurrenceEndDate: watchedType === 'Uscita' && data.isRecurring ? data.recurrenceEndDate : undefined,
+    };
+    onSubmitSuccess(finalData, editingTransaction?.id);
     onOpenChange(false); 
     toast({
       title: editingTransaction ? "Transazione Modificata" : "Transazione Aggiunta",
-      description: `${data.description || 'N/A'} - €${data.amount.toFixed(2)}`,
+      description: `${finalData.description || 'N/A'} - €${finalData.amount.toFixed(2)}`,
     });
   };
   
-  // This ensures the 'type' field in the form data is always up-to-date
-  // with the initial type, especially for new transactions.
   useEffect(() => {
     if (!editingTransaction) {
       setValue('type', transactionTypeInitial);
@@ -146,7 +151,7 @@ export default function TransactionModal({
     }}>
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingTransaction ? "Modifica Transazione" : `Nuova ${transactionTypeInitial}`}</DialogTitle>
+          <DialogTitle>{editingTransaction ? "Modifica Transazione" : `Nuova ${watchedType}`}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
           
@@ -193,7 +198,13 @@ export default function TransactionModal({
           
           <div>
             <Label htmlFor="amount">Importo</Label>
-            <Input id="amount" type="number" step="0.01" {...register("amount")} />
+            <Input 
+              id="amount" 
+              type="number" 
+              step="0.01" 
+              {...register("amount")} 
+              onFocus={(e) => e.target.select()}
+            />
             {errors.amount && <p className="text-sm text-destructive mt-1">{errors.amount.message}</p>}
           </div>
 
@@ -242,65 +253,69 @@ export default function TransactionModal({
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
           </div>
 
-          <div className="flex items-center space-x-2 pt-2">
-            <Controller
-              name="isRecurring"
-              control={control}
-              render={({ field }) => (
-                  <Checkbox id="isRecurring" checked={field.value} onCheckedChange={field.onChange} />
-              )}
-            />
-            <Label htmlFor="isRecurring">Transazione Ricorrente</Label>
-          </div>
-
-          {watchedIsRecurring && (
+          {watchedType === 'Uscita' && (
             <>
-              <div>
-                <Label htmlFor="recurrenceFrequency">Frequenza</Label>
+              <div className="flex items-center space-x-2 pt-2">
                 <Controller
-                  name="recurrenceFrequency"
+                  name="isRecurring"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger id="recurrenceFrequency">
-                        <SelectValue placeholder="Seleziona frequenza" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(recurrenceFrequencies as readonly string[]).map(freq => <SelectItem key={freq} value={freq}>{freq}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                      <Checkbox id="isRecurring" checked={field.value} onCheckedChange={field.onChange} />
                   )}
                 />
-                {errors.recurrenceFrequency && <p className="text-sm text-destructive mt-1">{errors.recurrenceFrequency.message}</p>}
+                <Label htmlFor="isRecurring">Transazione Ricorrente</Label>
               </div>
-              <div>
-                <Label htmlFor="recurrenceEndDate">Data Fine Ricorrenza (Opzionale)</Label>
-                <Controller
-                  name="recurrenceEndDate"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          locale={it}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-              </div>
+
+              {watchedIsRecurring && (
+                <>
+                  <div>
+                    <Label htmlFor="recurrenceFrequency">Frequenza</Label>
+                    <Controller
+                      name="recurrenceFrequency"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger id="recurrenceFrequency">
+                            <SelectValue placeholder="Seleziona frequenza" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(recurrenceFrequencies as readonly string[]).map(freq => <SelectItem key={freq} value={freq}>{freq}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.recurrenceFrequency && <p className="text-sm text-destructive mt-1">{errors.recurrenceFrequency.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="recurrenceEndDate">Data Fine Ricorrenza (Opzionale)</Label>
+                    <Controller
+                      name="recurrenceEndDate"
+                      control={control}
+                      render={({ field }) => (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              locale={it}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
           
@@ -309,7 +324,7 @@ export default function TransactionModal({
             <Controller
               name="status"
               control={control}
-              defaultValue="Completato" // Ensure default is set here as well
+              defaultValue="Completato"
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger id="status">
@@ -335,4 +350,3 @@ export default function TransactionModal({
   );
 }
 
-    
