@@ -1,28 +1,26 @@
 
+"use client";
+
+import React, { useState } from 'react';
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, TrendingUp, TrendingDown, ArrowRight, PlusCircle, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
 import Link from "next/link";
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useRouter } from 'next/navigation'; // Import useRouter
 
-const chartData = [
+const barChartData = [
   { month: "Gen", income: 4000, expenses: 2400 },
   { month: "Feb", income: 3000, expenses: 1398 },
   { month: "Mar", income: 2000, expenses: 5800 },
   { month: "Apr", income: 2780, expenses: 3908 },
   { month: "Mag", income: 1890, expenses: 4800 },
   { month: "Giu", income: 2390, expenses: 3800 },
-];
-
-const pieChartData = [
-  { name: "Stipendi", value: 400, fill: "hsl(var(--chart-1))" },
-  { name: "Materiali", value: 300, fill: "hsl(var(--chart-2))" },
-  { name: "Affitto", value: 300, fill: "hsl(var(--chart-3))" },
-  { name: "Utenze", value: 200, fill: "hsl(var(--chart-4))" },
-  { name: "Altro", value: 278, fill: "hsl(var(--chart-5))" },
 ];
 
 const barChartConfig = {
@@ -37,6 +35,7 @@ const lineChartConfig = {
 const expenseCategoriesData = [
   {
     title: "Spese Fisse",
+    value: 2370.50, // Sum of example items
     itemCount: 8,
     items: [
       { name: "Affitto", amount: 1800.00 },
@@ -46,9 +45,11 @@ const expenseCategoriesData = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
     textColor: "text-purple-700 dark:text-purple-300",
     borderColor: "border-purple-300 dark:border-purple-700",
+    pieFill: "hsl(var(--chart-1))",
   },
   {
     title: "Materiali",
+    value: 3580.25, // Sum of example items
     itemCount: 9,
     items: [
       { name: "Materiale Impianti", amount: 2150.00 },
@@ -58,9 +59,11 @@ const expenseCategoriesData = [
     bgColor: "bg-green-100 dark:bg-green-900/30",
     textColor: "text-green-700 dark:text-green-300",
     borderColor: "border-green-300 dark:border-green-700",
+    pieFill: "hsl(var(--chart-2))",
   },
   {
     title: "Personale",
+    value: 5550.00, // Sum of example items
     itemCount: 11,
     items: [
       { name: "Stipendio Ilaria", amount: 1400.00 },
@@ -70,9 +73,11 @@ const expenseCategoriesData = [
     bgColor: "bg-pink-100 dark:bg-pink-900/30",
     textColor: "text-pink-700 dark:text-pink-300",
     borderColor: "border-pink-300 dark:border-pink-700",
+    pieFill: "hsl(var(--chart-3))",
   },
   {
     title: "Servizi Esterni",
+    value: 2580.00, // Sum of example items
     itemCount: 6,
     items: [
       { name: "Lab. Baisotti", amount: 1250.00 },
@@ -82,9 +87,11 @@ const expenseCategoriesData = [
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     textColor: "text-yellow-700 dark:text-yellow-300",
     borderColor: "border-yellow-300 dark:border-yellow-700",
+    pieFill: "hsl(var(--chart-4))",
   },
    {
     title: "Altre Spese",
+    value: 3500.00, // Sum of example items
     itemCount: 5,
     items: [
       { name: "Tasse", amount: 3200.00 },
@@ -94,8 +101,16 @@ const expenseCategoriesData = [
     bgColor: "bg-red-100 dark:bg-red-900/30",
     textColor: "text-red-700 dark:text-red-300",
     borderColor: "border-red-300 dark:border-red-700",
+    pieFill: "hsl(var(--chart-5))",
   },
 ];
+
+const pieChartData = expenseCategoriesData.map(cat => ({
+  name: cat.title,
+  value: cat.value,
+  fill: cat.pieFill,
+}));
+
 
 interface ExpenseCategoryCardProps {
   title: string;
@@ -119,7 +134,7 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1.5 text-sm">
-          {items.map((item, index) => (
+          {items.slice(0, 3).map((item, index) => ( // Show only first 3 items for brevity
             <li key={index} className="flex justify-between items-center">
               <span className="text-muted-foreground">{item.name}</span>
               <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -135,11 +150,49 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, itemCo
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [isCategoryDetailOpen, setIsCategoryDetailOpen] = useState(false);
+  const [selectedPieCategory, setSelectedPieCategory] = useState<string | null>(null);
+
+  const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
+    // Idealmente, questo aprirebbe un modal. Per ora, naviga alla pagina transazioni.
+    // Potremmo passare un query param per pre-selezionare il tipo nel modal in futuro.
+    router.push('/transactions'); 
+    console.log(`Apri modal per nuova ${type.toLowerCase()}`);
+  };
+
+  const handleGenerateReport = () => {
+    // La logica di generazione report è complessa e verrà implementata in futuro.
+    alert("Funzionalità Report in sviluppo!");
+    console.log("Genera Report");
+  };
+
+  const handlePieSliceClick = (sliceData: any) => {
+    setSelectedPieCategory(sliceData.name);
+    setIsCategoryDetailOpen(true);
+  };
+  
   return (
     <>
       <PageHeader
         title="Dashboard"
         description="Panoramica finanziaria dello Studio De Vecchi & Mapelli."
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={() => handleNewTransaction('Entrata')} variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuova Entrata
+            </Button>
+            <Button onClick={() => handleNewTransaction('Uscita')} variant="outline">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuova Uscita
+            </Button>
+            <Button onClick={handleGenerateReport}>
+              <FileText className="mr-2 h-4 w-4" />
+              Report
+            </Button>
+          </div>
+        }
       />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -178,20 +231,18 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite Mensili</CardTitle>
-            <CardDescription>Confronto degli ultimi 6 mesi.</CardDescription>
           </CardHeader>
           <CardContent>
-            <DashboardBarChart data={chartData} config={barChartConfig} />
+            <DashboardBarChart data={barChartData} config={barChartConfig} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Distribuzione Spese</CardTitle>
-            <CardDescription>Categorie di spesa principali questo mese.</CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
-            <DashboardPieChart data={pieChartData} />
+            <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
           </CardContent>
         </Card>
       </div>
@@ -209,7 +260,6 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Flusso di Cassa Recente</CardTitle>
-            <CardDescription>Andamento del flusso di cassa negli ultimi 30 giorni.</CardDescription>
           </CardHeader>
           <CardContent>
             <DashboardCashflowLineChart data={[]} config={lineChartConfig} />
@@ -245,6 +295,24 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isCategoryDetailOpen} onOpenChange={setIsCategoryDetailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dettaglio Categoria: {selectedPieCategory}</DialogTitle>
+            <DialogDescription>
+              Elenco delle transazioni per la categoria {selectedPieCategory} nel mese corrente.
+              (Questa è una visualizzazione placeholder, l'elenco transazioni verrà implementato).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {/* Qui andrebbe la lista delle transazioni filtrate */}
+            <p className="text-sm text-muted-foreground">
+              Nessuna transazione da mostrare per questa categoria (placeholder).
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
