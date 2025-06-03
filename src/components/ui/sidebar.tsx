@@ -525,39 +525,42 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLDivElement, // Changed from HTMLAnchorElement
-  React.HTMLAttributes<HTMLDivElement> & { // Changed from React.ComponentProps<"a">
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & {
+    asChild?: boolean; // Added asChild prop
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
     {
+      asChild = false, // Default to false
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
       children,
-      ...props // href, onClick from Link will be spread here
+      ...props
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
+    const Comp = asChild ? Slot : "div"; // Use Slot if asChild is true, otherwise div
 
-    const buttonElement = ( // Renamed from linkElement to buttonElement for clarity
-      <div // Changed from 'a' to 'div'
+    const buttonElement = (
+      <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        role="link" // Added for accessibility as it acts like a link
-        tabIndex={props['aria-disabled'] ? -1 : 0} // Ensure focusability based on aria-disabled
-        {...props} // Spreads href, onClick etc. from Link
+        role={!asChild ? "link" : undefined}
+        tabIndex={!asChild && (props as any)['aria-disabled'] ? -1 : !asChild ? 0 : undefined}
+        {...props}
       >
         {children}
-      </div>
+      </Comp>
     );
 
     if (!tooltip || (state === "expanded" && !isMobile) || isMobile) {
@@ -748,5 +751,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
