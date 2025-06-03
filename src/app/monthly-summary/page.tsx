@@ -23,6 +23,7 @@ import { initialTransactions, type Transaction } from '@/data/transactions-data'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart as RechartsLineChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line } from "recharts";
 import { useToast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formSchema = z.object({
   summaryText: z.string().min(10, { message: "Il riepilogo testuale è troppo corto (min 10 caratteri)." }).optional(),
@@ -89,7 +90,7 @@ export default function MonthlySummaryPage() {
   const { toast } = useToast();
 
   const { years: availableYearsForForm, monthsByYear } = React.useMemo(() => generateAvailablePeriods(), []);
-  const availableYearsForChart = availableYearsForForm; // Can be the same or derived differently if needed
+  const availableYearsForChart = availableYearsForForm; 
 
   const [chartSelectedYear, setChartSelectedYear] = useState<string>(() => availableYearsForChart[0] || getYear(new Date()).toString());
   const [monthlyChartData, setMonthlyChartData] = useState<any[]>([]);
@@ -128,7 +129,7 @@ export default function MonthlySummaryPage() {
       monthData.balance = monthData.income - monthData.expenses;
     });
     setMonthlyChartData(dataForYear);
-  }, [chartSelectedYear, initialTransactions]);
+  }, [chartSelectedYear]);
 
 
   useEffect(() => {
@@ -282,10 +283,44 @@ export default function MonthlySummaryPage() {
                 <ChartLegend content={<ChartLegendContent />} />
                 <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-income)" }} activeDot={{ r: 6 }} name="Entrate" />
                 <Line type="monotone" dataKey="expenses" stroke="var(--color-expenses)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-expenses)" }} activeDot={{ r: 6 }} name="Uscite" />
-                <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2.5} strokeDasharray="5 5" dot={{ r: 4, fill: "var(--color-balance)" }} activeDot={{ r: 6 }} name="Saldo Mensile" />
+                <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-balance)" }} activeDot={{ r: 6 }} name="Saldo Mensile" />
               </RechartsLineChart>
             </ResponsiveContainer>
           </ChartContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="font-headline">Riepilogo Dettagliato Mensile per il {chartSelectedYear}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mese</TableHead>
+                <TableHead className="text-right">Entrate Totali</TableHead>
+                <TableHead className="text-right">Uscite Totali</TableHead>
+                <TableHead className="text-right">Saldo Mensile</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {monthlyChartData.map((monthData, index) => (
+                <TableRow key={index}>
+                  <TableCell className="font-medium">{monthData.month}</TableCell>
+                  <TableCell className="text-right text-green-600 dark:text-green-400">
+                    €{monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="text-right text-red-600 dark:text-red-400">
+                    €{monthData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className={`text-right font-semibold ${monthData.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    €{monthData.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
@@ -473,6 +508,5 @@ export default function MonthlySummaryPage() {
     </>
   );
 }
-
 
     
