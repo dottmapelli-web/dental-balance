@@ -56,7 +56,7 @@ export default function AppShell({ children }: AppShellProps) {
     console.log("AppShell transaction submitted (simulated):", data);
     toast({
       title: "Transazione Aggiunta (Simulato)",
-      description: `Aggiunta ${data.type}: ${data.description} - €${data.amount.toFixed(2)}`,
+      description: `Aggiunta ${data.type}: ${data.description || 'N/A'} - €${data.amount.toFixed(2)}`,
     });
     // setTransactionModalOpen(false); // Modal handles its own closing via onOpenChange
   };
@@ -123,7 +123,7 @@ export default function AppShell({ children }: AppShellProps) {
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuova Uscita
             </Button>
-            <Button onClick={handleGenerateReport} variant="outline" size="sm">
+            <Button onClick={handleGenerateReport} variant="outline" size="sm" className="text-primary">
               <FileText className="mr-2 h-4 w-4" />
               Report
             </Button>
@@ -147,3 +147,5 @@ export default function AppShell({ children }: AppShellProps) {
     </SidebarProvider>
   );
 }
+
+    
