@@ -1,7 +1,7 @@
 
 "use client"
 
-import * as React from "react" // Corrected import
+import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
@@ -524,8 +524,8 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-interface SidebarMenuButtonProps
-  extends React.HTMLAttributes<HTMLElement>, 
+export interface SidebarMenuButtonProps
+  extends React.HTMLAttributes<HTMLElement>,
     VariantProps<typeof sidebarMenuButtonVariants> {
   asChild?: boolean;
   isActive?: boolean;
@@ -538,16 +538,16 @@ const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
       className,
       variant,
       size,
-      asChild: isAsChild = false, // Use a different name for the destructured prop
+      asChild = false, // Default asChild to false
       isActive = false,
       tooltip,
       children,
-      ...otherProps // Capture the rest of the props
+      ...buttonProps // Capture all other props
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
-    const Comp = isAsChild ? Slot : "button";
+    const Comp = asChild ? Slot : "button";
 
     const element = (
       <Comp
@@ -556,7 +556,7 @@ const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...otherProps} // Spread only the otherProps
+        {...buttonProps} // Spread the remaining props. 'asChild' is NOT in buttonProps.
       >
         {children}
       </Comp>
@@ -750,7 +750,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
-
-    
