@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useForm, Controller, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,21 +54,21 @@ export default function BudgetObjectiveModal({
   allExpenseCategories,
 }: BudgetObjectiveModalProps) {
   
-  const defaultBudgetValues: BudgetFormData = {
+  const defaultBudgetValues = useMemo<BudgetFormData>(() => ({
     type: 'budget',
     category: allExpenseCategories[0] || '',
     budgeted: 0,
     actual: 0,
     period: 'Mensile',
-  };
+  }), [allExpenseCategories]);
 
-  const defaultObjectiveValues: ObjectiveFormData = {
+  const defaultObjectiveValues = useMemo<ObjectiveFormData>(() => ({
     type: 'objective',
     name: '',
-    target: 0,
+    target: 1, // Changed from 0 to 1 to satisfy positive() validation
     current: 0,
     unit: '%',
-  };
+  }), []);
 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<BudgetObjectiveFormData>({
     resolver: zodResolver(budgetObjectiveFormSchema),
@@ -96,16 +96,16 @@ export default function BudgetObjectiveModal({
             current: objective.current,
             unit: objective.unit,
           });
-        } else { // Mismatch or new item for a different type than form's current default
+        } else { 
            if (modalType === 'budget') reset(defaultBudgetValues);
            else reset(defaultObjectiveValues);
         }
-      } else { // Adding new item
+      } else { 
         if (modalType === 'budget') reset(defaultBudgetValues);
         else reset(defaultObjectiveValues);
       }
     }
-  }, [isOpen, modalType, editingItem, reset, allExpenseCategories, defaultBudgetValues, defaultObjectiveValues]);
+  }, [isOpen, modalType, editingItem, reset, defaultBudgetValues, defaultObjectiveValues]);
 
   const processSubmit: SubmitHandler<BudgetObjectiveFormData> = (data) => {
     onSave(data);
@@ -120,8 +120,7 @@ export default function BudgetObjectiveModal({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
-          {/* Common field to ensure Zod discriminated union works, can be hidden if not needed for UI */}
-          <input type="hidden" {...register("type")} value={modalType} />
+          {/* The 'type' field is implicitly set by the defaultValues and reset logic */}
 
           {modalType === 'budget' && (
             <>
@@ -130,9 +129,9 @@ export default function BudgetObjectiveModal({
                 <Controller
                   name="category"
                   control={control}
-                  rules={{ required: "La categoria è obbligatoria."}}
+                  rules={{ required: "La categoria è obbligatoria."}} // This ensures category is treated as part of BudgetFormData
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
                       <SelectTrigger id="category">
                         <SelectValue placeholder="Seleziona categoria" />
                       </SelectTrigger>
@@ -160,7 +159,7 @@ export default function BudgetObjectiveModal({
                   name="period"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? 'Mensile'}>
                       <SelectTrigger id="period"><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
                       <SelectContent>
                         {budgetPeriods.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -209,4 +208,3 @@ export default function BudgetObjectiveModal({
     </Dialog>
   );
 }
-
