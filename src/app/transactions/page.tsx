@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,15 +10,31 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths } from "date-fns";
+import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set } from "date-fns";
 import { it } from "date-fns/locale";
-import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses } from "@/config/transaction-categories";
-import { AlertCircle, CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy } from "lucide-react";
+import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses, allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies } from "@/config/transaction-categories";
+import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+import BulkStatusUpdateDialog from '@/components/bulk-status-update-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { initialTransactions, type Transaction } from '@/data/transactions-data';
+import { type Transaction } from '@/data/transactions-data'; // Usiamo ancora la type Transaction
+
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+  writeBatch,
+} from 'firebase/firestore';
 
 
 const generateYears = () => {
@@ -38,7 +54,7 @@ const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
   amount: 'Importo',
   description: 'Descrizione',
   status: 'Stato',
-  id: 'ID', 
+  id: 'ID',
   isRecurring: 'Ricorrente',
   recurrenceDetails: 'Dettagli Ricorrenza',
   originalRecurringId: 'ID Ricorrenza Originale',
@@ -47,7 +63,8 @@ const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
 
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
@@ -59,6 +76,53 @@ export default function TransactionsPage() {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' });
   const { toast } = useToast();
+
+  const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
+
+  const fetchTransactions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const transactionsCollectionRef = collection(db, "transactions");
+      // Per ora, carichiamo tutte le transazioni. In futuro si potrebbe paginare o filtrare server-side.
+      const q = query(transactionsCollectionRef, orderBy("date", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedTransactions: Transaction[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        fetchedTransactions.push({
+          id: doc.id,
+          date: data.date instanceof Timestamp ? format(data.date.toDate(), "yyyy-MM-dd") : data.date,
+          description: data.description,
+          category: data.category,
+          subcategory: data.subcategory,
+          type: data.type,
+          amount: data.amount,
+          status: data.status as TransactionStatus,
+          isRecurring: data.isRecurring,
+          recurrenceDetails: data.recurrenceDetails ? {
+            ...data.recurrenceDetails,
+            startDate: data.recurrenceDetails.startDate instanceof Timestamp ? format(data.recurrenceDetails.startDate.toDate(), "yyyy-MM-dd") : data.recurrenceDetails.startDate,
+            endDate: data.recurrenceDetails.endDate instanceof Timestamp ? format(data.recurrenceDetails.endDate.toDate(), "yyyy-MM-dd") : data.recurrenceDetails.endDate,
+          } : undefined,
+          originalRecurringId: data.originalRecurringId,
+        });
+      });
+      setTransactions(fetchedTransactions);
+    } catch (error) {
+      console.error("Error fetching transactions: ", error);
+      toast({
+        title: "Errore nel Caricamento",
+        description: "Impossibile caricare le transazioni da Firestore.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
 
   const handleSort = (key: keyof Transaction) => {
@@ -72,7 +136,7 @@ export default function TransactionsPage() {
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter(t => {
       const transactionDate = parseISO(t.date);
-      if (!isValid(transactionDate)) return false; 
+      if (!isValid(transactionDate)) return false;
       const matchesYear = getYear(transactionDate).toString() === selectedYear;
       const matchesMonth = getMonth(transactionDate).toString() === selectedMonth;
       const matchesStatus = selectedStatus === "all" || t.status === selectedStatus;
@@ -100,7 +164,7 @@ export default function TransactionsPage() {
             if (isValid(dateA) && isValid(dateB)) {
               comparison = dateA.getTime() - dateB.getTime();
             } else {
-              comparison = 0; 
+              comparison = 0;
             }
         }
         return sortConfig.direction === 'ascending' ? comparison : -comparison;
@@ -113,54 +177,70 @@ export default function TransactionsPage() {
     return transactions.filter(t => t.isRecurring && !t.originalRecurringId);
   }, [transactions]);
 
-  const handleTransactionSubmit = (data: TransactionFormData, id?: string) => {
-    const transactionData: Omit<Transaction, 'id' | 'amount'> & {amount: number} = {
-      date: format(data.date, "yyyy-MM-dd"),
-      description: data.description,
+  const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
+    const transactionDataToSave = {
+      date: Timestamp.fromDate(data.date),
+      description: data.description || "",
       category: data.category,
-      subcategory: data.subcategory,
+      subcategory: data.subcategory || "",
       type: data.type,
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
       isRecurring: data.isRecurring,
       recurrenceDetails: data.isRecurring && data.recurrenceFrequency ? {
         frequency: data.recurrenceFrequency as RecurrenceFrequency,
-        startDate: format(data.date, "yyyy-MM-dd"),
-        endDate: data.recurrenceEndDate ? format(data.recurrenceEndDate, "yyyy-MM-dd") : undefined,
-      } : undefined,
+        startDate: Timestamp.fromDate(data.date), // Use the transaction's date as start date for recurrence
+        endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null, // Store null if undefined
+      } : null, // Store null if not recurring
+      originalRecurringId: data.isRecurring ? null : (editingTransaction?.originalRecurringId || null),
     };
 
-    if (id) {
-      setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...transactionData, id: id } : t));
-    } else {
-      const newTransaction = { ...transactionData, id: crypto.randomUUID() };
-      setTransactions(prev => [...prev, newTransaction]);
+    try {
+      if (id) { // Editing existing transaction
+        const transactionRef = doc(db, "transactions", id);
+        await updateDoc(transactionRef, transactionDataToSave);
+        toast({ title: "Transazione Modificata", description: "La transazione è stata aggiornata con successo." });
+      } else { // Adding new transaction
+        const newDocRef = await addDoc(collection(db, "transactions"), transactionDataToSave);
+        toast({ title: "Transazione Aggiunta", description: "La transazione è stata aggiunta con successo." });
 
-      if (newTransaction.isRecurring && newTransaction.recurrenceDetails) {
-          const instances: Transaction[] = [];
-          let currentDate = parseISO(newTransaction.recurrenceDetails.startDate);
-          const recurrenceEndDate = newTransaction.recurrenceDetails.endDate ? parseISO(newTransaction.recurrenceDetails.endDate) : undefined;
+        // Handle recurring instances
+        if (transactionDataToSave.isRecurring && transactionDataToSave.recurrenceDetails) {
+          const batch = writeBatch(db);
+          let currentDate = data.date; // JS Date object
+          const recurrenceEndDate = data.recurrenceEndDate; // JS Date object or undefined
 
-          for (let i = 0; i < 3; i++) { 
-              let nextDate = currentDate;
-              switch(newTransaction.recurrenceDetails.frequency) {
-                  case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                  default: nextDate = addMonths(currentDate, i + 1); break;
-              }
-              if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
+          for (let i = 0; i < 3; i++) { // Create next 3 instances for now
+            let nextDate = currentDate;
+            switch(transactionDataToSave.recurrenceDetails.frequency) {
+                case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
+                case 'Bimestrale': nextDate = addMonths(currentDate, (i + 1) * 2); break;
+                case 'Trimestrale': nextDate = addMonths(currentDate, (i + 1) * 3); break;
+                case 'Semestrale': nextDate = addMonths(currentDate, (i + 1) * 6); break;
+                case 'Annuale': nextDate = addMonths(currentDate, (i + 1) * 12); break;
+                default: nextDate = addMonths(currentDate, i + 1); break;
+            }
+            if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
 
-              instances.push({
-                  ...newTransaction,
-                  id: crypto.randomUUID(),
-                  date: format(nextDate, "yyyy-MM-dd"),
-                  isRecurring: false, 
-                  recurrenceDetails: undefined,
-                  originalRecurringId: newTransaction.id,
-                  status: 'Pianificato' 
-              });
+            const instanceData = {
+              ...transactionDataToSave,
+              date: Timestamp.fromDate(nextDate),
+              isRecurring: false,
+              recurrenceDetails: null,
+              originalRecurringId: newDocRef.id, // Link to the new definition ID
+              status: 'Pianificato' as TransactionStatus,
+            };
+            const newInstanceRef = doc(collection(db, "transactions"));
+            batch.set(newInstanceRef, instanceData);
           }
-          setTransactions(prev => [...prev, ...instances]);
+          await batch.commit();
+          toast({ title: "Istanze Ricorrenti Create", description: "Le prossime istanze sono state pianificate."});
+        }
       }
+      fetchTransactions(); // Refresh data
+    } catch (error) {
+      console.error("Error saving transaction: ", error);
+      toast({ title: "Errore nel Salvataggio", description: "Impossibile salvare la transazione.", variant: "destructive" });
     }
     setEditingTransaction(null);
   };
@@ -180,29 +260,90 @@ export default function TransactionsPage() {
       status: 'Pianificato', // Default status for a duplicated item
       isRecurring: false, // Duplicated items are one-off by default
       recurrenceDetails: undefined,
-      originalRecurringId: undefined, 
+      originalRecurringId: undefined,
     };
-    setEditingTransaction(newTransactionData); // Pass it as if we are editing, but it's a new template
+    setEditingTransaction(newTransactionData);
     setTransactionTypeForModal(newTransactionData.type);
     setIsModalOpen(true);
     toast({ title: "Transazione Pronta per Duplicazione", description: "Modifica i dettagli e salva come nuova transazione." });
   };
 
-  const handleDelete = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
-    setTransactions(prev => prev.filter(t => t.originalRecurringId !== id));
-     toast({ title: "Transazione Eliminata", description: "La transazione e le sue eventuali istanze sono state rimosse." });
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Sei sicuro di voler eliminare questa transazione e le sue eventuali istanze ricorrenti future?")) return;
+
+    try {
+      const batch = writeBatch(db);
+      const transactionRef = doc(db, "transactions", id);
+      batch.delete(transactionRef);
+
+      // Check if it's a recurring definition and delete its future instances
+      const deletedTransaction = transactions.find(t => t.id === id);
+      if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
+        const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
+        const instancesSnapshot = await getDocs(instancesQuery);
+        instancesSnapshot.forEach(instanceDoc => {
+          batch.delete(doc(db, "transactions", instanceDoc.id));
+        });
+      }
+
+      await batch.commit();
+      toast({ title: "Transazione Eliminata", description: "La transazione e le istanze future sono state rimosse." });
+      fetchTransactions(); // Refresh
+    } catch (error) {
+      console.error("Error deleting transaction: ", error);
+      toast({ title: "Errore Eliminazione", description: "Impossibile eliminare la transazione.", variant: "destructive" });
+    }
   };
 
-  const handleBulkDelete = () => {
-    const idsToDelete = Array.from(selectedRows);
-    setTransactions(prev => prev.filter(t => !idsToDelete.includes(t.id) && !(t.originalRecurringId && idsToDelete.includes(t.originalRecurringId))));
-    idsToDelete.forEach(deletedId => {
-      setTransactions(prev => prev.filter(t => t.originalRecurringId !== deletedId));
-    });
-    setSelectedRows(new Set());
-    toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate sono state rimosse.` });
+  const handleBulkDelete = async () => {
+    if (selectedRows.size === 0) return;
+    if (!window.confirm(`Sei sicuro di voler eliminare ${selectedRows.size} transazioni selezionate e le loro eventuali istanze ricorrenti future?`)) return;
+
+    try {
+      const batch = writeBatch(db);
+      const idsToDelete = Array.from(selectedRows);
+
+      for (const id of idsToDelete) {
+        batch.delete(doc(db, "transactions", id));
+        const deletedTransaction = transactions.find(t => t.id === id);
+        if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
+            const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
+            const instancesSnapshot = await getDocs(instancesQuery);
+            instancesSnapshot.forEach(instanceDoc => {
+                batch.delete(doc(db, "transactions", instanceDoc.id));
+            });
+        }
+      }
+      await batch.commit();
+      toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate sono state rimosse.` });
+      fetchTransactions(); // Refresh
+      setSelectedRows(new Set());
+    } catch (error) {
+      console.error("Error bulk deleting transactions: ", error);
+      toast({ title: "Errore Eliminazione Multipla", description: "Impossibile eliminare le transazioni selezionate.", variant: "destructive" });
+    }
   };
+
+
+  const handleBulkStatusUpdateConfirm = async (newStatus: TransactionStatus) => {
+    if (selectedRows.size === 0) return;
+    try {
+      const batch = writeBatch(db);
+      selectedRows.forEach(id => {
+        const transactionRef = doc(db, "transactions", id);
+        batch.update(transactionRef, { status: newStatus });
+      });
+      await batch.commit();
+      toast({ title: "Stato Aggiornato", description: `Lo stato di ${selectedRows.size} transazioni è stato aggiornato a "${newStatus}".` });
+      fetchTransactions(); // Refresh
+      setSelectedRows(new Set());
+      setIsBulkStatusModalOpen(false);
+    } catch (error) {
+      console.error("Error bulk updating status: ", error);
+      toast({ title: "Errore Aggiornamento Stato", description: "Impossibile aggiornare lo stato delle transazioni.", variant: "destructive" });
+    }
+  };
+
 
   const handleSelectRow = (id: string) => {
     setSelectedRows(prev => {
@@ -216,11 +357,11 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleSelectAllRows = (event: React.ChangeEvent<HTMLInputElement>) => { 
-    if ((event.target as HTMLInputElement).checked) { 
-      setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
-    } else {
+  const handleSelectAllRows = () => { // Modificato per non prendere event
+    if (selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0) {
       setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
     }
   };
 
@@ -231,11 +372,29 @@ export default function TransactionsPage() {
     setIsModalOpen(true);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p>Caricamento transazioni...</p> {/* TODO: Aggiungere uno spinner/skeleton più carino */}
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
       <PageHeader
         title="Transazioni"
         description="Visualizza e gestisci tutte le entrate e uscite."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => { /* TODO */ toast({title: "Importa non implementato"}) }} variant="outline">
+              Importa Dati
+            </Button>
+            <Button onClick={() => { /* TODO */ toast({title: "Esporta non implementato"}) }} variant="outline">
+              Esporta Dati
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -266,6 +425,14 @@ export default function TransactionsPage() {
         editingTransaction={editingTransaction}
         onSubmitSuccess={handleTransactionSubmit}
       />
+
+      <BulkStatusUpdateDialog
+        isOpen={isBulkStatusModalOpen}
+        onOpenChange={setIsBulkStatusModalOpen}
+        onConfirm={handleBulkStatusUpdateConfirm}
+        transactionStatuses={transactionStatuses}
+      />
+
 
       <Card className="mb-6">
         <CardHeader>
@@ -326,7 +493,7 @@ export default function TransactionsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{t.recurrenceDetails?.frequency}</TableCell>
-                    <TableCell>{t.recurrenceDetails?.endDate ? format(parseISO(t.recurrenceDetails.endDate), "dd/MM/yyyy", { locale: it }) : 'N/A'}</TableCell>
+                    <TableCell>{t.recurrenceDetails?.endDate ? (isValid(parseISO(t.recurrenceDetails.endDate)) ? format(parseISO(t.recurrenceDetails.endDate), "dd/MM/yyyy", { locale: it }) : "Data fine non valida") : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -401,10 +568,14 @@ export default function TransactionsPage() {
             </div>
           </div>
            {selectedRows.size > 0 && (
-             <div className="mt-4 flex justify-start">
+             <div className="mt-4 flex justify-start gap-2">
                 <Button variant="destructive" onClick={handleBulkDelete} size="sm">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Elimina Selezionate ({selectedRows.size})
+                </Button>
+                <Button variant="outline" onClick={() => setIsBulkStatusModalOpen(true)} size="sm">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Modifica Stato ({selectedRows.size})
                 </Button>
              </div>
             )}
@@ -416,13 +587,7 @@ export default function TransactionsPage() {
                 <TableHead className="w-[40px]">
                   <Checkbox
                     checked={selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0}
-                    onCheckedChange={(event: boolean | 'indeterminate') => {
-                        if (event === true) {
-                            setSelectedRows(new Set(filteredAndSortedTransactions.map(t => t.id)));
-                        } else {
-                            setSelectedRows(new Set());
-                        }
-                    }}
+                    onCheckedChange={handleSelectAllRows}
                     aria-label="Seleziona tutte"
                   />
                 </TableHead>
@@ -463,16 +628,16 @@ export default function TransactionsPage() {
                     €{transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell className="font-medium flex items-center">
-                    {transaction.description}
+                    <span className="truncate max-w-[200px] inline-block" title={transaction.description}>{transaction.description}</span>
                     {transaction.isRecurring && !transaction.originalRecurringId && (
                       <Tooltip>
-                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-blue-500" /></TooltipTrigger>
+                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-blue-500 flex-shrink-0" /></TooltipTrigger>
                         <TooltipContent><p>Transazione Ricorrente (Definizione)</p></TooltipContent>
                       </Tooltip>
                     )}
                     {transaction.originalRecurringId && (
                       <Tooltip>
-                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-gray-400" /></TooltipTrigger>
+                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0" /></TooltipTrigger>
                         <TooltipContent><p>Istanza di transazione ricorrente</p></TooltipContent>
                       </Tooltip>
                     )}
@@ -533,4 +698,3 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
-
