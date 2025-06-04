@@ -146,8 +146,8 @@ export default function TransactionModal({
 
 
   return (
-    <Dialog 
-      open={isOpen} 
+    <Dialog
+      open={isOpen}
       onOpenChange={(open) => {
         onOpenChange(open);
       }}
@@ -174,7 +174,7 @@ export default function TransactionModal({
               name="date"
               control={control}
               render={({ field }) => (
-                <Popover modal={true}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -184,7 +184,7 @@ export default function TransactionModal({
                       {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -295,7 +295,7 @@ export default function TransactionModal({
                       name="recurrenceEndDate"
                       control={control}
                       render={({ field }) => (
-                        <Popover modal={true}>
+                        <Popover>
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
@@ -305,7 +305,7 @@ export default function TransactionModal({
                               {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                          <PopoverContent className="w-auto p-0">
                             <Calendar
                               mode="single"
                               selected={field.value}
