@@ -1,5 +1,5 @@
 
-import { format, getMonth, getYear, subDays, subMonths, addMonths } from "date-fns";
+import { format, getMonth, getYear, subDays, subMonths, addMonths, addDays } from "date-fns";
 import type { RecurrenceFrequency, TransactionStatus } from "@/config/transaction-categories";
 
 interface RecurrenceDetails {
@@ -16,7 +16,7 @@ export interface Transaction {
   category: string;
   subcategory?: string;
   type: 'Entrata' | 'Uscita';
-  amount: number;
+  amount: number; // Positivo per Entrata, Negativo per Uscita
   status: TransactionStatus;
   isRecurring?: boolean;
   recurrenceDetails?: RecurrenceDetails;
@@ -45,7 +45,6 @@ export const initialTransactions: Transaction[] = [
   { id: "t28", date: format(new Date(currentYear, currentMonth, 18), "yyyy-MM-dd"), description: "Entrata da Sig.ra Paola Neri", category: "Pazienti", type: "Entrata", amount: 450.00, status: "Completato" },
   { id: "t29", date: format(new Date(currentYear, currentMonth, 20), "yyyy-MM-dd"), description: "Spesa cancelleria", category: "Spesa Studio", subcategory:"Forniture D’Ufficio", type: "Uscita", amount: -25.99, status: "Completato" },
 
-
   // Mese Precedente
   { id: "t4", date: format(subMonths(today, 1), "yyyy-MM-dd"), description: "Stipendio Daniela - Mese Prec.", category: "Personale", subcategory: "Stipendio Daniela", type: "Uscita", amount: -1350.00, status: "Completato" },
   { id: "t7", date: format(subMonths(today, 1), "yyyy-MM-dd"), description: "Incasso Dr. Bianchi - Mese Prec.", category: "Pazienti", type: "Entrata", amount: 320.00, status: "Completato" },
@@ -54,13 +53,11 @@ export const initialTransactions: Transaction[] = [
   { id: "t18", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 5), "yyyy-MM-dd"), description: "Entrata Sig. Rossi - Mese Prec.", category: "Pazienti", type: "Entrata", amount: 500.00, status: "Completato"},
   { id: "t31", date: format(new Date(getYear(subMonths(today, 1)), getMonth(subMonths(today, 1)), 3), "yyyy-MM-dd"), description: "Stipendio Ilaria - Mese Prec.", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato", originalRecurringId: "t11"},
 
-
   // Due Mesi Fa
   { id: "t19", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Pagamento Consulente del Lavoro", category: "Servizi Esterni", subcategory: "Consulente del Lavoro", type: "Uscita", amount: -300.00, status: "Completato" },
   { id: "t20", date: format(subMonths(today, 2), "yyyy-MM-dd"), description: "Incasso Sig. Verdi", category: "Pazienti", type: "Entrata", amount: 200.00, status: "Completato" },
   { id: "t21", date: format(new Date(getYear(subMonths(today, 2)), getMonth(subMonths(today, 2)), 15), "yyyy-MM-dd"), description: "Affitto Studio - Due Mesi Fa", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Completato", originalRecurringId: "t3"},
   { id: "t22", date: format(new Date(getYear(subMonths(today, 2)), getMonth(subMonths(today, 2)), 3), "yyyy-MM-dd"), description: "Stipendio Ilaria - Due Mesi Fa", category: "Personale", subcategory: "Stipendio Ilaria", type: "Uscita", amount: -1400.00, status: "Completato", originalRecurringId: "t11"},
-
 
   // Tre Mesi Fa
   { id: "t23", date: format(subMonths(today, 3), "yyyy-MM-dd"), description: "Acquisto Software Gestionale Update", category: "Spesa Studio", subcategory: "Software Gestionale", type: "Uscita", amount: -500.00, status: "Completato" },
@@ -73,4 +70,11 @@ export const initialTransactions: Transaction[] = [
   // Cinque Mesi Fa
   { id: "t27", date: format(subMonths(today, 5), "yyyy-MM-dd"), description: "Fattura Commercialista", category: "Servizi Esterni", subcategory: "Commercialista", type: "Uscita", amount: -350.00, status: "Completato" },
   { id: "t30", date: format(subMonths(today,5), "yyyy-MM-dd"), description: "Entrata Sig.ra Colombo", category: "Pazienti", type: "Entrata", amount: 180.00, status: "Completato" },
+
+  // Transazioni Future / Pianificate / In Attesa per il widget "Prossime Scadenze"
+  { id: "fut1", date: format(addDays(today, 3), "yyyy-MM-dd"), description: "Pagamento rata leasing attrezzatura", category: "Spese Finanziarie", subcategory: "Leasing", type: "Uscita", amount: -250.00, status: "Pianificato" },
+  { id: "fut2", date: format(addDays(today, 7), "yyyy-MM-dd"), description: "Anticipo Compenso Dr. Rossi", category: "Personale", subcategory: "Compenso Dr. Rinaldi", type: "Uscita", amount: -500.00, status: "In Attesa" },
+  { id: "fut3", date: format(addDays(today, 10), "yyyy-MM-dd"), description: "Previsto Incasso Sig. Verdi (Saldo)", category: "Pazienti", type: "Entrata", amount: 300.00, status: "Pianificato" },
+  { id: "fut4", date: format(addDays(today, 1), "yyyy-MM-dd"), description: "Ordine materiali di consumo", category: "Materiali", subcategory: "Materiali di Consumo Odontoiatrico", type: "Uscita", amount: -180.00, status: "Pianificato" },
+  { id: "fut5", date: format(addMonths(new Date(currentYear, currentMonth, 15), 1), "yyyy-MM-dd"), description: "Affitto Studio - Prossimo Mese", category: "Spese Fisse", subcategory: "Affitto", type: "Uscita", amount: -1200.00, status: "Pianificato", originalRecurringId: "t3"},
 ];

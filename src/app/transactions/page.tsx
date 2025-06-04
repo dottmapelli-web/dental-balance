@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, addMonths, getYear, getMonth, parseISO, isValid, startOfMonth, endOfMonth, subMonths, getDate, subDays } from "date-fns";
 import { it } from "date-fns/locale";
-import { RecurrenceFrequency, TransactionStatus, expenseCategories } from "@/config/transaction-categories";
-import { AlertCircle, CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown } from "lucide-react";
+import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses } from "@/config/transaction-categories";
+import { AlertCircle, CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
@@ -26,6 +26,8 @@ const generateYears = () => {
   return Array.from({ length: 5 }, (_, i) => (currentYr - i).toString());
 };
 const months = Array.from({ length: 12 }, (_, i) => ({ value: i, label: format(new Date(0, i), "MMMM", { locale: it }) }));
+const statusOptions = ["all", ...transactionStatuses] as const;
+
 
 const columnOrder: Array<keyof Transaction | 'actions'> = ['date', 'type', 'category', 'subcategory', 'amount', 'description', 'status', 'actions'];
 const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
@@ -53,6 +55,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
+  const [selectedStatus, setSelectedStatus] = useState<typeof statusOptions[number]>("all");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' });
   const { toast } = useToast();
@@ -72,10 +75,11 @@ export default function TransactionsPage() {
       if (!isValid(transactionDate)) return false; 
       const matchesYear = getYear(transactionDate).toString() === selectedYear;
       const matchesMonth = getMonth(transactionDate).toString() === selectedMonth;
+      const matchesStatus = selectedStatus === "all" || t.status === selectedStatus;
       const matchesSearch = (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                             t.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             (t.subcategory && t.subcategory.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesYear && matchesMonth && matchesSearch;
+      return matchesYear && matchesMonth && matchesSearch && matchesStatus;
     });
 
     if (sortConfig.key) {
@@ -103,7 +107,7 @@ export default function TransactionsPage() {
       });
     }
     return filtered;
-  }, [transactions, searchTerm, selectedYear, selectedMonth, sortConfig]);
+  }, [transactions, searchTerm, selectedYear, selectedMonth, selectedStatus, sortConfig]);
 
   const recurringTransactionsDefinitions = useMemo(() => {
     return transactions.filter(t => t.isRecurring && !t.originalRecurringId);
@@ -141,7 +145,7 @@ export default function TransactionsPage() {
               let nextDate = currentDate;
               switch(newTransaction.recurrenceDetails.frequency) {
                   case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                  
+                  // TODO: Implement other frequencies if needed
                   default: nextDate = addMonths(currentDate, i + 1); break;
               }
               if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
@@ -150,10 +154,10 @@ export default function TransactionsPage() {
                   ...newTransaction,
                   id: crypto.randomUUID(),
                   date: format(nextDate, "yyyy-MM-dd"),
-                  isRecurring: false,
+                  isRecurring: false, // Instances are not definitions
                   recurrenceDetails: undefined,
                   originalRecurringId: newTransaction.id,
-                  status: 'Pianificato'
+                  status: 'Pianificato' // Instances start as Pianificato
               });
           }
           setTransactions(prev => [...prev, ...instances]);
@@ -170,8 +174,11 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = (id: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== id && t.originalRecurringId !== id));
+    // Remove the transaction itself
+    setTransactions(prev => prev.filter(t => t.id !== id));
     
+    // If it's a recurring definition, remove its instances
+    // Also, remove any instances if an instance itself is deleted (though less common scenario for direct deletion)
     setTransactions(prev => prev.filter(t => t.originalRecurringId !== id));
      toast({ title: "Transazione Eliminata", description: "La transazione e le sue eventuali istanze sono state rimosse." });
   };
@@ -179,6 +186,7 @@ export default function TransactionsPage() {
   const handleBulkDelete = () => {
     const idsToDelete = Array.from(selectedRows);
     setTransactions(prev => prev.filter(t => !idsToDelete.includes(t.id) && !(t.originalRecurringId && idsToDelete.includes(t.originalRecurringId))));
+    // Ensure instances of deleted recurring definitions are also removed
     idsToDelete.forEach(deletedId => {
       setTransactions(prev => prev.filter(t => t.originalRecurringId !== deletedId));
     });
@@ -270,7 +278,7 @@ export default function TransactionsPage() {
                   <TableHead>Sottocategoria</TableHead>
                   <TableHead>Importo</TableHead>
                   <TableHead>Descrizione</TableHead>
-                  <TableHead>Stato</TableHead>
+                  <TableHead>Stato (Def.)</TableHead>
                   <TableHead>Frequenza</TableHead>
                   <TableHead>Data Fine</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
@@ -292,7 +300,7 @@ export default function TransactionsPage() {
                       {t.subcategory ? <Badge variant="outline">{t.subcategory}</Badge> : "-"}
                     </TableCell>
                     <TableCell className={`font-semibold ${t.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      €{t.amount.toFixed(2)}
+                      €{Math.abs(t.amount).toFixed(2)}
                     </TableCell>
                     <TableCell className="font-medium">{t.description}</TableCell>
                     <TableCell>
@@ -341,10 +349,10 @@ export default function TransactionsPage() {
         <CardHeader>
           <CardTitle className="font-headline">Elenco Transazioni (Istanze)</CardTitle>
           <CardDescription>Visualizza tutte le transazioni, incluse quelle generate da definizioni ricorrenti.</CardDescription>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
-            <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mt-4">
+            <div className="flex flex-wrap gap-2 items-center">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Mese" />
                 </SelectTrigger>
                 <SelectContent>
@@ -352,27 +360,38 @@ export default function TransactionsPage() {
                 </SelectContent>
               </Select>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-full sm:w-[100px]">
                   <SelectValue placeholder="Anno" />
                 </SelectTrigger>
                 <SelectContent>
                   {generateYears().map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as typeof statusOptions[number])}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                  <div className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Stato" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(s => <SelectItem key={s} value={s}>{s === "all" ? "Tutti gli Stati" : s}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="relative w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto sm:min-w-[250px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Cerca transazioni..."
-                className="pl-8 sm:w-[300px]"
+                placeholder="Cerca per descrizione, categoria..."
+                className="pl-8 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
            {selectedRows.size > 0 && (
-             <div className="mt-4">
+             <div className="mt-4 flex justify-start">
                 <Button variant="destructive" onClick={handleBulkDelete} size="sm">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Elimina Selezionate ({selectedRows.size})
@@ -430,7 +449,7 @@ export default function TransactionsPage() {
                   <TableCell>
                     {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
                   </TableCell>
-                   <TableCell className={`text-right font-semibold ${transaction.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                   <TableCell className={`text-right font-semibold ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     €{transaction.amount.toFixed(2)}
                   </TableCell>
                   <TableCell className="font-medium flex items-center">
@@ -464,12 +483,12 @@ export default function TransactionsPage() {
                      <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleEdit(transaction)}
-                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false}
+                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring}
                             >
                             <Edit3 className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p>{!!transaction.originalRecurringId && transaction.isRecurring === false ? "Modifica la definizione ricorrente" : "Modifica Transazione/Definizione"}</p></TooltipContent>
+                        <TooltipContent><p>{!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring ? "Modifica la definizione ricorrente originale" : "Modifica Transazione/Definizione"}</p></TooltipContent>
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -496,7 +515,3 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
-
-    
-
-    

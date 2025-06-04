@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit, CalendarClock, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, formatISO } from "date-fns";
+import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, formatISO, isFuture, isEqual, startOfToday } from "date-fns";
 import { it } from "date-fns/locale";
 import type { Transaction } from '@/data/transactions-data';
 import { initialTransactions } from '@/data/transactions-data'; 
@@ -128,7 +128,7 @@ export default function DashboardPage() {
   const [pieChartData, setPieChartData] = useState<any[]>([]);
   const [cashflowChartData, setCashflowChartData] = useState<any[]>([]);
   const [expenseCategoriesDisplay, setExpenseCategoriesDisplay] = useState<ExpenseCategoryDisplayData[]>(initialExpenseCategoriesDisplayData);
-
+  const [upcomingTransactions, setUpcomingTransactions] = useState<Transaction[]>([]);
 
   const { toast } = useToast();
   
@@ -137,7 +137,6 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    // Simulate fetching initial balance or set from a more persistent source in a real app
     if (isClient) {
         setNewBalanceInputValue(studioTotalBalance.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false}));
     } else {
@@ -146,11 +145,10 @@ export default function DashboardPage() {
   }, [studioTotalBalance, isClient]);
 
   useEffect(() => {
-    const today = new Date();
-    const currentMonthNum = getMonth(today);
-    const currentYearNum = getYear(today);
+    const todayDate = startOfToday();
+    const currentMonthNum = getMonth(todayDate);
+    const currentYearNum = getYear(todayDate);
 
-    // 1. Calculate current month's income, expenses, balance
     const currentMonthTransactions = initialTransactions.filter(t => {
       const transactionDate = parseISO(t.date);
       return isValid(transactionDate) && getMonth(transactionDate) === currentMonthNum && getYear(transactionDate) === currentYearNum;
@@ -167,10 +165,9 @@ export default function DashboardPage() {
     setTotalMonthlyExpenses(expensesCurrentMonth);
     setCurrentMonthlyBalance(incomeCurrentMonth - expensesCurrentMonth);
 
-    // 2. Prepare data for Bar Chart (last 6 months)
     const monthlySummaries: { [key: string]: { income: number; expenses: number } } = {};
     for (let i = 5; i >= 0; i--) {
-      const dateToProcess = subMonths(today, i);
+      const dateToProcess = subMonths(todayDate, i);
       const monthName = format(dateToProcess, "MMM", { locale: it });
       const year = getYear(dateToProcess);
       const monthKey = `${monthName}-${year}`;
@@ -194,20 +191,18 @@ export default function DashboardPage() {
     });
     const barData = Object.entries(monthlySummaries)
       .map(([monthYear, data]) => ({ month: monthYear.split('-')[0], income: data.income, expenses: data.expenses }))
-      .slice(-6); // Ensure only last 6 months are taken if more are generated
+      .slice(-6); 
     setBarChartData(barData);
 
-
-    // 3. Prepare data for Pie Chart (current month expenses by category)
-    const currentMonthExpenses = currentMonthTransactions.filter(t => t.type === 'Uscita');
+    const currentMonthExpensesOnly = currentMonthTransactions.filter(t => t.type === 'Uscita');
     const expensesByCategory: { [category: string]: number } = {};
-    currentMonthExpenses.forEach(t => {
+    currentMonthExpensesOnly.forEach(t => {
       expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
     });
     
     const updatedExpenseCategoriesDisplay = initialExpenseCategoriesDisplayData.map(catDisplay => {
         const totalForCategory = expensesByCategory[catDisplay.title] || 0;
-        const categoryTransactions = currentMonthExpenses.filter(t => t.category === catDisplay.title);
+        const categoryTransactions = currentMonthExpensesOnly.filter(t => t.category === catDisplay.title);
         const topItems = categoryTransactions
             .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
             .slice(0, 3)
@@ -223,25 +218,32 @@ export default function DashboardPage() {
     setExpenseCategoriesDisplay(updatedExpenseCategoriesDisplay);
     setPieChartData(updatedExpenseCategoriesDisplay.filter(cat => cat.value > 0).map(cat => ({ name: cat.title, value: cat.value, fill: cat.pieFill })));
 
-
-    // 4. Prepare data for Cashflow Line Chart (current month, daily balance)
-    const firstDayOfMonth = startOfMonth(today);
-    const lastDayOfMonth = endOfMonth(today);
+    const firstDayOfMonth = startOfMonth(todayDate);
+    const lastDayOfMonth = endOfMonth(todayDate);
     const daysInMonth = eachDayOfInterval({ start: firstDayOfMonth, end: lastDayOfMonth });
-    let runningBalance = 0; // This should ideally be the balance from end of previous month
+    let runningBalance = 0; 
 
     const cashflowData = daysInMonth.map(day => {
         const dailyTransactions = initialTransactions.filter(t => {
             const transactionDate = parseISO(t.date);
             return isValid(transactionDate) && format(transactionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
-        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0);
+        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); // Amount is already signed
         runningBalance += dailyNet;
         return { date: format(day, "dd/MM"), cashflow: runningBalance };
     });
     setCashflowChartData(cashflowData);
 
-  }, [initialTransactions]); // Rerun if initialTransactions changes (though it's static for now)
+    const upcoming = initialTransactions.filter(t => {
+        const transactionDate = parseISO(t.date);
+        return isValid(transactionDate) &&
+               (t.status === 'Pianificato' || t.status === 'In Attesa') &&
+               (isFuture(transactionDate) || isEqual(transactionDate, todayDate));
+      }).sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
+      .slice(0,3);
+    setUpcomingTransactions(upcoming);
+
+  }, [initialTransactions, isClient]); // Added isClient as dependency
 
 
   const handleOpenEditBalanceDialog = () => {
@@ -422,9 +424,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      <div className="grid gap-6 mt-8 md:grid-cols-2">
-        <Card>
+      
+      <div className="grid gap-6 mt-8 md:grid-cols-2 lg:grid-cols-3">
+         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="font-headline">Entrate vs Uscite (Ultimi 6 Mesi)</CardTitle>
           </CardHeader>
@@ -435,10 +437,60 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="font-headline flex items-center">
+                <CalendarClock className="mr-2 h-5 w-5 text-primary" />
+                Prossime Scadenze/Impegni
+            </CardTitle>
+            <CardDescription>Eventi finanziari pianificati o in attesa.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {upcomingTransactions.length > 0 ? (
+              <ul className="space-y-3">
+                {upcomingTransactions.map(t => (
+                  <li key={t.id} className="flex items-start justify-between gap-2 p-2 border-b last:border-b-0">
+                    <div className="flex-grow">
+                      <p className="text-sm font-medium truncate" title={t.description}>{t.description || "N/A"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd MMM yyyy", { locale: it }) : "Data non valida"} - {t.category}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${t.type === 'Entrata' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {t.type === 'Entrata' ? '+' : '-'}€{isClient ? Math.abs(t.amount).toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2}) : Math.abs(t.amount).toFixed(2)}
+                      </p>
+                      <Badge variant={t.status === 'Pianificato' ? 'outline' : 'secondary'} className="text-xs mt-1">
+                        {t.status}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-32 text-center">
+                  <Info className="w-8 h-8 text-muted-foreground mb-2"/>
+                  <p className="text-sm text-muted-foreground">Nessuna scadenza imminente.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+
+      <div className="grid gap-6 mt-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
             <CardTitle className="font-headline">Distribuzione Spese (Mese Corrente)</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Flusso di Cassa (Mese Corrente)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DashboardCashflowLineChart data={cashflowChartData} config={lineChartConfig} />
           </CardContent>
         </Card>
       </div>
@@ -455,17 +507,6 @@ export default function DashboardPage() {
             />
           ))}
         </div>
-      </div>
-
-      <div className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Flusso di Cassa (Mese Corrente)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DashboardCashflowLineChart data={cashflowChartData} config={lineChartConfig} />
-          </CardContent>
-        </Card>
       </div>
 
       <div className="mt-6">
@@ -542,8 +583,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
-
-    
-
