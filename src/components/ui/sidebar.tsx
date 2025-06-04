@@ -536,20 +536,21 @@ const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   SidebarMenuButtonProps
 >(
-  (props, ref) => {
-    const {
+  (
+    {
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
       children,
-      asChild, // Destructure asChild directly
-      ...buttonProps // These are the remaining props, `asChild` will not be in here
-    } = props;
-
+      asChild: isAsChild = false, // Renamed to avoid conflict and correctly defaulted
+      ...otherProps // Contains all props *except* asChild (now isAsChild)
+    },
+    ref
+  ) => {
     const { isMobile, state } = useSidebar();
-    const Comp = asChild ? Slot : "button";
+    const Comp = isAsChild ? Slot : "button";
 
     const buttonElement = (
       <Comp
@@ -558,7 +559,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...buttonProps} // Spread buttonProps, which explicitly doesn't include asChild
+        {...otherProps} // Spread otherProps, which does not include 'asChild'
       >
         {children}
       </Comp>
