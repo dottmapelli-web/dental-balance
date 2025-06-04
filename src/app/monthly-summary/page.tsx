@@ -83,6 +83,7 @@ const monthlyChartConfig = {
 
 
 export default function MonthlySummaryPage() {
+  const [isClient, setIsClient] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeMonthlySummaryOutput | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [isLoadingSummaryGeneration, setIsLoadingSummaryGeneration] = useState(false);
@@ -103,6 +104,10 @@ export default function MonthlySummaryPage() {
     return yearMonths.find(m => m.value === currentMonthActual)?.value || yearMonths[0]?.value || getMonth(new Date()).toString();
   });
   const [availableMonthsForForm, setAvailableMonthsForForm] = useState(monthsByYear[formSelectedYear] || []);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const year = parseInt(chartSelectedYear);
@@ -267,7 +272,7 @@ export default function MonthlySummaryPage() {
                       }}
                       formatter={(value, name, props) => {
                         const formattedValue = typeof value === 'number' 
-                            ? `€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                            ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
                             : value;
                         
                         let label = props.name;
@@ -309,13 +314,13 @@ export default function MonthlySummaryPage() {
                 <TableRow key={index}>
                   <TableCell className="font-medium">{monthData.month}</TableCell>
                   <TableCell className="text-right text-green-600 dark:text-green-400">
-                    €{monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.income.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right text-red-600 dark:text-red-400">
-                    €{monthData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? monthData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.expenses.toFixed(2)}
                   </TableCell>
                   <TableCell className={`text-right font-semibold ${monthData.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{monthData.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? monthData.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.balance.toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -510,3 +515,4 @@ export default function MonthlySummaryPage() {
 }
 
     
+

@@ -49,6 +49,7 @@ const generateAvailableYears = (transactions: Transaction[]): string[] => {
 
 
 export default function AnnualSummaryPage() {
+  const [isClient, setIsClient] = useState(false);
   const availableYears = useMemo(() => generateAvailableYears(initialTransactions), []);
   const [currentYear, setCurrentYear] = useState<string>(availableYears[0] || getYear(new Date()).toString());
 
@@ -57,6 +58,10 @@ export default function AnnualSummaryPage() {
   const [monthlyProfitDataForSelectedYear, setMonthlyProfitDataForSelectedYear] = useState<Array<{ month: string; profit: number }>>([]);
   const [monthlyBarChartDataForSelectedYear, setMonthlyBarChartDataForSelectedYear] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
   const [expenseBreakdownForSelectedYear, setExpenseBreakdownForSelectedYear] = useState<Array<{ name: string; value: number; fill: string }>>([]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const yearlyData: Record<string, { totalIncome: number; totalExpenses: number }> = {};
@@ -180,7 +185,7 @@ export default function AnnualSummaryPage() {
             <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{summaryCardData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{isClient ? summaryCardData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.income.toFixed(2)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -189,7 +194,7 @@ export default function AnnualSummaryPage() {
             <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{summaryCardData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{isClient ? summaryCardData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.expenses.toFixed(2)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -203,7 +208,7 @@ export default function AnnualSummaryPage() {
           </CardHeader>
           <CardContent>
              <div className={`text-3xl font-bold ${summaryCardData.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                €{summaryCardData.profit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                €{isClient ? summaryCardData.profit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.profit.toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -225,7 +230,7 @@ export default function AnnualSummaryPage() {
                   <ChartTooltip 
                       content={<ChartTooltipContent formatter={(value, name, props) => {
                           const formattedValue = typeof value === 'number' 
-                              ? `€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                              ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
                               : value;
                           let label = props.name;
                           if (props.dataKey === 'totalIncome') label = 'Entrate Totali Annuali';
@@ -256,7 +261,7 @@ export default function AnnualSummaryPage() {
                   <ChartTooltip 
                       content={<ChartTooltipContent formatter={(value, name, props) => {
                           const formattedValue = typeof value === 'number' 
-                              ? `€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                              ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
                               : value;
                           let label = props.name;
                           if (props.dataKey === 'income') label = 'Entrate Mensili';
@@ -293,7 +298,7 @@ export default function AnnualSummaryPage() {
                     <ChartTooltip 
                         content={<ChartTooltipContent formatter={(value, name, props) => {
                                 const formattedValue = typeof value === 'number' 
-                                    ? `€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                                    ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
                                     : value;
                                 return [formattedValue, props.name];
                               }}/>}
@@ -340,13 +345,13 @@ export default function AnnualSummaryPage() {
                 <TableRow key={yearData.year}>
                   <TableCell className="font-medium">{yearData.year}</TableCell>
                   <TableCell className="text-right text-green-600 dark:text-green-400">
-                    €{yearData.totalIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? yearData.totalIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalIncome.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right text-red-600 dark:text-red-400">
-                    €{yearData.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? yearData.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalExpenses.toFixed(2)}
                   </TableCell>
                   <TableCell className={`text-right font-semibold ${yearData.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{yearData.netProfit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{isClient ? yearData.netProfit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.netProfit.toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}

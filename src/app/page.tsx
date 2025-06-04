@@ -73,9 +73,10 @@ interface ExpenseCategoryCardProps {
   textColor: string;
   borderColor: string;
   onViewAllClick: (categoryName: string) => void;
+  isClient: boolean;
 }
 
-const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, value, itemCount, topItems, bgColor, textColor, borderColor, onViewAllClick }) => {
+const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, value, itemCount, topItems, bgColor, textColor, borderColor, onViewAllClick, isClient }) => {
   return (
     <Card className={`${bgColor} ${borderColor} border shadow-lg hover:shadow-xl transition-shadow`}>
       <CardHeader className="pb-3">
@@ -85,14 +86,14 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, value,
             {itemCount} voci
           </Badge>
         </div>
-         <p className={`text-sm font-semibold ${textColor}`}>Totale: €{value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+         <p className={`text-sm font-semibold ${textColor}`}>Totale: €{isClient ? value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value.toFixed(2)}</p>
       </CardHeader>
       <CardContent className="pt-0">
         <ul className="space-y-1.5 text-sm">
           {topItems.slice(0, 3).map((item, index) => (
             <li key={index} className="flex justify-between items-center">
               <span className="text-muted-foreground truncate pr-2" title={item.name}>{item.name}</span>
-              <span className={`font-medium ${textColor}`}>€{item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className={`font-medium ${textColor}`}>€{isClient ? item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.amount.toFixed(2)}</span>
             </li>
           ))}
           {topItems.length === 0 && <li className="text-muted-foreground">Nessuna spesa registrata.</li>}
@@ -109,6 +110,7 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, value,
 };
 
 export default function DashboardPage() {
+  const [isClient, setIsClient] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [detailDialogCategoryName, setDetailDialogCategoryName] = useState<string | null>(null);
   const [detailDialogTitle, setDetailDialogTitle] = useState<string>("");
@@ -129,11 +131,19 @@ export default function DashboardPage() {
 
 
   const { toast } = useToast();
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     // Simulate fetching initial balance or set from a more persistent source in a real app
-    setNewBalanceInputValue(studioTotalBalance.toString());
-  }, [studioTotalBalance]);
+    if (isClient) {
+        setNewBalanceInputValue(studioTotalBalance.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false}));
+    } else {
+        setNewBalanceInputValue(studioTotalBalance.toString());
+    }
+  }, [studioTotalBalance, isClient]);
 
   useEffect(() => {
     const today = new Date();
@@ -235,7 +245,11 @@ export default function DashboardPage() {
 
 
   const handleOpenEditBalanceDialog = () => {
-    setNewBalanceInputValue(studioTotalBalance.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false}));
+    if (isClient) {
+        setNewBalanceInputValue(studioTotalBalance.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false}));
+    } else {
+        setNewBalanceInputValue(studioTotalBalance.toString());
+    }
     setIsEditBalanceDialogOpen(true);
   };
 
@@ -245,7 +259,7 @@ export default function DashboardPage() {
       setStudioTotalBalance(newBalance);
       toast({
         title: "Saldo Studio Aggiornato",
-        description: `Il nuovo saldo dello studio è €${newBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+        description: `Il nuovo saldo dello studio è €${isClient ? newBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : newBalance.toFixed(2)}.`,
       });
       setIsEditBalanceDialogOpen(false);
     } else {
@@ -329,7 +343,7 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-semibold">Saldo Attuale Studio</h2>
             <p className="text-4xl font-bold mt-1">
-              €{studioTotalBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{isClient ? studioTotalBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : studioTotalBalance.toFixed(2)}
             </p>
             <p className="text-xs text-primary-foreground/80 mt-1">Giacenza bancaria e liquidità totali.</p>
           </div>
@@ -375,7 +389,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{totalMonthlyIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{isClient? totalMonthlyIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : totalMonthlyIncome.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">+5.2% rispetto al mese scorso (esempio)</p>
           </CardContent>
         </Card>
@@ -385,7 +399,7 @@ export default function DashboardPage() {
             <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{totalMonthlyExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{isClient ? totalMonthlyExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : totalMonthlyExpenses.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">-1.8% rispetto al mese scorso (esempio)</p>
           </CardContent>
         </Card>
@@ -400,7 +414,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-3xl font-bold ${currentMonthlyBalance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              €{currentMonthlyBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{isClient ? currentMonthlyBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : currentMonthlyBalance.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
               {currentMonthlyBalance >=0 ? "Bilancio mensile positivo" : "Bilancio mensile negativo"}
@@ -437,6 +451,7 @@ export default function DashboardPage() {
               key={category.title} 
               {...category} 
               onViewAllClick={handleViewAllClick}
+              isClient={isClient}
             />
           ))}
         </div>
@@ -508,7 +523,7 @@ export default function DashboardPage() {
                       <TableCell>{transaction.subcategory || "N/A"}</TableCell>
                       <TableCell>{transaction.description || "N/A"}</TableCell>
                       <TableCell className="text-right text-red-600 dark:text-red-400">
-                        -€{Math.abs(transaction.amount).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        -€{isClient ? Math.abs(transaction.amount).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : Math.abs(transaction.amount).toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -531,3 +546,4 @@ export default function DashboardPage() {
     
 
     
+
