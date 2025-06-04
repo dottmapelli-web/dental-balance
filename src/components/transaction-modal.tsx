@@ -151,7 +151,6 @@ export default function TransactionModal({
       onOpenChange={(open) => {
         onOpenChange(open);
       }}
-      modal={false} // Key change: make the Dialog non-modal
     >
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -175,7 +174,7 @@ export default function TransactionModal({
               name="date"
               control={control}
               render={({ field }) => (
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -185,7 +184,7 @@ export default function TransactionModal({
                       {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -296,7 +295,7 @@ export default function TransactionModal({
                       name="recurrenceEndDate"
                       control={control}
                       render={({ field }) => (
-                        <Popover>
+                        <Popover modal={true}>
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
@@ -306,7 +305,7 @@ export default function TransactionModal({
                               {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                          <PopoverContent className="w-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -353,5 +352,3 @@ export default function TransactionModal({
     </Dialog>
   );
 }
-
-    
