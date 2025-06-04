@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,17 +9,24 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2 } from "lucide-react";
-import BudgetObjectiveModal, { type BudgetObjectiveFormData } from '@/components/budget-objective-modal';
+import BudgetObjectiveModal, { type BudgetObjectiveFormData, type BudgetFormData as ModalBudgetFormData } from '@/components/budget-objective-modal';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { allExpenseCategories } from '@/config/transaction-categories';
+import { initialTransactions, type Transaction } from '@/data/transactions-data';
+import { getMonth, getYear, parseISO, isValid } from 'date-fns';
 
-export interface BudgetListItem {
+// Interface for budget items stored in state (user-defined parts)
+interface DefinedBudget {
   id: string;
   category: string;
   budgeted: number;
-  actual: number;
   period: string;
+}
+
+// Interface for budget items displayed in the table (includes calculated 'actual')
+export interface BudgetListItem extends DefinedBudget {
+  actual: number;
 }
 
 export interface ObjectiveListItem {
@@ -28,14 +35,14 @@ export interface ObjectiveListItem {
   target: number;
   current: number;
   unit: string;
-  status: string; // Calculated or static
+  status: string; 
   iconName?: 'TrendingUp' | 'Target' | 'CheckCircle';
 }
 
-const initialBudgetItems: BudgetListItem[] = [
-  { id: "1", category: "Materiali", budgeted: 5000, actual: 4500, period: "Mensile" },
-  { id: "2", category: "Personale", budgeted: 15000, actual: 14800, period: "Mensile" },
-  { id: "3", category: "Altre spese", budgeted: 2000, actual: 2200, period: "Mensile" },
+const initialDefinedBudgets: DefinedBudget[] = [
+  { id: "1", category: "Materiali", budgeted: 5000, period: "Mensile" },
+  { id: "2", category: "Personale", budgeted: 15000, period: "Mensile" },
+  { id: "3", category: "Altre spese", budgeted: 2000, period: "Mensile" },
 ];
 
 const initialObjectives: ObjectiveListItem[] = [
@@ -54,7 +61,7 @@ const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
 };
 
 export default function BudgetObjectivesPage() {
-  const [budgetItems, setBudgetItems] = useState<BudgetListItem[]>(initialBudgetItems);
+  const [definedBudgets, setDefinedBudgets] = useState<DefinedBudget[]>(initialDefinedBudgets);
   const [objectives, setObjectives] = useState<ObjectiveListItem[]>(initialObjectives);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetListItem | ObjectiveListItem | null>(null);
@@ -66,6 +73,31 @@ export default function BudgetObjectivesPage() {
     setIsClient(true);
   }, []);
 
+  const displayedBudgets: BudgetListItem[] = useMemo(() => {
+    const today = new Date();
+    const currentMonth = getMonth(today);
+    const currentYear = getYear(today);
+
+    return definedBudgets.map(budget => {
+      let actualSpent = 0;
+      if (budget.period === "Mensile") {
+        const relevantTransactions = initialTransactions.filter(t => {
+          const transactionDate = parseISO(t.date);
+          return (
+            isValid(transactionDate) &&
+            t.type === 'Uscita' &&
+            t.category === budget.category &&
+            getMonth(transactionDate) === currentMonth &&
+            getYear(transactionDate) === currentYear
+          );
+        });
+        actualSpent = relevantTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      }
+      // TODO: Implement logic for other periods (Bimestrale, Trimestrale, etc.) if needed
+      return { ...budget, actual: actualSpent };
+    });
+  }, [definedBudgets, initialTransactions]); // initialTransactions dependency for potential future dynamic updates
+
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
     setEditingItem(item);
@@ -74,12 +106,23 @@ export default function BudgetObjectivesPage() {
 
   const handleSaveItem = (data: BudgetObjectiveFormData) => {
     if (modalType === 'budget' && data.type === 'budget') {
-      if (editingItem && editingItem.id) { // Editing budget
-        setBudgetItems(prev => prev.map(b => b.id === editingItem.id ? { ...b, ...data, id: editingItem.id } : b));
-        toast({ title: "Budget Aggiornato", description: `Budget per ${data.category} modificato.` });
+      const budgetDataFromForm = data as ModalBudgetFormData; // Use the specific form data type
+      if (editingItem && editingItem.id && 'category' in editingItem) { // Editing budget
+        setDefinedBudgets(prev => prev.map(b => b.id === editingItem.id ? { 
+            id: editingItem.id, 
+            category: budgetDataFromForm.category, 
+            budgeted: budgetDataFromForm.budgeted, 
+            period: budgetDataFromForm.period 
+        } : b));
+        toast({ title: "Budget Aggiornato", description: `Budget per ${budgetDataFromForm.category} modificato.` });
       } else { // Adding new budget
-        setBudgetItems(prev => [...prev, { ...data, id: crypto.randomUUID() }]);
-        toast({ title: "Nuovo Budget Aggiunto", description: `Budget per ${data.category} creato.` });
+        setDefinedBudgets(prev => [...prev, { 
+            id: crypto.randomUUID(), 
+            category: budgetDataFromForm.category, 
+            budgeted: budgetDataFromForm.budgeted, 
+            period: budgetDataFromForm.period 
+        }]);
+        toast({ title: "Nuovo Budget Aggiunto", description: `Budget per ${budgetDataFromForm.category} creato.` });
       }
     } else if (modalType === 'objective' && data.type === 'objective') {
       const newObjectiveData = {
@@ -106,7 +149,7 @@ export default function BudgetObjectivesPage() {
 
   const handleDeleteBudget = (id: string) => {
     if (window.confirm("Sei sicuro di voler eliminare questo budget?")) {
-      setBudgetItems(prev => prev.filter(b => b.id !== id));
+      setDefinedBudgets(prev => prev.filter(b => b.id !== id));
       toast({ title: "Budget Eliminato" });
     }
   };
@@ -148,7 +191,7 @@ export default function BudgetObjectivesPage() {
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
-          editingItem={editingItem}
+          editingItem={editingItem} // Pass BudgetListItem or ObjectiveListItem
           onSave={handleSaveItem}
           allExpenseCategories={allExpenseCategories}
         />
@@ -173,7 +216,7 @@ export default function BudgetObjectivesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {budgetItems.map((item) => {
+                {displayedBudgets.map((item) => {
                   const progress = item.budgeted > 0 ? Math.min((item.actual / item.budgeted) * 100, 100) : 0;
                   return (
                     <TableRow key={item.id}>
@@ -200,7 +243,7 @@ export default function BudgetObjectivesPage() {
                     </TableRow>
                   );
                 })}
-                 {budgetItems.length === 0 && (
+                 {displayedBudgets.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nessun budget impostato.</TableCell>
                   </TableRow>
@@ -255,4 +298,3 @@ export default function BudgetObjectivesPage() {
     </>
   );
 }
-

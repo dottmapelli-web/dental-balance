@@ -11,17 +11,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { BudgetListItem, ObjectiveListItem } from '@/app/budget-objectives/page';
+import type { BudgetListItem, ObjectiveListItem } from '@/app/budget-objectives/page'; // BudgetListItem still has 'actual' for display purposes
 
 const budgetPeriods = ['Mensile', 'Bimestrale', 'Trimestrale', 'Semestrale', 'Annuale'] as const;
 
+// Schema for the form data when creating/editing a budget item
 const budgetFormSchema = z.object({
   type: z.literal('budget'),
   category: z.string().min(1, "La categoria è obbligatoria."),
   budgeted: z.coerce.number().min(0, "L'importo preventivato non può essere negativo."),
-  actual: z.coerce.number().min(0, "L'importo speso non può essere negativo."),
   period: z.enum(budgetPeriods),
 });
+// Type for budget form data (no 'actual' field here)
 export type BudgetFormData = z.infer<typeof budgetFormSchema>;
 
 const objectiveFormSchema = z.object({
@@ -40,7 +41,7 @@ interface BudgetObjectiveModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   modalType: 'budget' | 'objective';
-  editingItem?: BudgetListItem | ObjectiveListItem | null;
+  editingItem?: (BudgetListItem & { type?: 'budget' }) | (ObjectiveListItem & { type?: 'objective' }) | null; // editingItem can be BudgetListItem or ObjectiveListItem
   onSave: (data: BudgetObjectiveFormData) => void;
   allExpenseCategories: string[];
 }
@@ -58,14 +59,13 @@ export default function BudgetObjectiveModal({
     type: 'budget',
     category: allExpenseCategories[0] || '',
     budgeted: 0,
-    actual: 0,
     period: 'Mensile',
   }), [allExpenseCategories]);
 
   const defaultObjectiveValues = useMemo<ObjectiveFormData>(() => ({
     type: 'objective',
     name: '',
-    target: 1, // Changed from 0 to 1 to satisfy positive() validation
+    target: 1,
     current: 0,
     unit: '%',
   }), []);
@@ -79,18 +79,18 @@ export default function BudgetObjectiveModal({
     if (isOpen) {
       if (editingItem) {
         if (modalType === 'budget' && 'category' in editingItem) {
-          const budget = editingItem as BudgetListItem;
+          const budget = editingItem as BudgetListItem; // Cast to BudgetListItem which might have 'actual'
           reset({
-            type: 'budget',
+            type: 'budget', // Explicitly set type for Zod discrimination
             category: budget.category,
             budgeted: budget.budgeted,
-            actual: budget.actual,
             period: budget.period as typeof budgetPeriods[number],
+            // 'actual' is not part of BudgetFormData, so it's not reset here for the form
           });
         } else if (modalType === 'objective' && 'name' in editingItem) {
           const objective = editingItem as ObjectiveListItem;
           reset({
-            type: 'objective',
+            type: 'objective', // Explicitly set type
             name: objective.name,
             target: objective.target,
             current: objective.current,
@@ -120,7 +120,6 @@ export default function BudgetObjectiveModal({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
-          {/* The 'type' field is implicitly set by the defaultValues and reset logic */}
 
           {modalType === 'budget' && (
             <>
@@ -129,7 +128,7 @@ export default function BudgetObjectiveModal({
                 <Controller
                   name="category"
                   control={control}
-                  rules={{ required: "La categoria è obbligatoria."}} // This ensures category is treated as part of BudgetFormData
+                  rules={{ required: "La categoria è obbligatoria."}} 
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value ?? ''}>
                       <SelectTrigger id="category">
@@ -148,11 +147,15 @@ export default function BudgetObjectiveModal({
                 <Input id="budgeted" type="number" step="0.01" {...register("budgeted")} />
                 {errors.budgeted && <p className="text-sm text-destructive mt-1">{errors.budgeted.message}</p>}
               </div>
-              <div>
-                <Label htmlFor="actual">Importo Speso (€)</Label>
-                <Input id="actual" type="number" step="0.01" {...register("actual")} />
-                {errors.actual && <p className="text-sm text-destructive mt-1">{errors.actual.message}</p>}
-              </div>
+              {/* "Importo Speso" (actual) is removed from the form as it's calculated automatically.
+                  If it needs to be displayed for reference when editing, it would be a non-form element.
+              */}
+               {editingItem && modalType === 'budget' && 'actual' in editingItem && (
+                <div>
+                  <Label>Importo Speso Attuale (Calcolato)</Label>
+                  <Input type="text" value={`€${(editingItem as BudgetListItem).actual.toFixed(2)}`} readOnly disabled className="bg-muted/50" />
+                </div>
+              )}
               <div>
                 <Label htmlFor="period">Periodo</Label>
                  <Controller
