@@ -10,16 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set } from "date-fns";
+import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set, subMonths, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses, allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies } from "@/config/transaction-categories";
 import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
-import BulkStatusUpdateDialog from '@/components/bulk-status-update-dialog';
+import BulkStatusUpdateDialog from '../../components/bulk-status-update-dialog'; // Changed import path
 import { useToast } from '@/hooks/use-toast';
-import { type Transaction } from '@/data/transactions-data'; // Usiamo ancora la type Transaction
+import { type Transaction } from '@/data/transactions-data';
 
 import { db } from '@/lib/firebase';
 import {
@@ -83,7 +83,6 @@ export default function TransactionsPage() {
     setIsLoading(true);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
-      // Per ora, carichiamo tutte le transazioni. In futuro si potrebbe paginare o filtrare server-side.
       const q = query(transactionsCollectionRef, orderBy("date", "desc"));
       const querySnapshot = await getDocs(q);
       const fetchedTransactions: Transaction[] = [];
@@ -96,13 +95,13 @@ export default function TransactionsPage() {
           category: data.category,
           subcategory: data.subcategory,
           type: data.type,
-          amount: data.amount,
+          amount: data.amount, // Firestore stores actual amount, type determines income/expense
           status: data.status as TransactionStatus,
-          isRecurring: data.isRecurring,
+          isRecurring: data.isRecurring || false,
           recurrenceDetails: data.recurrenceDetails ? {
             ...data.recurrenceDetails,
             startDate: data.recurrenceDetails.startDate instanceof Timestamp ? format(data.recurrenceDetails.startDate.toDate(), "yyyy-MM-dd") : data.recurrenceDetails.startDate,
-            endDate: data.recurrenceDetails.endDate instanceof Timestamp ? format(data.recurrenceDetails.endDate.toDate(), "yyyy-MM-dd") : data.recurrenceDetails.endDate,
+            endDate: data.recurrenceDetails.endDate && data.recurrenceDetails.endDate instanceof Timestamp ? format(data.recurrenceDetails.endDate.toDate(), "yyyy-MM-dd") : undefined,
           } : undefined,
           originalRecurringId: data.originalRecurringId,
         });
@@ -178,7 +177,7 @@ export default function TransactionsPage() {
   }, [transactions]);
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    const transactionDataToSave = {
+    const transactionDataToSave: any = { // Use any for temp flexibility, ensure type safety on final object
       date: Timestamp.fromDate(data.date),
       description: data.description || "",
       category: data.category,
@@ -186,31 +185,38 @@ export default function TransactionsPage() {
       type: data.type,
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
-      isRecurring: data.isRecurring,
-      recurrenceDetails: data.isRecurring && data.recurrenceFrequency ? {
-        frequency: data.recurrenceFrequency as RecurrenceFrequency,
-        startDate: Timestamp.fromDate(data.date), // Use the transaction's date as start date for recurrence
-        endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null, // Store null if undefined
-      } : null, // Store null if not recurring
-      originalRecurringId: data.isRecurring ? null : (editingTransaction?.originalRecurringId || null),
+      isRecurring: data.isRecurring || false,
+      originalRecurringId: editingTransaction?.originalRecurringId || null,
     };
 
+    if (data.isRecurring && data.recurrenceFrequency) {
+      transactionDataToSave.recurrenceDetails = {
+        frequency: data.recurrenceFrequency as RecurrenceFrequency,
+        startDate: Timestamp.fromDate(data.date),
+        endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
+      };
+      // If it's a definition, originalRecurringId should be null
+      transactionDataToSave.originalRecurringId = null;
+    } else {
+      transactionDataToSave.recurrenceDetails = null;
+    }
+
+
     try {
-      if (id) { // Editing existing transaction
+      if (id) {
         const transactionRef = doc(db, "transactions", id);
         await updateDoc(transactionRef, transactionDataToSave);
         toast({ title: "Transazione Modificata", description: "La transazione è stata aggiornata con successo." });
-      } else { // Adding new transaction
+      } else {
         const newDocRef = await addDoc(collection(db, "transactions"), transactionDataToSave);
         toast({ title: "Transazione Aggiunta", description: "La transazione è stata aggiunta con successo." });
 
-        // Handle recurring instances
         if (transactionDataToSave.isRecurring && transactionDataToSave.recurrenceDetails) {
           const batch = writeBatch(db);
-          let currentDate = data.date; // JS Date object
-          const recurrenceEndDate = data.recurrenceEndDate; // JS Date object or undefined
+          let currentDate = data.date; 
+          const recurrenceEndDate = data.recurrenceEndDate; 
 
-          for (let i = 0; i < 3; i++) { // Create next 3 instances for now
+          for (let i = 0; i < 3; i++) { 
             let nextDate = currentDate;
             switch(transactionDataToSave.recurrenceDetails.frequency) {
                 case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
@@ -227,7 +233,7 @@ export default function TransactionsPage() {
               date: Timestamp.fromDate(nextDate),
               isRecurring: false,
               recurrenceDetails: null,
-              originalRecurringId: newDocRef.id, // Link to the new definition ID
+              originalRecurringId: newDocRef.id,
               status: 'Pianificato' as TransactionStatus,
             };
             const newInstanceRef = doc(collection(db, "transactions"));
@@ -237,7 +243,7 @@ export default function TransactionsPage() {
           toast({ title: "Istanze Ricorrenti Create", description: "Le prossime istanze sono state pianificate."});
         }
       }
-      fetchTransactions(); // Refresh data
+      fetchTransactions(); 
     } catch (error) {
       console.error("Error saving transaction: ", error);
       toast({ title: "Errore nel Salvataggio", description: "Impossibile salvare la transazione.", variant: "destructive" });
@@ -255,10 +261,10 @@ export default function TransactionsPage() {
   const handleDuplicate = (transactionToDuplicate: Transaction) => {
     const newTransactionData: Transaction = {
       ...transactionToDuplicate,
-      id: '', // Will be set by modal or submit function
-      date: format(startOfToday(), "yyyy-MM-dd"), // Set date to today
-      status: 'Pianificato', // Default status for a duplicated item
-      isRecurring: false, // Duplicated items are one-off by default
+      id: '', 
+      date: format(startOfToday(), "yyyy-MM-dd"), 
+      status: 'Pianificato', 
+      isRecurring: false, 
       recurrenceDetails: undefined,
       originalRecurringId: undefined,
     };
@@ -276,19 +282,26 @@ export default function TransactionsPage() {
       const transactionRef = doc(db, "transactions", id);
       batch.delete(transactionRef);
 
-      // Check if it's a recurring definition and delete its future instances
       const deletedTransaction = transactions.find(t => t.id === id);
       if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
         const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
         const instancesSnapshot = await getDocs(instancesQuery);
         instancesSnapshot.forEach(instanceDoc => {
-          batch.delete(doc(db, "transactions", instanceDoc.id));
+          const instanceDate = (instanceDoc.data().date as Timestamp).toDate();
+          if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') { // Example: Delete only future or non-completed
+             batch.delete(doc(db, "transactions", instanceDoc.id));
+          }
         });
       }
 
       await batch.commit();
       toast({ title: "Transazione Eliminata", description: "La transazione e le istanze future sono state rimosse." });
-      fetchTransactions(); // Refresh
+      fetchTransactions(); 
+      setSelectedRows(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     } catch (error) {
       console.error("Error deleting transaction: ", error);
       toast({ title: "Errore Eliminazione", description: "Impossibile eliminare la transazione.", variant: "destructive" });
@@ -304,19 +317,24 @@ export default function TransactionsPage() {
       const idsToDelete = Array.from(selectedRows);
 
       for (const id of idsToDelete) {
-        batch.delete(doc(db, "transactions", id));
+        const transactionRef = doc(db, "transactions", id);
+        batch.delete(transactionRef);
+        
         const deletedTransaction = transactions.find(t => t.id === id);
         if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
             const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
             const instancesSnapshot = await getDocs(instancesQuery);
             instancesSnapshot.forEach(instanceDoc => {
-                batch.delete(doc(db, "transactions", instanceDoc.id));
+                 const instanceDate = (instanceDoc.data().date as Timestamp).toDate();
+                 if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') {
+                    batch.delete(doc(db, "transactions", instanceDoc.id));
+                 }
             });
         }
       }
       await batch.commit();
       toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate sono state rimosse.` });
-      fetchTransactions(); // Refresh
+      fetchTransactions(); 
       setSelectedRows(new Set());
     } catch (error) {
       console.error("Error bulk deleting transactions: ", error);
@@ -335,7 +353,7 @@ export default function TransactionsPage() {
       });
       await batch.commit();
       toast({ title: "Stato Aggiornato", description: `Lo stato di ${selectedRows.size} transazioni è stato aggiornato a "${newStatus}".` });
-      fetchTransactions(); // Refresh
+      fetchTransactions(); 
       setSelectedRows(new Set());
       setIsBulkStatusModalOpen(false);
     } catch (error) {
@@ -357,7 +375,7 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleSelectAllRows = () => { // Modificato per non prendere event
+  const handleSelectAllRows = () => { 
     if (selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0) {
       setSelectedRows(new Set());
     } else {
@@ -375,7 +393,7 @@ export default function TransactionsPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p>Caricamento transazioni...</p> {/* TODO: Aggiungere uno spinner/skeleton più carino */}
+        <p>Caricamento transazioni...</p>
       </div>
     );
   }
@@ -387,10 +405,10 @@ export default function TransactionsPage() {
         description="Visualizza e gestisci tutte le entrate e uscite."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { /* TODO */ toast({title: "Importa non implementato"}) }} variant="outline">
+            <Button onClick={() => { toast({title: "Importa non implementato"}) }} variant="outline">
               Importa Dati
             </Button>
-            <Button onClick={() => { /* TODO */ toast({title: "Esporta non implementato"}) }} variant="outline">
+            <Button onClick={() => { toast({title: "Esporta non implementato"}) }} variant="outline">
               Esporta Dati
             </Button>
           </div>
@@ -477,7 +495,7 @@ export default function TransactionsPage() {
                       {t.subcategory ? <Badge variant="outline">{t.subcategory}</Badge> : "-"}
                     </TableCell>
                     <TableCell className={`font-semibold ${t.amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      €{Math.abs(t.amount).toFixed(2)}
+                      €{t.type === 'Entrata' ? t.amount.toFixed(2) : Math.abs(t.amount).toFixed(2)}
                     </TableCell>
                     <TableCell className="font-medium">{t.description}</TableCell>
                     <TableCell>
@@ -625,7 +643,7 @@ export default function TransactionsPage() {
                     {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
                   </TableCell>
                    <TableCell className={`text-right font-semibold ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{transaction.amount.toFixed(2)}
+                    €{transaction.type === 'Entrata' ? transaction.amount.toFixed(2) : Math.abs(transaction.amount).toFixed(2)}
                   </TableCell>
                   <TableCell className="font-medium flex items-center">
                     <span className="truncate max-w-[200px] inline-block" title={transaction.description}>{transaction.description}</span>
@@ -686,7 +704,7 @@ export default function TransactionsPage() {
               ))}
               {filteredAndSortedTransactions.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={columnOrder.length + 1} className="text-center text-muted-foreground h-24"> {/* +1 per la checkbox */}
+                    <TableCell colSpan={columnOrder.length + 1} className="text-center text-muted-foreground h-24">
                         Nessuna transazione trovata per i filtri selezionati.
                     </TableCell>
                 </TableRow>
