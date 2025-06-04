@@ -70,7 +70,7 @@ export default function TransactionModal({
       isRecurring: false,
       date: new Date(),
       description: '',
-      amount: 0, // Default amount to 0
+      amount: 0, 
     }
   });
 
@@ -184,7 +184,7 @@ export default function TransactionModal({
                       {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0 z-[55]"> {/* Aggiunto z-index qui */}
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -305,7 +305,7 @@ export default function TransactionModal({
                               {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                          <PopoverContent className="w-auto p-0 z-[55]"> {/* Aggiunto z-index qui */}
                             <Calendar
                               mode="single"
                               selected={field.value}

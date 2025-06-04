@@ -17,7 +17,7 @@ import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpD
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
-import BulkStatusUpdateDialog from '../../components/bulk-status-update-dialog'; // Changed import path
+import BulkStatusUpdateDialog from '../../components/bulk-status-update-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { type Transaction } from '@/data/transactions-data';
 
@@ -95,7 +95,7 @@ export default function TransactionsPage() {
           category: data.category,
           subcategory: data.subcategory,
           type: data.type,
-          amount: data.amount, // Firestore stores actual amount, type determines income/expense
+          amount: data.amount,
           status: data.status as TransactionStatus,
           isRecurring: data.isRecurring || false,
           recurrenceDetails: data.recurrenceDetails ? {
@@ -107,11 +107,15 @@ export default function TransactionsPage() {
         });
       });
       setTransactions(fetchedTransactions);
-    } catch (error) {
-      console.error("Error fetching transactions: ", error);
+    } catch (error: any) {
+      console.error("Errore dettagliato nel caricamento transazioni:", error);
+      if (error.code) {
+        console.error("Codice errore Firestore:", error.code);
+        console.error("Messaggio errore Firestore:", error.message);
+      }
       toast({
         title: "Errore nel Caricamento",
-        description: "Impossibile caricare le transazioni da Firestore.",
+        description: "Impossibile caricare le transazioni da Firestore. Controlla la console per dettagli.",
         variant: "destructive",
       });
     } finally {
@@ -177,7 +181,7 @@ export default function TransactionsPage() {
   }, [transactions]);
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    const transactionDataToSave: any = { // Use any for temp flexibility, ensure type safety on final object
+    const transactionDataToSave: any = { 
       date: Timestamp.fromDate(data.date),
       description: data.description || "",
       category: data.category,
@@ -195,7 +199,6 @@ export default function TransactionsPage() {
         startDate: Timestamp.fromDate(data.date),
         endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
       };
-      // If it's a definition, originalRecurringId should be null
       transactionDataToSave.originalRecurringId = null;
     } else {
       transactionDataToSave.recurrenceDetails = null;
@@ -288,7 +291,7 @@ export default function TransactionsPage() {
         const instancesSnapshot = await getDocs(instancesQuery);
         instancesSnapshot.forEach(instanceDoc => {
           const instanceDate = (instanceDoc.data().date as Timestamp).toDate();
-          if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') { // Example: Delete only future or non-completed
+          if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') { 
              batch.delete(doc(db, "transactions", instanceDoc.id));
           }
         });
