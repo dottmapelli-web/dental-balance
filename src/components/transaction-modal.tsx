@@ -181,7 +181,7 @@ export default function TransactionModal({
                       {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"> {/* Rimossa classe z-[100] da qui */}
+                  <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -302,7 +302,7 @@ export default function TransactionModal({
                               {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0"> {/* Rimossa classe z-[100] da qui */}
+                          <PopoverContent className="w-auto p-0">
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -349,5 +349,3 @@ export default function TransactionModal({
     </Dialog>
   );
 }
-
-    
