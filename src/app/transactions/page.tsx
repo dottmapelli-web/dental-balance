@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format, addMonths, getYear, getMonth, parseISO, isValid, startOfMonth, endOfMonth, subMonths, getDate, subDays } from "date-fns";
+import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses } from "@/config/transaction-categories";
-import { AlertCircle, CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter } from "lucide-react";
+import { AlertCircle, CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
@@ -114,7 +114,7 @@ export default function TransactionsPage() {
   }, [transactions]);
 
   const handleTransactionSubmit = (data: TransactionFormData, id?: string) => {
-    const transactionData: Omit<Transaction, 'id'> = {
+    const transactionData: Omit<Transaction, 'id' | 'amount'> & {amount: number} = {
       date: format(data.date, "yyyy-MM-dd"),
       description: data.description,
       category: data.category,
@@ -145,7 +145,6 @@ export default function TransactionsPage() {
               let nextDate = currentDate;
               switch(newTransaction.recurrenceDetails.frequency) {
                   case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                  // TODO: Implement other frequencies if needed
                   default: nextDate = addMonths(currentDate, i + 1); break;
               }
               if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
@@ -154,10 +153,10 @@ export default function TransactionsPage() {
                   ...newTransaction,
                   id: crypto.randomUUID(),
                   date: format(nextDate, "yyyy-MM-dd"),
-                  isRecurring: false, // Instances are not definitions
+                  isRecurring: false, 
                   recurrenceDetails: undefined,
                   originalRecurringId: newTransaction.id,
-                  status: 'Pianificato' // Instances start as Pianificato
+                  status: 'Pianificato' 
               });
           }
           setTransactions(prev => [...prev, ...instances]);
@@ -173,12 +172,24 @@ export default function TransactionsPage() {
     setIsModalOpen(true);
   };
 
+  const handleDuplicate = (transactionToDuplicate: Transaction) => {
+    const newTransactionData: Transaction = {
+      ...transactionToDuplicate,
+      id: '', // Will be set by modal or submit function
+      date: format(startOfToday(), "yyyy-MM-dd"), // Set date to today
+      status: 'Pianificato', // Default status for a duplicated item
+      isRecurring: false, // Duplicated items are one-off by default
+      recurrenceDetails: undefined,
+      originalRecurringId: undefined, 
+    };
+    setEditingTransaction(newTransactionData); // Pass it as if we are editing, but it's a new template
+    setTransactionTypeForModal(newTransactionData.type);
+    setIsModalOpen(true);
+    toast({ title: "Transazione Pronta per Duplicazione", description: "Modifica i dettagli e salva come nuova transazione." });
+  };
+
   const handleDelete = (id: string) => {
-    // Remove the transaction itself
     setTransactions(prev => prev.filter(t => t.id !== id));
-    
-    // If it's a recurring definition, remove its instances
-    // Also, remove any instances if an instance itself is deleted (though less common scenario for direct deletion)
     setTransactions(prev => prev.filter(t => t.originalRecurringId !== id));
      toast({ title: "Transazione Eliminata", description: "La transazione e le sue eventuali istanze sono state rimosse." });
   };
@@ -186,7 +197,6 @@ export default function TransactionsPage() {
   const handleBulkDelete = () => {
     const idsToDelete = Array.from(selectedRows);
     setTransactions(prev => prev.filter(t => !idsToDelete.includes(t.id) && !(t.originalRecurringId && idsToDelete.includes(t.originalRecurringId))));
-    // Ensure instances of deleted recurring definitions are also removed
     idsToDelete.forEach(deletedId => {
       setTransactions(prev => prev.filter(t => t.originalRecurringId !== deletedId));
     });
@@ -479,10 +489,18 @@ export default function TransactionsPage() {
                         {transaction.status}
                       </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                     <Tooltip>
+                  <TableCell className="text-right space-x-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => handleDuplicate(transaction)}>
+                              <Copy className="h-4 w-4" />
+                          </Button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Duplica Transazione</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="mr-1" onClick={() => handleEdit(transaction)}
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}
                                     disabled={!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring}
                             >
                             <Edit3 className="h-4 w-4" />
@@ -515,3 +533,4 @@ export default function TransactionsPage() {
     </TooltipProvider>
   );
 }
+

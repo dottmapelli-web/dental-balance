@@ -1,8 +1,9 @@
 
 "use client";
 
-import React, { useState } from 'react';
-import { UserCircle, PlusCircle, FileText } from 'lucide-react'; 
+import React, { useState, useEffect } from 'react';
+import { UserCircle, PlusCircle, FileText, Moon, Sun } from 'lucide-react'; 
+import { useTheme } from "next-themes";
 import { siteConfig } from '@/config/site';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +56,12 @@ export default function AppShell({ children }: AppShellProps) {
   const [isTransactionModalOpen, setTransactionModalOpen] = useState(false);
   const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleNewTransaction = (type: 'Entrata' | 'Uscita') => {
     setTransactionTypeForModal(type);
@@ -62,14 +69,11 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleTransactionSubmit = (data: TransactionFormData) => {
-    // In AppShell, this will likely just show a toast.
-    // The actual data handling will be done via Firestore or a global state later.
     console.log("AppShell transaction submitted (simulated):", data);
     toast({
       title: "Transazione Aggiunta (Simulato)",
       description: `Aggiunta ${data.type}: ${data.description || 'N/A'} - €${data.amount.toFixed(2)}`,
     });
-    // setTransactionModalOpen(false); // Modal handles its own closing via onOpenChange
   };
 
   const handleGenerateReport = () => {
@@ -81,9 +85,17 @@ export default function AppShell({ children }: AppShellProps) {
     console.log("Genera Report");
   };
 
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  if (!mounted) {
+    return null; 
+  }
+
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar variant="sidebar" collapsible="icon" className="border-r">
+      <Sidebar variant="sidebar" collapsible="icon" className="border-r border-sidebar-border">
         <SidebarHeader className="p-3 group-data-[collapsible=icon]:p-2">
           <div className="flex items-center justify-between group-data-[collapsible=icon]:hidden">
             <div className="flex items-center gap-2">
@@ -138,6 +150,9 @@ export default function AppShell({ children }: AppShellProps) {
               <FileText className="mr-2 h-4 w-4" />
               Report
             </Button>
+            <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+            </Button>
             <Button variant="ghost" size="icon" className="rounded-full">
               <UserCircle className="h-6 w-6" />
               <span className="sr-only">Profilo Utente</span>
@@ -158,3 +173,4 @@ export default function AppShell({ children }: AppShellProps) {
     </SidebarProvider>
   );
 }
+

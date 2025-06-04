@@ -45,7 +45,7 @@ const initialDefinedBudgets: DefinedBudget[] = [
   { id: "3", category: "Altre spese", budgeted: 2000, period: "Mensile" },
 ];
 
-const initialObjectives: ObjectiveListItem[] = [
+export const initialObjectives: ObjectiveListItem[] = [
   { id: "obj1", name: "Aumentare Entrate del 15%", target: 15, current: 10, unit: "%", status: "In Corso", iconName: 'TrendingUp' },
   { id: "obj2", name: "Ridurre Sprechi Materiali del 5%", target: 5, current: 2, unit: "%", status: "In Corso", iconName: 'Target' },
   { id: "obj3", name: "Acquisire 50 Nuovi Pazienti", target: 50, current: 50, unit: "pazienti", status: "Completato", iconName: 'CheckCircle' },
@@ -96,7 +96,7 @@ export default function BudgetObjectivesPage() {
       // TODO: Implement logic for other periods (Bimestrale, Trimestrale, etc.) if needed
       return { ...budget, actual: actualSpent };
     });
-  }, [definedBudgets, initialTransactions]); // initialTransactions dependency for potential future dynamic updates
+  }, [definedBudgets, initialTransactions]); 
 
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
@@ -106,8 +106,8 @@ export default function BudgetObjectivesPage() {
 
   const handleSaveItem = (data: BudgetObjectiveFormData) => {
     if (modalType === 'budget' && data.type === 'budget') {
-      const budgetDataFromForm = data as ModalBudgetFormData; // Use the specific form data type
-      if (editingItem && editingItem.id && 'category' in editingItem) { // Editing budget
+      const budgetDataFromForm = data as ModalBudgetFormData; 
+      if (editingItem && editingItem.id && 'category' in editingItem) { 
         setDefinedBudgets(prev => prev.map(b => b.id === editingItem.id ? { 
             id: editingItem.id, 
             category: budgetDataFromForm.category, 
@@ -115,7 +115,7 @@ export default function BudgetObjectivesPage() {
             period: budgetDataFromForm.period 
         } : b));
         toast({ title: "Budget Aggiornato", description: `Budget per ${budgetDataFromForm.category} modificato.` });
-      } else { // Adding new budget
+      } else { 
         setDefinedBudgets(prev => [...prev, { 
             id: crypto.randomUUID(), 
             category: budgetDataFromForm.category, 
@@ -134,10 +134,10 @@ export default function BudgetObjectivesPage() {
         status: data.current >= data.target ? "Completato" : "In Corso",
         iconName: data.current >= data.target ? 'CheckCircle' : (editingItem as ObjectiveListItem)?.iconName || 'Target' as ObjectiveListItem['iconName'],
       };
-      if (editingItem && editingItem.id) { // Editing objective
+      if (editingItem && editingItem.id) { 
         setObjectives(prev => prev.map(o => o.id === editingItem.id ? newObjectiveData : o));
         toast({ title: "Obiettivo Aggiornato", description: `Obiettivo "${data.name}" modificato.` });
-      } else { // Adding new objective
+      } else { 
         setObjectives(prev => [...prev, newObjectiveData]);
         toast({ title: "Nuovo Obiettivo Aggiunto", description: `Obiettivo "${data.name}" creato.` });
       }
@@ -191,7 +191,7 @@ export default function BudgetObjectivesPage() {
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
-          editingItem={editingItem} // Pass BudgetListItem or ObjectiveListItem
+          editingItem={editingItem} 
           onSave={handleSaveItem}
           allExpenseCategories={allExpenseCategories}
         />
@@ -298,3 +298,4 @@ export default function BudgetObjectivesPage() {
     </>
   );
 }
+

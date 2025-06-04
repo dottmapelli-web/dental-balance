@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit, CalendarClock, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit, CalendarClock, Info, Target, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -16,11 +16,13 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, formatISO, isFuture, isEqual, startOfToday } from "date-fns";
 import { it } from "date-fns/locale";
 import type { Transaction } from '@/data/transactions-data';
 import { initialTransactions } from '@/data/transactions-data'; 
 import { expenseCategories as expenseCategoryConfig } from '@/config/transaction-categories';
+import { initialObjectives, type ObjectiveListItem } from '@/app/budget-objectives/page';
 
 
 const barChartConfig = {
@@ -56,9 +58,9 @@ const initialExpenseCategoriesDisplayData: ExpenseCategoryDisplayData[] = (Objec
     const color = colors[index % colors.length];
     return {
       title: categoryKey,
-      value: 0, // Will be calculated
-      itemCount: 0, // Will be calculated
-      topItems: [], // Will be calculated
+      value: 0, 
+      itemCount: 0, 
+      topItems: [], 
       ...color,
     };
 });
@@ -109,6 +111,16 @@ const ExpenseCategoryCard: React.FC<ExpenseCategoryCardProps> = ({ title, value,
   );
 };
 
+const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
+  switch (iconName) {
+    case 'TrendingUp': return <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400"/>;
+    case 'Target': return <Target className="h-5 w-5 text-blue-500 dark:text-blue-400"/>;
+    case 'CheckCircle': return <CheckCircle className="h-5 w-5 text-primary"/>;
+    default: return <Target className="h-5 w-5 text-gray-500 dark:text-gray-400"/>;
+  }
+};
+
+
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -129,11 +141,14 @@ export default function DashboardPage() {
   const [cashflowChartData, setCashflowChartData] = useState<any[]>([]);
   const [expenseCategoriesDisplay, setExpenseCategoriesDisplay] = useState<ExpenseCategoryDisplayData[]>(initialExpenseCategoriesDisplayData);
   const [upcomingTransactions, setUpcomingTransactions] = useState<Transaction[]>([]);
+  const [dashboardObjectives, setDashboardObjectives] = useState<ObjectiveListItem[]>([]);
+
 
   const { toast } = useToast();
   
   useEffect(() => {
     setIsClient(true);
+    setDashboardObjectives(initialObjectives.slice(0, 2)); 
   }, []);
 
   useEffect(() => {
@@ -228,7 +243,7 @@ export default function DashboardPage() {
             const transactionDate = parseISO(t.date);
             return isValid(transactionDate) && format(transactionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
-        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); // Amount is already signed
+        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); 
         runningBalance += dailyNet;
         return { date: format(day, "dd/MM"), cashflow: runningBalance };
     });
@@ -243,7 +258,7 @@ export default function DashboardPage() {
       .slice(0,3);
     setUpcomingTransactions(upcoming);
 
-  }, [initialTransactions, isClient]); // Added isClient as dependency
+  }, [initialTransactions, isClient]); 
 
 
   const handleOpenEditBalanceDialog = () => {
@@ -512,28 +527,33 @@ export default function DashboardPage() {
       <div className="mt-6">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline">Obiettivi Finanziari</CardTitle>
+            <CardTitle className="font-headline">Obiettivi Finanziari Chiave</CardTitle>
+            <CardDescription>Monitoraggio dei primi obiettivi impostati.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-base font-medium text-primary">Risparmio Mensile</span>
-                <span className="text-sm font-medium">€1,200 / €2,000 (60%)</span>
+          <CardContent className="space-y-6">
+            {dashboardObjectives.length > 0 ? dashboardObjectives.map((obj) => (
+              <div key={obj.id} className="p-4 border rounded-lg shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    {getObjectiveIcon(obj.iconName)}
+                    <h3 className="text-md font-semibold">{obj.name}</h3>
+                  </div>
+                  <Badge variant={obj.status === "Completato" ? "default" : "secondary"} className={obj.status === "Completato" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-800/50 dark:text-green-300 dark:border-green-700" : ""}>
+                    {obj.status}
+                  </Badge>
+                </div>
+                <div className="mt-3">
+                  <div className="flex justify-between text-sm text-muted-foreground mb-1">
+                    <span>Progresso</span>
+                    <span>{isClient ? obj.current.toLocaleString('it-IT') : obj.current}{obj.unit} / {isClient ? obj.target.toLocaleString('it-IT') : obj.target}{obj.unit}</span>
+                  </div>
+                  <Progress value={obj.target > 0 ? (obj.current / obj.target) * 100 : 0} aria-label={`Progresso obiettivo ${obj.name}`} className={obj.status === "Completato" ? "[&>div]:bg-green-500 dark:[&>div]:bg-green-400" : ""} />
+                </div>
               </div>
-              <div className="w-full bg-secondary rounded-full h-2.5">
-                <div className="bg-primary h-2.5 rounded-full" style={{ width: "60%" }}></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-base font-medium text-accent">Riduzione Costi Materiali</span>
-                <span className="text-sm font-medium">-5% / -10% (50%)</span>
-              </div>
-              <div className="w-full bg-secondary rounded-full h-2.5">
-                <div className="bg-accent h-2.5 rounded-full" style={{ width: "50%" }}></div>
-              </div>
-            </div>
-             <Badge variant="outline">Prossima Revisione: 31 Luglio</Badge>
+            )) : (
+              <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario impostato.</p>
+            )}
+             <Badge variant="outline">Vedi tutti gli obiettivi nella sezione 'Budget & Obiettivi'</Badge>
           </CardContent>
         </Card>
       </div>
@@ -583,3 +603,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
