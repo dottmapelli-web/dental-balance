@@ -1,7 +1,7 @@
 
 "use client"
 
-import * as React from "react"
+import * as React from "react" // Corrected import
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
@@ -525,55 +525,52 @@ const sidebarMenuButtonVariants = cva(
 )
 
 interface SidebarMenuButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends React.HTMLAttributes<HTMLElement>, 
     VariantProps<typeof sidebarMenuButtonVariants> {
+  asChild?: boolean;
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
-  asChild?: boolean;
 }
 
-const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  SidebarMenuButtonProps
->(
+const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
   (
     {
-      isActive = false,
-      variant = "default",
-      size = "default",
-      tooltip,
       className,
+      variant,
+      size,
+      asChild: isAsChild = false, // Use a different name for the destructured prop
+      isActive = false,
+      tooltip,
       children,
-      asChild: isAsChild = false, // Renamed to avoid conflict and correctly defaulted
-      ...otherProps // Contains all props *except* asChild (now isAsChild)
+      ...otherProps // Capture the rest of the props
     },
     ref
   ) => {
     const { isMobile, state } = useSidebar();
     const Comp = isAsChild ? Slot : "button";
 
-    const buttonElement = (
+    const element = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...otherProps} // Spread otherProps, which does not include 'asChild'
+        {...otherProps} // Spread only the otherProps
       >
         {children}
       </Comp>
     );
 
     if (!tooltip || (state === "expanded" && !isMobile) || isMobile) {
-      return buttonElement;
+      return element;
     }
     
     const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
+        <TooltipTrigger asChild>{element}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
@@ -753,5 +750,7 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
 
     
