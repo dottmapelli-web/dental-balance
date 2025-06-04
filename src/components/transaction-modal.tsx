@@ -171,7 +171,7 @@ export default function TransactionModal({
               name="date"
               control={control}
               render={({ field }) => (
-                <Popover>
+                <Popover modal={true}> {/* <-- Set Popover to modal */}
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
@@ -181,7 +181,10 @@ export default function TransactionModal({
                       {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent 
+                    className="w-auto p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
+                  >
                     <Calendar
                       mode="single"
                       selected={field.value}
@@ -292,7 +295,7 @@ export default function TransactionModal({
                       name="recurrenceEndDate"
                       control={control}
                       render={({ field }) => (
-                        <Popover>
+                        <Popover modal={true}> {/* <-- Also set this Popover to modal if it exists */}
                           <PopoverTrigger asChild>
                             <Button
                               variant={"outline"}
@@ -302,7 +305,10 @@ export default function TransactionModal({
                               {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                          <PopoverContent 
+                            className="w-auto p-0"
+                            onOpenAutoFocus={(e) => e.preventDefault()} // Prevent focus stealing
+                          >
                             <Calendar
                               mode="single"
                               selected={field.value}
