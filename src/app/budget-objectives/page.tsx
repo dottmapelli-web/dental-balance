@@ -60,6 +60,11 @@ export default function BudgetObjectivesPage() {
   const [editingItem, setEditingItem] = useState<BudgetListItem | ObjectiveListItem | null>(null);
   const [modalType, setModalType] = useState<'budget' | 'objective' | null>(null);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
@@ -173,8 +178,8 @@ export default function BudgetObjectivesPage() {
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.category}</TableCell>
-                      <TableCell>€{item.budgeted.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell>€{item.actual.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>€{isClient ? item.budgeted.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.budgeted.toFixed(2)}</TableCell>
+                      <TableCell>€{isClient ? item.actual.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.actual.toFixed(2)}</TableCell>
                       <TableCell className="w-[150px]">
                         <Progress value={progress} aria-label={`${progress.toFixed(0)}% speso`} className={progress > 85 ? "[&>div]:bg-destructive" : ""} />
                         <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
@@ -225,7 +230,7 @@ export default function BudgetObjectivesPage() {
                 <div className="mt-3">
                   <div className="flex justify-between text-sm text-muted-foreground mb-1">
                     <span>Progresso</span>
-                    <span>{obj.current.toLocaleString('it-IT')}{obj.unit} / {obj.target.toLocaleString('it-IT')}{obj.unit}</span>
+                    <span>{isClient ? obj.current.toLocaleString('it-IT') : obj.current}{obj.unit} / {isClient ? obj.target.toLocaleString('it-IT') : obj.target}{obj.unit}</span>
                   </div>
                   <Progress value={obj.target > 0 ? (obj.current / obj.target) * 100 : 0} aria-label={`Progresso obiettivo ${obj.name}`} className={obj.status === "Completato" ? "[&>div]:bg-green-500 dark:[&>div]:bg-green-400" : ""} />
                 </div>

@@ -533,19 +533,8 @@ export interface SidebarMenuButtonProps
 }
 
 const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
-  (
-    {
-      className,
-      variant,
-      size,
-      asChild = false, // Default asChild to false
-      isActive = false,
-      tooltip,
-      children,
-      ...buttonProps // Capture all other props
-    },
-    ref
-  ) => {
+  (props, ref) => {
+    const { className, variant, size, asChild = false, isActive = false, tooltip, children, ...buttonProps } = props;
     const { isMobile, state } = useSidebar();
     const Comp = asChild ? Slot : "button";
 
@@ -553,10 +542,10 @@ const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
       <Comp
         ref={ref}
         data-sidebar="menu-button"
-        data-size={size}
+        data-size={size || "default"}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...buttonProps} // Spread the remaining props. 'asChild' is NOT in buttonProps.
+        {...buttonProps}
       >
         {children}
       </Comp>
