@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarIcon } from "lucide-react";
-import type { Transaction } from '@/data/transactions-data'; 
+import type { Transaction } from '@/data/transactions-data';
 import { allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies, transactionStatuses, type RecurrenceFrequency, type TransactionStatus } from "@/config/transaction-categories";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,7 @@ export const transactionFormSchema = z.object({
   amount: z.coerce.number().positive({ message: "L'importo deve essere positivo." }),
   category: z.string().min(1, { message: "La categoria è obbligatoria." }),
   subcategory: z.string().optional(),
-  status: z.enum(transactionStatuses as [string, ...string[]]), 
+  status: z.enum(transactionStatuses as [string, ...string[]]),
   isRecurring: z.boolean().default(false),
   recurrenceFrequency: z.enum(recurrenceFrequencies as [string, ...string[]]).optional(),
   recurrenceEndDate: z.date().optional(),
@@ -51,7 +51,7 @@ interface TransactionModalProps {
   onOpenChange: (open: boolean) => void;
   transactionTypeInitial: 'Entrata' | 'Uscita';
   editingTransaction?: Transaction | null;
-  onSubmitSuccess: (data: TransactionFormData, id?: string) => void; 
+  onSubmitSuccess: (data: TransactionFormData, id?: string) => void;
 }
 
 export default function TransactionModal({
@@ -79,9 +79,9 @@ export default function TransactionModal({
   const watchedIsRecurring = watch("isRecurring");
 
   useEffect(() => {
-    if (isOpen) { 
+    if (isOpen) {
       const defaultType = editingTransaction ? editingTransaction.type : transactionTypeInitial;
-      setValue('type', defaultType); 
+      setValue('type', defaultType);
 
       if (editingTransaction) {
         const date = parseISO(editingTransaction.date);
@@ -131,13 +131,13 @@ export default function TransactionModal({
       recurrenceEndDate: watchedType === 'Uscita' && data.isRecurring ? data.recurrenceEndDate : undefined,
     };
     onSubmitSuccess(finalData, editingTransaction?.id);
-    onOpenChange(false); 
+    onOpenChange(false);
     toast({
       title: editingTransaction ? "Transazione Modificata" : "Transazione Aggiunta",
       description: `${finalData.description || 'N/A'} - €${finalData.amount.toFixed(2)}`,
     });
   };
-  
+
   useEffect(() => {
     if (!editingTransaction) {
       setValue('type', transactionTypeInitial);
@@ -146,15 +146,19 @@ export default function TransactionModal({
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      onOpenChange(open);
-    }}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        onOpenChange(open);
+      }}
+      modal={false} // Key change: make the Dialog non-modal
+    >
       <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingTransaction ? "Modifica Transazione" : `Nuova ${watchedType}`}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
-          
+
           <div>
             <Label htmlFor="transactionTypeDisplay">Tipo</Label>
             <p id="transactionTypeDisplay" className={cn(
@@ -195,14 +199,14 @@ export default function TransactionModal({
             />
             {errors.date && <p className="text-sm text-destructive mt-1">{errors.date.message}</p>}
           </div>
-          
+
           <div>
             <Label htmlFor="amount">Importo</Label>
-            <Input 
-              id="amount" 
-              type="number" 
-              step="0.01" 
-              {...register("amount")} 
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              {...register("amount")}
               onFocus={(e) => e.target.select()}
             />
             {errors.amount && <p className="text-sm text-destructive mt-1">{errors.amount.message}</p>}
@@ -246,7 +250,7 @@ export default function TransactionModal({
               />
             </div>
           )}
-          
+
           <div>
             <Label htmlFor="description">Descrizione (Opzionale)</Label>
             <Textarea id="description" {...register("description")} />
@@ -318,7 +322,7 @@ export default function TransactionModal({
               )}
             </>
           )}
-          
+
           <div>
             <Label htmlFor="status">Stato</Label>
             <Controller
@@ -349,3 +353,5 @@ export default function TransactionModal({
     </Dialog>
   );
 }
+
+    
