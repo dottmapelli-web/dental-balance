@@ -114,3 +114,61 @@ body {
     font-feature-settings: "rlig" 1,"calt" 1; /* Enable common ligatures */
   }
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact; /* For Chrome, Safari */
+    print-color-adjust: exact; /* Standard */
+  }
+  .print-hidden {
+    display: none !important;
+  }
+  header, aside, .app-shell-header, .sidebar-provider, .sidebar, .sidebar-inset > header { /* Specific selectors for your layout might be needed */
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #monthly-report-printable-area {
+    width: 100%;
+    margin: 0;
+    padding: 1cm; /* Add some padding for print */
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .card { /* Ensure cards don't have excessive shadows or borders in print */
+    box-shadow: none !important;
+    border: 1px solid #ccc !important; /* Light border for cards */
+  }
+  .recharts-responsive-container, .recharts-wrapper { /* Ensure charts take full width */
+    width: 100% !important;
+    height: auto !important; /* Or a fixed height suitable for print */
+  }
+  /* Force backgrounds and colors for charts if they don't print by default */
+  .recharts-legend-item-text, .recharts-text, .recharts-label, .recharts-cartesian-axis-tick-value {
+    fill: black !important; /* Ensure text is black */
+  }
+  .recharts-line-stroke, .recharts-bar-rectangle {
+    stroke-width: 1.5px !important; /* Make lines a bit thicker for print */
+  }
+   /* Override chart colors for print if needed, or ensure they use `print-color-adjust: exact` */
+  :root { /* Re-declare chart colors in print context if they are not showing up */
+    --chart-1-print: var(--chart-1); 
+    --chart-2-print: var(--chart-2);
+    --chart-3-print: var(--chart-3);
+  }
+  .recharts-line path[name="Entrate"] { stroke: var(--chart-1-print) !important; }
+  .recharts-line path[name="Uscite"] { stroke: var(--chart-2-print) !important; }
+  .recharts-line path[name="Saldo Mensile"] { stroke: var(--chart-3-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-income)"] { fill: var(--chart-1-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-expenses)"] { fill: var(--chart-2-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-balance)"] { fill: var(--chart-3-print) !important; }
+  
+  @page {
+    size: A4 portrait;
+    margin: 1cm; /* Adjust margins as needed */
+  }
+}

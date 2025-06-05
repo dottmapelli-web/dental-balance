@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,7 +41,7 @@ type MonthlySummaryFormData = z.infer<typeof formSchema>;
 const generateAvailablePeriodsFromTransactions = (transactions: Transaction[]) => {
   const periods = new Set<string>();
   if (transactions.length === 0) {
-    periods.add(format(new Date(), "yyyy-MM")); // Add current month if no transactions
+    periods.add(format(new Date(), "yyyy-MM")); 
   } else {
     transactions.forEach(t => {
       const date = parseISO(t.date);
@@ -71,16 +71,15 @@ const generateAvailablePeriodsFromTransactions = (transactions: Transaction[]) =
    for (const year in monthsByYear) {
     monthsByYear[year] = Array.from(new Set(monthsByYear[year].map(m => m.value)))
       .map(value => monthsByYear[year].find(m => m.value === value)!)
-      .sort((a, b) => parseInt(a.value) - parseInt(b.value)); // Ensure months are sorted
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value));
   }
 
   const sortedYearsArray = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-  if (sortedYearsArray.length === 0 && years.size === 0) { // Handles case of no transactions at all
+  if (sortedYearsArray.length === 0 && years.size === 0) { 
     const currentYr = getYear(new Date()).toString();
     sortedYearsArray.push(currentYr);
     monthsByYear[currentYr] = [{value: getMonth(new Date()).toString(), label: format(new Date(), "MMMM", { locale: it})}];
   }
-
 
   return {
     years: sortedYearsArray,
@@ -104,7 +103,7 @@ export default function MonthlySummaryPage() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeMonthlySummaryOutput | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [isLoadingSummaryGeneration, setIsLoadingSummaryGeneration] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null); // For AI related errors in the form section
+  const [aiError, setAiError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { years: availableYearsForForm, monthsByYear } = useMemo(() => generateAvailablePeriodsFromTransactions(transactions), [transactions]);
@@ -121,6 +120,8 @@ export default function MonthlySummaryPage() {
     return yearMonths.find(m => m.value === currentMonthActual)?.value || yearMonths[0]?.value || getMonth(new Date()).toString();
   });
   const [availableMonthsForForm, setAvailableMonthsForForm] = useState(monthsByYear[formSelectedYear] || []);
+  
+  const reportPrintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -171,11 +172,10 @@ export default function MonthlySummaryPage() {
       if (error.message) detailedError += ` Dettaglio: ${error.message}`;
       if (error.code) detailedError += ` (Codice: ${error.code})`;
       setTransactionsError(detailedError);
-      toast({ title: "Errore Caricamento Dati", description: detailedError, variant: "destructive" });
     } finally {
       setIsLoadingTransactions(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchFirestoreTransactions();
@@ -233,7 +233,7 @@ export default function MonthlySummaryPage() {
   }, [formSelectedYear, monthsByYear, formSelectedMonth]);
 
 
-  const { register, handleSubmit, formState: { errors }, setValue, control } = useForm<MonthlySummaryFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, control, watch } = useForm<MonthlySummaryFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
         budgetedIncome: 0,
@@ -244,6 +244,7 @@ export default function MonthlySummaryPage() {
         lastMonthSummaryText: '',
     }
   });
+  const watchedSummaryText = watch("summaryText");
 
   useEffect(() => {
     if (!isLoadingTransactions && transactions.length > 0) {
@@ -282,15 +283,15 @@ export default function MonthlySummaryPage() {
       setValue("summaryText", result.summaryText);
       if (result.summaryText.toLowerCase().includes("errore") || result.summaryText.toLowerCase().includes("impossibile generare")) {
         setAiError("Problema durante la generazione del riepilogo. Controlla il testo generato per i dettagli e riprova, o scrivi manualmente il riepilogo.");
+        toast({ title: "Attenzione Generazione Riepilogo", description: "L'AI ha riscontrato un problema. Controlla il testo.", variant: "destructive"});
       } else {
         toast({ title: "Riepilogo Generato", description: "Il riepilogo testuale del mese è stato generato con AI."});
       }
     } catch (e: any) {
       console.error("Error generating summary:", e);
-      let errorMessage = "Si è verificato un errore durante la generazione del riepilogo AI. Riprova più tardi.";
-      if (e.message) errorMessage = e.message;
-      else if (typeof e === 'string') errorMessage = e;
+      const errorMessage = e.message || (typeof e === 'string' ? e : "Si è verificato un errore sconosciuto durante la generazione del riepilogo AI.");
       setAiError(errorMessage);
+      toast({ title: "Errore Generazione Riepilogo AI", description: errorMessage, variant: "destructive"});
     } finally {
       setIsLoadingSummaryGeneration(false);
     }
@@ -298,12 +299,13 @@ export default function MonthlySummaryPage() {
 
   const onSubmitAnalysis: SubmitHandler<MonthlySummaryFormData> = async (data) => {
     setIsLoadingAnalysis(true);
-    setAiError(null); // Clear previous AI errors
+    setAiError(null); 
     setAnalysisResult(null);
 
     if (!data.summaryText || data.summaryText.length < 10) {
         setAiError("Per favore, inserisci o genera un riepilogo testuale del mese corrente (min 10 caratteri) prima di procedere con l'analisi.");
         setIsLoadingAnalysis(false);
+        toast({ title: "Input Mancante", description: "Il riepilogo testuale è necessario per l'analisi.", variant: "destructive"});
         return;
     }
     
@@ -313,20 +315,16 @@ export default function MonthlySummaryPage() {
       toast({ title: "Analisi Completata", description: "L'analisi del riepilogo mensile è stata completata."});
     } catch (e: any) {
       console.error("Error analyzing summary:", e);
-      let analysisErrorMessage = "Si è verificato un errore durante l'analisi AI. Riprova più tardi.";
-       if (e.message) analysisErrorMessage = e.message;
-       else if (typeof e === 'string') analysisErrorMessage = e;
+      const analysisErrorMessage = e.message || (typeof e === 'string' ? e : "Si è verificato un errore sconosciuto durante l'analisi AI.");
       setAiError(analysisErrorMessage);
+      toast({ title: "Errore Analisi AI", description: analysisErrorMessage, variant: "destructive"});
     } finally {
       setIsLoadingAnalysis(false);
     }
   };
 
   const handlePrintReport = () => {
-    toast({
-      title: "Stampa Report",
-      description: "La funzionalità di stampa del report non è ancora implementata.",
-    });
+    window.print();
   };
 
   useEffect(() => {
@@ -370,11 +368,11 @@ export default function MonthlySummaryPage() {
         title="Report Mensile"
         description="Analizza i dati finanziari mensili (da Firestore), genera riepiloghi e identifica anomalie con l'aiuto dell'IA."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 print-hidden">
             <Select 
                 value={chartSelectedYear} 
                 onValueChange={setChartSelectedYear}
-                disabled={availableYearsForChart.length === 0 || isLoadingTransactions}
+                disabled={availableYearsForChart.length === 0 || isLoadingTransactions || !!transactionsError}
             >
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="Anno Grafico" />
@@ -386,7 +384,7 @@ export default function MonthlySummaryPage() {
                 }
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={handlePrintReport}>
+            <Button variant="outline" onClick={handlePrintReport} disabled={isLoadingTransactions || !!transactionsError}>
               <Printer className="mr-2 h-4 w-4" />
               Stampa Report
             </Button>
@@ -395,119 +393,171 @@ export default function MonthlySummaryPage() {
       />
 
       {transactionsError && (
-        <Alert variant="destructive" className="mb-6">
+        <Alert variant="destructive" className="mb-6 print-hidden">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Errore Caricamento Transazioni</AlertTitle>
           <AlertDescription>{transactionsError} Impossibile visualizzare i grafici e la tabella.</AlertDescription>
         </Alert>
       )}
+      
+      <div id="monthly-report-printable-area" ref={reportPrintRef}>
+        {!transactionsError && (
+          <>
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="font-headline">Andamento Finanziario Mensile ({chartSelectedYear})</CardTitle>
+                <CardDescription>Visualizzazione delle entrate, uscite e saldo mensile per l'anno selezionato (dati da Firestore).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monthlyChartData.some(d => d.income > 0 || d.expenses > 0 || d.balance !==0) ? (
+                  <ChartContainer config={monthlyChartConfig} className="h-[400px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={monthlyChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                          <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
+                          <ChartTooltip
+                          cursor={false}
+                          content={
+                              <ChartTooltipContent
+                              indicator="line"
+                              labelFormatter={(value, payload) => {
+                                  if (payload && payload.length > 0) {
+                                      return `Mese: ${payload[0].payload.monthFullName}, ${chartSelectedYear}`;
+                                  }
+                                  return value;
+                              }}
+                              formatter={(value, name, props) => {
+                                  const formattedValue = typeof value === 'number' 
+                                      ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
+                                      : value;
+                                  
+                                  let label = props.name;
+                                  if (props.dataKey === 'income') label = 'Entrate';
+                                  else if (props.dataKey === 'expenses') label = 'Uscite';
+                                  else if (props.dataKey === 'balance') label = 'Saldo Mensile';
+                                  
+                                  return [formattedValue, label];
+                              }}
+                              />
+                          }
+                          />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-income)" }} activeDot={{ r: 6 }} name="Entrate" />
+                          <Line type="monotone" dataKey="expenses" stroke="var(--color-expenses)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-expenses)" }} activeDot={{ r: 6 }} name="Uscite" />
+                          <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-balance)" }} activeDot={{ r: 6 }} name="Saldo Mensile" />
+                      </RechartsLineChart>
+                      </ResponsiveContainer>
+                  </ChartContainer>
+                ) : (
+                  <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato finanziario per l'anno {chartSelectedYear} da visualizzare nel grafico.</p>
+                )}
+              </CardContent>
+            </Card>
 
-      {!transactionsError && (
-        <>
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="font-headline">Andamento Finanziario Mensile ({chartSelectedYear})</CardTitle>
-              <CardDescription>Visualizzazione delle entrate, uscite e saldo mensile per l'anno selezionato (dati da Firestore).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {monthlyChartData.some(d => d.income > 0 || d.expenses > 0 || d.balance !==0) ? (
-                <ChartContainer config={monthlyChartConfig} className="h-[400px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={monthlyChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                        <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
-                        <ChartTooltip
-                        cursor={false}
-                        content={
-                            <ChartTooltipContent
-                            indicator="line"
-                            labelFormatter={(value, payload) => {
-                                if (payload && payload.length > 0) {
-                                    return `Mese: ${payload[0].payload.monthFullName}, ${chartSelectedYear}`;
-                                }
-                                return value;
-                            }}
-                            formatter={(value, name, props) => {
-                                const formattedValue = typeof value === 'number' 
-                                    ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
-                                    : value;
-                                
-                                let label = props.name;
-                                if (props.dataKey === 'income') label = 'Entrate';
-                                else if (props.dataKey === 'expenses') label = 'Uscite';
-                                else if (props.dataKey === 'balance') label = 'Saldo Mensile';
-                                
-                                return [formattedValue, label];
-                            }}
-                            />
-                        }
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="font-headline">Riepilogo Dettagliato Mensile per il {chartSelectedYear}</CardTitle>
+                <CardDescription>Entrate, uscite e saldo per ogni mese dell'anno selezionato (dati da Firestore).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mese</TableHead>
+                      <TableHead className="text-right">Entrate Totali</TableHead>
+                      <TableHead className="text-right">Uscite Totali</TableHead>
+                      <TableHead className="text-right">Saldo Mensile</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyChartData.length > 0 ? monthlyChartData.map((monthData, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{monthData.monthFullName}</TableCell>
+                        <TableCell className="text-right text-green-600 dark:text-green-400">
+                          €{isClient ? monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.income.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          €{isClient ? monthData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.expenses.toFixed(2)}
+                        </TableCell>
+                        <TableCell className={`text-right font-semibold ${monthData.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          €{isClient ? monthData.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.balance.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                              Nessun dato mensile disponibile per l'anno {chartSelectedYear} (da Firestore).
+                          </TableCell>
+                      </TableRow>
+                    )}
+                    {monthlyChartData.length > 0 && !monthlyChartData.some(d => d.income > 0 || d.expenses > 0 || d.balance !== 0) && (
+                      <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                              Nessuna transazione registrata in Firestore per l'anno {chartSelectedYear}.
+                          </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="font-headline">Riepilogo Testuale e Analisi del Mese Selezionato</CardTitle>
+                    <CardDescription>
+                        Visualizza il riepilogo testuale generato o inserito per il mese di {availableMonthsForForm.find(m=>m.value === formSelectedMonth)?.label || `Mese ${parseInt(formSelectedMonth)+1}`} {formSelectedYear}
+                        e i risultati dell'analisi AI, se disponibili.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <Label className="font-semibold">Riepilogo Testuale del Mese:</Label>
+                        <Textarea
+                            value={watchedSummaryText || "Nessun riepilogo disponibile o generato per questo periodo."}
+                            readOnly
+                            className="min-h-[100px] bg-muted/30 border-dashed mt-1"
+                            rows={watchedSummaryText ? Math.max(5, watchedSummaryText.split('\n').length) : 3}
                         />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-income)" }} activeDot={{ r: 6 }} name="Entrate" />
-                        <Line type="monotone" dataKey="expenses" stroke="var(--color-expenses)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-expenses)" }} activeDot={{ r: 6 }} name="Uscite" />
-                        <Line type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--color-balance)" }} activeDot={{ r: 6 }} name="Saldo Mensile" />
-                    </RechartsLineChart>
-                    </ResponsiveContainer>
-                </ChartContainer>
-              ) : (
-                <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato finanziario per l'anno {chartSelectedYear} da visualizzare nel grafico.</p>
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                    {analysisResult && (
+                         <div>
+                            <Label className="font-semibold">Risultati Analisi IA:</Label>
+                            <Alert variant={analysisResult.isConsistent ? "default" : "destructive"} className="mt-1">
+                            {analysisResult.isConsistent ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                            <AlertTitle>{analysisResult.isConsistent ? "Bilancio Coerente" : "Incoerenze Rilevate"}</AlertTitle>
+                            <AlertDescription>
+                                {analysisResult.isConsistent
+                                ? "Il bilancio di questo mese sembra coerente."
+                                : "Sono state rilevate potenziali incoerenze."}
+                            </AlertDescription>
+                            </Alert>
 
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="font-headline">Riepilogo Dettagliato Mensile per il {chartSelectedYear}</CardTitle>
-              <CardDescription>Entrate, uscite e saldo per ogni mese dell'anno selezionato (dati da Firestore).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mese</TableHead>
-                    <TableHead className="text-right">Entrate Totali</TableHead>
-                    <TableHead className="text-right">Uscite Totali</TableHead>
-                    <TableHead className="text-right">Saldo Mensile</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthlyChartData.length > 0 ? monthlyChartData.map((monthData, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{monthData.monthFullName}</TableCell>
-                      <TableCell className="text-right text-green-600 dark:text-green-400">
-                        €{isClient ? monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.income.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right text-red-600 dark:text-red-400">
-                        €{isClient ? monthData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.expenses.toFixed(2)}
-                      </TableCell>
-                      <TableCell className={`text-right font-semibold ${monthData.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        €{isClient ? monthData.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.balance.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
-                            Nessun dato mensile disponibile per l'anno {chartSelectedYear} (da Firestore).
-                        </TableCell>
-                    </TableRow>
-                  )}
-                  {monthlyChartData.length > 0 && !monthlyChartData.some(d => d.income > 0 || d.expenses > 0 || d.balance !== 0) && (
-                    <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
-                            Nessuna transazione registrata in Firestore per l'anno {chartSelectedYear}.
-                        </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                            {analysisResult.anomalies && analysisResult.anomalies.length > 0 && (
+                                <div className="mt-2">
+                                    <h4 className="text-sm font-medium">Dettaglio Anomalie:</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                                        {analysisResult.anomalies.map((anomaly, index) => (
+                                        <li key={index}>{anomaly}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {!analysisResult && !aiError && !isLoadingAnalysis && (
+                        <p className="text-sm text-muted-foreground">Nessuna analisi AI eseguita per questo periodo.</p>
+                    )}
+                </CardContent>
+            </Card>
+
+          </>
+        )}
+      </div>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print-hidden">
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="font-headline">Inserisci Dati e Genera Riepilogo AI</CardTitle>
@@ -666,7 +716,7 @@ export default function MonthlySummaryPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-1">
+        <Card className="md:col-span-1 print-hidden">
           <CardHeader>
             <CardTitle className="font-headline flex items-center">
               <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
@@ -681,7 +731,6 @@ export default function MonthlySummaryPage() {
                 <p>{isLoadingSummaryGeneration ? "Generazione riepilogo AI..." : "Analisi AI in corso..."}</p>
               </div>
             )}
-            {/* AI Error for analysis result is shown in the form section via aiError state */}
             {analysisResult && !aiError && !isLoadingAnalysis && !isLoadingSummaryGeneration && (
               <div>
                 <Alert variant={analysisResult.isConsistent ? "default" : "destructive"} className="mb-4">
@@ -715,11 +764,17 @@ export default function MonthlySummaryPage() {
                  {transactionsError && "Errore caricamento transazioni, impossibile procedere."}
               </p>
             )}
+             {/* Mostra l'errore AI qui se non ci sono risultati di analisi validi */}
+            {aiError && !analysisResult && !isLoadingAnalysis && !isLoadingSummaryGeneration && (
+                 <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Errore AI</AlertTitle>
+                  <AlertDescription>{aiError}</AlertDescription>
+                </Alert>
+            )}
           </CardContent>
         </Card>
       </div>
     </>
   );
 }
-
-    
