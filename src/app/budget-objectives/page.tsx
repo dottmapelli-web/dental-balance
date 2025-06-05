@@ -1,22 +1,33 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PageHeader from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2 } from "lucide-react";
+import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2 } from "lucide-react";
 import BudgetObjectiveModal, { type BudgetObjectiveFormData, type BudgetFormData as ModalBudgetFormData } from '@/components/budget-objective-modal';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { allExpenseCategories } from '@/config/transaction-categories';
-import { initialTransactions, type Transaction } from '@/data/transactions-data';
-import { getMonth, getYear, parseISO, isValid } from 'date-fns';
+import { type Transaction } from '@/data/transactions-data';
+import { getMonth, getYear, parseISO, isValid, format } from 'date-fns';
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
 
-// Interface for budget items stored in state (user-defined parts)
 interface DefinedBudget {
   id: string;
   category: string;
@@ -24,7 +35,6 @@ interface DefinedBudget {
   period: string;
 }
 
-// Interface for budget items displayed in the table (includes calculated 'actual')
 export interface BudgetListItem extends DefinedBudget {
   actual: number;
 }
@@ -35,21 +45,9 @@ export interface ObjectiveListItem {
   target: number;
   current: number;
   unit: string;
-  status: string; 
+  status: string;
   iconName?: 'TrendingUp' | 'Target' | 'CheckCircle';
 }
-
-const initialDefinedBudgets: DefinedBudget[] = [
-  { id: "1", category: "Materiali", budgeted: 5000, period: "Mensile" },
-  { id: "2", category: "Personale", budgeted: 15000, period: "Mensile" },
-  { id: "3", category: "Altre spese", budgeted: 2000, period: "Mensile" },
-];
-
-export const initialObjectives: ObjectiveListItem[] = [
-  { id: "obj1", name: "Aumentare Entrate del 15%", target: 15, current: 10, unit: "%", status: "In Corso", iconName: 'TrendingUp' },
-  { id: "obj2", name: "Ridurre Sprechi Materiali del 5%", target: 5, current: 2, unit: "%", status: "In Corso", iconName: 'Target' },
-  { id: "obj3", name: "Acquisire 50 Nuovi Pazienti", target: 50, current: 50, unit: "pazienti", status: "Completato", iconName: 'CheckCircle' },
-];
 
 const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
   switch (iconName) {
@@ -61,8 +59,14 @@ const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
 };
 
 export default function BudgetObjectivesPage() {
-  const [definedBudgets, setDefinedBudgets] = useState<DefinedBudget[]>(initialDefinedBudgets);
-  const [objectives, setObjectives] = useState<ObjectiveListItem[]>(initialObjectives);
+  const [definedBudgets, setDefinedBudgets] = useState<DefinedBudget[]>([]);
+  const [objectives, setObjectives] = useState<ObjectiveListItem[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
+  const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetListItem | ObjectiveListItem | null>(null);
   const [modalType, setModalType] = useState<'budget' | 'objective' | null>(null);
@@ -73,7 +77,88 @@ export default function BudgetObjectivesPage() {
     setIsClient(true);
   }, []);
 
+  const fetchFirestoreTransactions = useCallback(async () => {
+    setIsLoadingTransactions(true);
+    try {
+      const transactionsCollectionRef = collection(db, "transactions");
+      const q = query(transactionsCollectionRef, orderBy("date", "desc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedTransactions: Transaction[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedTransactions.push({
+          id: docSnap.id,
+          date: data.date instanceof Timestamp ? format(data.date.toDate(), "yyyy-MM-dd") : data.date,
+          description: data.description,
+          category: data.category,
+          subcategory: data.subcategory,
+          type: data.type,
+          amount: data.amount,
+          status: data.status as Transaction['status'],
+          isRecurring: data.isRecurring || false,
+          recurrenceDetails: data.recurrenceDetails,
+          originalRecurringId: data.originalRecurringId,
+        });
+      });
+      setTransactions(fetchedTransactions);
+    } catch (error: any) {
+      console.error("Errore caricamento transazioni da Firestore per budget:", error);
+      toast({
+        title: "Errore Caricamento Transazioni",
+        description: "Impossibile caricare le transazioni per il calcolo dei budget effettivi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  }, [toast]);
+
+  const fetchDefinedBudgets = useCallback(async () => {
+    setIsLoadingBudgets(true);
+    try {
+      const budgetsCollectionRef = collection(db, "budgets");
+      const q = query(budgetsCollectionRef, orderBy("category", "asc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedBudgets: DefinedBudget[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetchedBudgets.push({ id: docSnap.id, ...docSnap.data() } as DefinedBudget);
+      });
+      setDefinedBudgets(fetchedBudgets);
+    } catch (error) {
+      console.error("Errore caricamento budget da Firestore:", error);
+      toast({ title: "Errore Caricamento Budget", description: "Impossibile caricare i budget definiti.", variant: "destructive" });
+    } finally {
+      setIsLoadingBudgets(false);
+    }
+  }, [toast]);
+
+  const fetchObjectives = useCallback(async () => {
+    setIsLoadingObjectives(true);
+    try {
+      const objectivesCollectionRef = collection(db, "objectives");
+      const q = query(objectivesCollectionRef, orderBy("name", "asc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedObjectives: ObjectiveListItem[] = [];
+      querySnapshot.forEach((docSnap) => {
+        fetchedObjectives.push({ id: docSnap.id, ...docSnap.data() } as ObjectiveListItem);
+      });
+      setObjectives(fetchedObjectives);
+    } catch (error) {
+      console.error("Errore caricamento obiettivi da Firestore:", error);
+      toast({ title: "Errore Caricamento Obiettivi", description: "Impossibile caricare gli obiettivi.", variant: "destructive" });
+    } finally {
+      setIsLoadingObjectives(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchFirestoreTransactions();
+    fetchDefinedBudgets();
+    fetchObjectives();
+  }, [fetchFirestoreTransactions, fetchDefinedBudgets, fetchObjectives]);
+
   const displayedBudgets: BudgetListItem[] = useMemo(() => {
+    if (isLoadingTransactions || isLoadingBudgets) return [];
     const today = new Date();
     const currentMonth = getMonth(today);
     const currentYear = getYear(today);
@@ -81,7 +166,7 @@ export default function BudgetObjectivesPage() {
     return definedBudgets.map(budget => {
       let actualSpent = 0;
       if (budget.period === "Mensile") {
-        const relevantTransactions = initialTransactions.filter(t => {
+        const relevantTransactions = transactions.filter(t => {
           const transactionDate = parseISO(t.date);
           return (
             isValid(transactionDate) &&
@@ -96,7 +181,7 @@ export default function BudgetObjectivesPage() {
       // TODO: Implement logic for other periods (Bimestrale, Trimestrale, etc.) if needed
       return { ...budget, actual: actualSpent };
     });
-  }, [definedBudgets, initialTransactions]); 
+  }, [definedBudgets, transactions, isLoadingTransactions, isLoadingBudgets]);
 
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
@@ -104,29 +189,30 @@ export default function BudgetObjectivesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveItem = (data: BudgetObjectiveFormData) => {
+  const handleSaveItem = async (data: BudgetObjectiveFormData) => {
     if (modalType === 'budget' && data.type === 'budget') {
-      const budgetDataFromForm = data as ModalBudgetFormData; 
-      if (editingItem && editingItem.id && 'category' in editingItem) { 
-        setDefinedBudgets(prev => prev.map(b => b.id === editingItem.id ? { 
-            id: editingItem.id, 
-            category: budgetDataFromForm.category, 
-            budgeted: budgetDataFromForm.budgeted, 
-            period: budgetDataFromForm.period 
-        } : b));
-        toast({ title: "Budget Aggiornato", description: `Budget per ${budgetDataFromForm.category} modificato.` });
-      } else { 
-        setDefinedBudgets(prev => [...prev, { 
-            id: crypto.randomUUID(), 
-            category: budgetDataFromForm.category, 
-            budgeted: budgetDataFromForm.budgeted, 
-            period: budgetDataFromForm.period 
-        }]);
-        toast({ title: "Nuovo Budget Aggiunto", description: `Budget per ${budgetDataFromForm.category} creato.` });
+      const budgetDataFromForm = data as ModalBudgetFormData;
+      const budgetToSave = {
+        category: budgetDataFromForm.category,
+        budgeted: budgetDataFromForm.budgeted,
+        period: budgetDataFromForm.period,
+      };
+      try {
+        if (editingItem && editingItem.id && 'category' in editingItem) {
+          const budgetRef = doc(db, "budgets", editingItem.id);
+          await updateDoc(budgetRef, budgetToSave);
+          toast({ title: "Budget Aggiornato", description: `Budget per ${budgetDataFromForm.category} modificato.` });
+        } else {
+          await addDoc(collection(db, "budgets"), budgetToSave);
+          toast({ title: "Nuovo Budget Aggiunto", description: `Budget per ${budgetDataFromForm.category} creato.` });
+        }
+        fetchDefinedBudgets(); // Refresh budget list
+      } catch (error) {
+        console.error("Errore salvataggio budget:", error);
+        toast({ title: "Errore Salvataggio", description: "Impossibile salvare il budget.", variant: "destructive"});
       }
     } else if (modalType === 'objective' && data.type === 'objective') {
-      const newObjectiveData = {
-        id: editingItem?.id || crypto.randomUUID(),
+      const objectiveToSave = {
         name: data.name,
         target: data.target,
         current: data.current,
@@ -134,12 +220,19 @@ export default function BudgetObjectivesPage() {
         status: data.current >= data.target ? "Completato" : "In Corso",
         iconName: data.current >= data.target ? 'CheckCircle' : (editingItem as ObjectiveListItem)?.iconName || 'Target' as ObjectiveListItem['iconName'],
       };
-      if (editingItem && editingItem.id) { 
-        setObjectives(prev => prev.map(o => o.id === editingItem.id ? newObjectiveData : o));
-        toast({ title: "Obiettivo Aggiornato", description: `Obiettivo "${data.name}" modificato.` });
-      } else { 
-        setObjectives(prev => [...prev, newObjectiveData]);
-        toast({ title: "Nuovo Obiettivo Aggiunto", description: `Obiettivo "${data.name}" creato.` });
+      try {
+        if (editingItem && editingItem.id && 'name' in editingItem) {
+          const objectiveRef = doc(db, "objectives", editingItem.id);
+          await updateDoc(objectiveRef, objectiveToSave);
+          toast({ title: "Obiettivo Aggiornato", description: `Obiettivo "${data.name}" modificato.` });
+        } else {
+          await addDoc(collection(db, "objectives"), objectiveToSave);
+          toast({ title: "Nuovo Obiettivo Aggiunto", description: `Obiettivo "${data.name}" creato.` });
+        }
+        fetchObjectives(); // Refresh objectives list
+      } catch (error) {
+        console.error("Errore salvataggio obiettivo:", error);
+        toast({ title: "Errore Salvataggio", description: "Impossibile salvare l'obiettivo.", variant: "destructive"});
       }
     }
     setIsModalOpen(false);
@@ -147,19 +240,42 @@ export default function BudgetObjectivesPage() {
     setModalType(null);
   };
 
-  const handleDeleteBudget = (id: string) => {
+  const handleDeleteBudget = async (id: string) => {
     if (window.confirm("Sei sicuro di voler eliminare questo budget?")) {
-      setDefinedBudgets(prev => prev.filter(b => b.id !== id));
-      toast({ title: "Budget Eliminato" });
+      try {
+        await deleteDoc(doc(db, "budgets", id));
+        toast({ title: "Budget Eliminato" });
+        fetchDefinedBudgets(); // Refresh budget list
+      } catch (error) {
+        console.error("Errore eliminazione budget:", error);
+        toast({ title: "Errore Eliminazione", description: "Impossibile eliminare il budget.", variant: "destructive"});
+      }
     }
   };
 
-  const handleDeleteObjective = (id: string) => {
+  const handleDeleteObjective = async (id: string) => {
      if (window.confirm("Sei sicuro di voler eliminare questo obiettivo?")) {
-      setObjectives(prev => prev.filter(o => o.id !== id));
-      toast({ title: "Obiettivo Eliminato" });
+      try {
+        await deleteDoc(doc(db, "objectives", id));
+        toast({ title: "Obiettivo Eliminato" });
+        fetchObjectives(); // Refresh objectives list
+      } catch (error) {
+        console.error("Errore eliminazione obiettivo:", error);
+        toast({ title: "Errore Eliminazione", description: "Impossibile eliminare l'obiettivo.", variant: "destructive"});
+      }
     }
   };
+
+  const isLoading = isLoadingBudgets || isLoadingObjectives || isLoadingTransactions;
+
+  if (isLoading && isClient) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Caricamento dati budget e obiettivi...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -191,7 +307,7 @@ export default function BudgetObjectivesPage() {
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
-          editingItem={editingItem} 
+          editingItem={editingItem}
           onSave={handleSaveItem}
           allExpenseCategories={allExpenseCategories}
         />
@@ -201,15 +317,22 @@ export default function BudgetObjectivesPage() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Monitoraggio Budget</CardTitle>
-            <CardDescription>Visualizza lo stato dei budget impostati.</CardDescription>
+            <CardDescription>Visualizza lo stato dei budget impostati (dati da Firestore).</CardDescription>
           </CardHeader>
           <CardContent>
+            {isLoadingBudgets && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento budget...</div>}
+            {!isLoadingBudgets && displayedBudgets.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nessun budget impostato in Firestore.</TableCell>
+              </TableRow>
+            )}
+            {!isLoadingBudgets && displayedBudgets.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Budget</TableHead>
-                  <TableHead>Speso</TableHead>
+                  <TableHead>Speso (Mese Corr.)</TableHead>
                   <TableHead>Progresso</TableHead>
                   <TableHead>Periodo</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
@@ -243,23 +366,23 @@ export default function BudgetObjectivesPage() {
                     </TableRow>
                   );
                 })}
-                 {displayedBudgets.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nessun budget impostato.</TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Obiettivi Finanziari</CardTitle>
-            <CardDescription>Traccia il progresso verso gli obiettivi chiave.</CardDescription>
+            <CardDescription>Traccia il progresso verso gli obiettivi chiave (dati da Firestore).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {objectives.map((obj) => (
+            {isLoadingObjectives && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento obiettivi...</div>}
+            {!isLoadingObjectives && objectives.length === 0 && (
+                <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario impostato in Firestore.</p>
+            )}
+            {!isLoadingObjectives && objectives.map((obj) => (
               <div key={obj.id} className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -289,9 +412,6 @@ export default function BudgetObjectivesPage() {
                 </div>
               </div>
             ))}
-            {objectives.length === 0 && (
-                <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario impostato.</p>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -299,3 +419,5 @@ export default function BudgetObjectivesPage() {
   );
 }
 
+
+    
