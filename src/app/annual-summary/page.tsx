@@ -57,6 +57,7 @@ export default function AnnualSummaryPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const availableYears = useMemo(() => generateAvailableYearsFromTransactions(transactions), [transactions]);
@@ -78,6 +79,7 @@ export default function AnnualSummaryPage() {
 
   const fetchFirestoreTransactions = useCallback(async () => {
     setIsLoadingTransactions(true);
+    setTransactionsError(null);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
       const q = query(transactionsCollectionRef, orderBy("date", "desc"));
@@ -109,10 +111,14 @@ export default function AnnualSummaryPage() {
         setCurrentYear(yearsFromData[0] || getYear(new Date()).toString());
       }
     } catch (error: any) {
-      console.error("Errore caricamento transazioni da Firestore:", error);
+      console.error("Errore caricamento transazioni da Firestore (Annual Summary):", error);
+      let detailedError = "Impossibile caricare le transazioni da Firestore per il report annuale.";
+      if (error.message) detailedError += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedError += ` (Codice: ${error.code})`;
+      setTransactionsError(detailedError);
       toast({
         title: "Errore Caricamento Dati",
-        description: "Impossibile caricare le transazioni da Firestore per il report annuale.",
+        description: detailedError,
         variant: "destructive",
       });
     } finally {
@@ -125,8 +131,7 @@ export default function AnnualSummaryPage() {
   }, [fetchFirestoreTransactions]);
 
   useEffect(() => {
-    if (isLoadingTransactions || transactions.length === 0) {
-       // Se non ci sono transazioni o stanno caricando, potremmo impostare i dati a zero o a valori di default
+    if (isLoadingTransactions || transactionsError || transactions.length === 0) {
         setAnnualOverviewData([]);
         setSummaryCardData({ income: 0, expenses: 0, profit: 0 });
         setMonthlyProfitDataForSelectedYear(Array(12).fill(null).map((_, i) => ({ month: format(new Date(parseInt(currentYear), i), "MMM", { locale: it }), profit: 0 })));
@@ -161,10 +166,10 @@ export default function AnnualSummaryPage() {
       .sort((a, b) => parseInt(a.year) - parseInt(b.year));
     setAnnualOverviewData(overview);
 
-  }, [transactions, isLoadingTransactions, currentYear]); // Aggiunto currentYear per ricalcolo se cambia e i dati sono già caricati
+  }, [transactions, isLoadingTransactions, transactionsError, currentYear]);
 
   useEffect(() => {
-     if (isLoadingTransactions || transactions.length === 0) {
+     if (isLoadingTransactions || transactionsError || transactions.length === 0) {
         setSummaryCardData({ income: 0, expenses: 0, profit: 0 });
         const defaultMonthNames = Array(12).fill(null).map((_, i) => format(new Date(parseInt(currentYear), i), "MMM", { locale: it }));
         setMonthlyProfitDataForSelectedYear(defaultMonthNames.map(month => ({ month, profit: 0 })));
@@ -234,13 +239,13 @@ export default function AnnualSummaryPage() {
             value,
             fill: expensePieChartColors[index % expensePieChartColors.length],
         }))
-        .filter(item => item.value > 0); // Filtra categorie con valore zero
+        .filter(item => item.value > 0);
     setExpenseBreakdownForSelectedYear(pieData);
 
     setAnnualNarrative(null);
     setNarrativeError(null);
 
-  }, [currentYear, transactions, isLoadingTransactions]);
+  }, [currentYear, transactions, isLoadingTransactions, transactionsError]);
 
   const handleGenerateNarrative = async () => {
     setIsLoadingNarrative(true);
@@ -251,14 +256,15 @@ export default function AnnualSummaryPage() {
     const previousYearData = annualOverviewData.find(d => d.year === (parseInt(currentYear) - 1).toString());
 
     if (!currentYearData) {
-      setNarrativeError("Dati per l'anno corrente non trovati o non ancora calcolati.");
+      setNarrativeError("Dati per l'anno corrente non trovati o non ancora calcolati. Attendere il caricamento completo dei dati.");
       setIsLoadingNarrative(false);
       return;
     }
-     // Check if income, expenses and profit are all zero
+    
     if (currentYearData.totalIncome === 0 && currentYearData.totalExpenses === 0 && currentYearData.netProfit === 0) {
-      setNarrativeError(`Non ci sono dati finanziari significativi per l'anno ${currentYear} per generare un commento.`);
-      setAnnualNarrative(`Non ci sono dati finanziari significativi per l'anno ${currentYear} per generare un commento.`);
+      const noDataMessage = `Non ci sono dati finanziari significativi per l'anno ${currentYear} per generare un commento.`;
+      setNarrativeError(noDataMessage);
+      setAnnualNarrative(noDataMessage); // Show the message in textarea as well
       setIsLoadingNarrative(false);
       return;
     }
@@ -280,20 +286,21 @@ export default function AnnualSummaryPage() {
     try {
       const result = await generateAnnualFinancialNarrative(input);
       setAnnualNarrative(result.narrativeText);
+      toast({ title: "Commento Annuale Generato", description: "Il commento AI è pronto." });
     } catch (e: any) {
       console.error("Error generating annual narrative:", e);
-      setNarrativeError(e.message || "Si è verificato un errore durante la generazione del commento.");
+      const errorMessage = e.message || "Si è verificato un errore sconosciuto durante la generazione del commento.";
+      setNarrativeError(`Errore AI: ${errorMessage}`);
+      toast({ title: "Errore Generazione Commento", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingNarrative(false);
     }
   };
   
   useEffect(() => {
-    // Quando availableYears cambia (dopo il fetch delle transazioni), aggiorna currentYear se necessario
     if (availableYears.length > 0 && !availableYears.includes(currentYear)) {
       setCurrentYear(availableYears[0]);
     } else if (availableYears.length === 0 && currentYear !== getYear(new Date()).toString()) {
-      // Se non ci sono anni disponibili (nessuna transazione), imposta all'anno corrente
       setCurrentYear(getYear(new Date()).toString());
     }
   }, [availableYears, currentYear]);
@@ -317,7 +324,7 @@ export default function AnnualSummaryPage() {
           <Select 
             value={currentYear} 
             onValueChange={setCurrentYear} 
-            disabled={availableYears.length === 0 || isLoadingTransactions}
+            disabled={availableYears.length === 0 || isLoadingTransactions || !!transactionsError}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Seleziona Anno" />
@@ -332,257 +339,272 @@ export default function AnnualSummaryPage() {
         }
       />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Entrate Annuali ({currentYear})</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{isClient ? summaryCardData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.income.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uscite Annuali ({currentYear})</CardTitle>
-            <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{isClient ? summaryCardData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.expenses.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Profitto Netto ({currentYear})</CardTitle>
-            {summaryCardData.profit >= 0 ? (
+      {transactionsError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore Caricamento Dati</AlertTitle>
+          <AlertDescription>{transactionsError} Impossibile visualizzare i dati del report annuale.</AlertDescription>
+        </Alert>
+      )}
+
+      {!transactionsError && (
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Entrate Annuali ({currentYear})</CardTitle>
                 <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
-            ) : (
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{isClient ? summaryCardData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.income.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Uscite Annuali ({currentYear})</CardTitle>
                 <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
-            )}
-          </CardHeader>
-          <CardContent>
-             <div className={`text-3xl font-bold ${summaryCardData.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                €{isClient ? summaryCardData.profit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.profit.toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{isClient ? summaryCardData.expenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.expenses.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Profitto Netto ({currentYear})</CardTitle>
+                {summaryCardData.profit >= 0 ? (
+                    <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
+                ) : (
+                    <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
+                )}
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl font-bold ${summaryCardData.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    €{isClient ? summaryCardData.profit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : summaryCardData.profit.toFixed(2)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="font-headline flex items-center">
-            <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
-            Commento Finanziario Annuale (AI) - {currentYear}
-          </CardTitle>
-          <CardDescription>
-            Un riepilogo generato dall'AI sulla performance finanziaria dell'anno selezionato.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={handleGenerateNarrative} disabled={isLoadingNarrative || isLoadingTransactions || (summaryCardData.income === 0 && summaryCardData.expenses === 0)}>
-            {isLoadingNarrative ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Wand2 className="mr-2 h-4 w-4" />
-            )}
-            Genera Commento AI per il {currentYear}
-          </Button>
-          {isLoadingNarrative && (
-            <div className="flex items-center justify-center p-4 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Generazione commento in corso...
-            </div>
-          )}
-          {narrativeError && !isLoadingNarrative && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Errore Generazione</AlertTitle>
-              <AlertDescription>{narrativeError}</AlertDescription>
-            </Alert>
-          )}
-          {annualNarrative && !isLoadingNarrative && !narrativeError && (
-             <Textarea
-                value={annualNarrative}
-                readOnly
-                className="min-h-[100px] bg-muted/30 border-dashed"
-                rows={5}
-            />
-          )}
-           {!annualNarrative && !isLoadingNarrative && !narrativeError && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {(summaryCardData.income === 0 && summaryCardData.expenses === 0 && !isLoadingTransactions) 
-                ? `Nessun dato finanziario per l'anno ${currentYear} per generare un commento.`
-                : `Clicca il pulsante sopra per generare un commento AI sull'anno ${currentYear}.`}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center">
+                <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
+                Commento Finanziario Annuale (AI) - {currentYear}
+              </CardTitle>
+              <CardDescription>
+                Un riepilogo generato dall'AI sulla performance finanziaria dell'anno selezionato.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={handleGenerateNarrative} 
+                disabled={isLoadingNarrative || isLoadingTransactions || (summaryCardData.income === 0 && summaryCardData.expenses === 0 && !transactionsError)}
+              >
+                {isLoadingNarrative ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="mr-2 h-4 w-4" />
+                )}
+                Genera Commento AI per il {currentYear}
+              </Button>
+              {isLoadingNarrative && (
+                <div className="flex items-center justify-center p-4 text-muted-foreground">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Generazione commento in corso...
+                </div>
+              )}
+              {narrativeError && !isLoadingNarrative && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Errore Generazione Commento AI</AlertTitle>
+                  <AlertDescription>{narrativeError}</AlertDescription>
+                </Alert>
+              )}
+              {annualNarrative && !isLoadingNarrative && !narrativeError && (
+                <Textarea
+                    value={annualNarrative}
+                    readOnly
+                    className="min-h-[100px] bg-muted/30 border-dashed"
+                    rows={5}
+                />
+              )}
+              {!annualNarrative && !isLoadingNarrative && !narrativeError && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {(summaryCardData.income === 0 && summaryCardData.expenses === 0 && !isLoadingTransactions && !transactionsError) 
+                    ? `Nessun dato finanziario per l'anno ${currentYear} per generare un commento.`
+                    : `Clicca il pulsante sopra per generare un commento AI sull'anno ${currentYear}.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Andamento Annuale Complessivo (Entrate vs Uscite)</CardTitle>
-            <CardDescription>Confronto delle entrate e uscite totali per ogni anno.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {annualOverviewData.length > 0 ? (
-                <ChartContainer config={annualBarChartConfig} className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={annualOverviewData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="year" tickLine={false} axisLine={false} tickMargin={8} />
-                    <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
-                    <ChartTooltip 
-                        content={<ChartTooltipContent formatter={(value, name, props) => {
-                            const formattedValue = typeof value === 'number' 
-                                ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
-                                : value;
-                            let label = props.name;
-                            if (props.dataKey === 'totalIncome') label = 'Entrate Totali Annuali';
-                            else if (props.dataKey === 'totalExpenses') label = 'Uscite Totali Annuali';
-                            return [formattedValue, label];
-                            }}/>} 
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar dataKey="totalIncome" fill="var(--color-totalIncome)" radius={[4, 4, 0, 0]} name="Entrate Totali Annuali" />
-                    <Bar dataKey="totalExpenses" fill="var(--color-totalExpenses)" radius={[4, 4, 0, 0]} name="Uscite Totali Annuali" />
-                    </BarChart>
-                </ResponsiveContainer>
-                </ChartContainer>
-            ) : (
-                <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato disponibile per il grafico.</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Andamento Mensile Entrate/Uscite - {currentYear}</CardTitle>
-            <CardDescription>Dettaglio entrate e uscite mese per mese per l'anno selezionato.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {monthlyBarChartDataForSelectedYear.some(d => d.income > 0 || d.expenses > 0) ? (
-                <ChartContainer config={monthlyBarForYearChartConfig} className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyBarChartDataForSelectedYear} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                    <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
-                    <ChartTooltip 
-                        content={<ChartTooltipContent formatter={(value, name, props) => {
-                            const formattedValue = typeof value === 'number' 
-                                ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
-                                : value;
-                            let label = props.name;
-                            if (props.dataKey === 'income') label = 'Entrate Mensili';
-                            else if (props.dataKey === 'expenses') label = 'Uscite Mensili';
-                            return [formattedValue, label];
-                            }}/>} 
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} name="Entrate Mensili" />
-                    <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} name="Uscite Mensili" />
-                    </BarChart>
-                </ResponsiveContainer>
-                </ChartContainer>
-            ) : (
-                 <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato per l'anno {currentYear} per il grafico entrate/uscite mensili.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Andamento Profitto Netto Mensile - {currentYear}</CardTitle>
-            <CardDescription>Evoluzione del profitto netto mese per mese per l'anno selezionato.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {monthlyProfitDataForSelectedYear.some(d => d.profit !== 0) ? (
-                <ChartContainer config={monthlyProfitChartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart
-                        data={monthlyProfitDataForSelectedYear}
-                        margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Andamento Annuale Complessivo (Entrate vs Uscite)</CardTitle>
+                <CardDescription>Confronto delle entrate e uscite totali per ogni anno.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {annualOverviewData.length > 0 ? (
+                    <ChartContainer config={annualBarChartConfig} className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={annualOverviewData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="year" tickLine={false} axisLine={false} tickMargin={8} />
+                        <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
+                        <ChartTooltip 
+                            content={<ChartTooltipContent formatter={(value, name, props) => {
+                                const formattedValue = typeof value === 'number' 
+                                    ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
+                                    : value;
+                                let label = props.name;
+                                if (props.dataKey === 'totalIncome') label = 'Entrate Totali Annuali';
+                                else if (props.dataKey === 'totalExpenses') label = 'Uscite Totali Annuali';
+                                return [formattedValue, label];
+                                }}/>} 
+                        />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="totalIncome" fill="var(--color-totalIncome)" radius={[4, 4, 0, 0]} name="Entrate Totali Annuali" />
+                        <Bar dataKey="totalExpenses" fill="var(--color-totalExpenses)" radius={[4, 4, 0, 0]} name="Uscite Totali Annuali" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato disponibile per il grafico.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Andamento Mensile Entrate/Uscite - {currentYear}</CardTitle>
+                <CardDescription>Dettaglio entrate e uscite mese per mese per l'anno selezionato.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monthlyBarChartDataForSelectedYear.some(d => d.income > 0 || d.expenses > 0) ? (
+                    <ChartContainer config={monthlyBarForYearChartConfig} className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={monthlyBarChartDataForSelectedYear} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                         <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
                         <ChartTooltip 
                             content={<ChartTooltipContent formatter={(value, name, props) => {
-                                    const formattedValue = typeof value === 'number' 
-                                        ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
-                                        : value;
-                                    return [formattedValue, props.name];
-                                }}/>}
+                                const formattedValue = typeof value === 'number' 
+                                    ? `€${isClient ? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
+                                    : value;
+                                let label = props.name;
+                                if (props.dataKey === 'income') label = 'Entrate Mensili';
+                                else if (props.dataKey === 'expenses') label = 'Uscite Mensili';
+                                return [formattedValue, label];
+                                }}/>} 
                         />
                         <ChartLegend content={<ChartLegendContent />} />
-                        <Line type="monotone" dataKey="profit" stroke="var(--color-profit)" strokeWidth={2} dot={{ r: 4, fill: "var(--color-profit)" }} activeDot={{ r: 6 }} name="Profitto Netto Mensile" />
-                    </RechartsLineChart>
+                        <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} name="Entrate Mensili" />
+                        <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} name="Uscite Mensili" />
+                        </BarChart>
                     </ResponsiveContainer>
-                </ChartContainer>
-            ) : (
-                <p className="text-muted-foreground h-[300px] flex items-center justify-center">Nessun dato per l'anno {currentYear} per il grafico del profitto mensile.</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Ripartizione Uscite per Categoria ({currentYear})</CardTitle>
-            <CardDescription>Distribuzione delle uscite per l'anno selezionato.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            {expenseBreakdownForSelectedYear.length > 0 ? (
-              <DashboardPieChart data={expenseBreakdownForSelectedYear} />
-            ) : (
-              <p className="text-muted-foreground h-[300px] flex items-center justify-center">Nessuna spesa registrata per l'anno {currentYear} per il grafico a torta.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                    </ChartContainer>
+                ) : (
+                    <p className="text-muted-foreground h-[400px] flex items-center justify-center">Nessun dato per l'anno {currentYear} per il grafico entrate/uscite mensili.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline">Riepilogo Dettagliato Annuale Complessivo</CardTitle>
-          <CardDescription>Entrate, uscite e saldo per ogni anno di attività registrato.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Anno</TableHead>
-                <TableHead className="text-right">Entrate Totali</TableHead>
-                <TableHead className="text-right">Uscite Totali</TableHead>
-                <TableHead className="text-right">Saldo Annuale</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {annualOverviewData.length > 0 ? annualOverviewData.map((yearData) => (
-                <TableRow key={yearData.year}>
-                  <TableCell className="font-medium">{yearData.year}</TableCell>
-                  <TableCell className="text-right text-green-600 dark:text-green-400">
-                    €{isClient ? yearData.totalIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalIncome.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right text-red-600 dark:text-red-400">
-                    €{isClient ? yearData.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalExpenses.toFixed(2)}
-                  </TableCell>
-                  <TableCell className={`text-right font-semibold ${yearData.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{isClient ? yearData.netProfit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.netProfit.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              )) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
-                    Nessun dato annuale disponibile da Firestore. Inserisci alcune transazioni.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Andamento Profitto Netto Mensile - {currentYear}</CardTitle>
+                <CardDescription>Evoluzione del profitto netto mese per mese per l'anno selezionato.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {monthlyProfitDataForSelectedYear.some(d => d.profit !== 0) ? (
+                    <ChartContainer config={monthlyProfitChartConfig} className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RechartsLineChart
+                            data={monthlyProfitDataForSelectedYear}
+                            margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                            <YAxis tickFormatter={(value) => `€${value / 1000}k`} tickLine={false} axisLine={false} tickMargin={8} />
+                            <ChartTooltip 
+                                content={<ChartTooltipContent formatter={(value, name, props) => {
+                                        const formattedValue = typeof value === 'number' 
+                                            ? `€${isClient? value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : value.toFixed(2)}`
+                                            : value;
+                                        return [formattedValue, props.name];
+                                    }}/>}
+                            />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            <Line type="monotone" dataKey="profit" stroke="var(--color-profit)" strokeWidth={2} dot={{ r: 4, fill: "var(--color-profit)" }} activeDot={{ r: 6 }} name="Profitto Netto Mensile" />
+                        </RechartsLineChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
+                ) : (
+                    <p className="text-muted-foreground h-[300px] flex items-center justify-center">Nessun dato per l'anno {currentYear} per il grafico del profitto mensile.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Ripartizione Uscite per Categoria ({currentYear})</CardTitle>
+                <CardDescription>Distribuzione delle uscite per l'anno selezionato.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center">
+                {expenseBreakdownForSelectedYear.length > 0 ? (
+                  <DashboardPieChart data={expenseBreakdownForSelectedYear} />
+                ) : (
+                  <p className="text-muted-foreground h-[300px] flex items-center justify-center">Nessuna spesa registrata per l'anno {currentYear} per il grafico a torta.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Riepilogo Dettagliato Annuale Complessivo</CardTitle>
+              <CardDescription>Entrate, uscite e saldo per ogni anno di attività registrato.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Anno</TableHead>
+                    <TableHead className="text-right">Entrate Totali</TableHead>
+                    <TableHead className="text-right">Uscite Totali</TableHead>
+                    <TableHead className="text-right">Saldo Annuale</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {annualOverviewData.length > 0 ? annualOverviewData.map((yearData) => (
+                    <TableRow key={yearData.year}>
+                      <TableCell className="font-medium">{yearData.year}</TableCell>
+                      <TableCell className="text-right text-green-600 dark:text-green-400">
+                        €{isClient ? yearData.totalIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalIncome.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600 dark:text-red-400">
+                        €{isClient ? yearData.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalExpenses.toFixed(2)}
+                      </TableCell>
+                      <TableCell className={`text-right font-semibold ${yearData.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        €{isClient ? yearData.netProfit.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.netProfit.toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                        Nessun dato annuale disponibile da Firestore. Inserisci alcune transazioni.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </>
   );
 }
 
-    
+      
