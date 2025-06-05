@@ -304,6 +304,7 @@ export default function BudgetObjectivesPage() {
 
       {isModalOpen && modalType && (
         <BudgetObjectiveModal
+          key={modalType} 
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
@@ -419,5 +420,3 @@ export default function BudgetObjectivesPage() {
   );
 }
 
-
-    
