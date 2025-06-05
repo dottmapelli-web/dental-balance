@@ -19,9 +19,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, eachDayOfInterval, subMonths, formatISO, isFuture, isEqual, startOfToday } from "date-fns";
 import { it } from "date-fns/locale";
-import type { Transaction } from '@/data/transactions-data'; // Keep type definition
+import type { Transaction } from '@/data/transactions-data';
 import { expenseCategories as expenseCategoryConfig } from '@/config/transaction-categories';
-import { type ObjectiveListItem } from '@/app/budget-objectives/page'; // Keep type for objectives
+import { type ObjectiveListItem } from '@/app/budget-objectives/page';
 import { generateDashboardInsight } from '@/ai/flows/generate-dashboard-insight-flow';
 import { db } from '@/lib/firebase';
 import {
@@ -30,6 +30,8 @@ import {
   query,
   orderBy,
   Timestamp,
+  where,
+  limit,
 } from 'firebase/firestore';
 
 
@@ -128,24 +130,18 @@ const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
   }
 };
 
-// Static objectives data for now, as Firestore integration for objectives is separate
-const staticObjectives: ObjectiveListItem[] = [
-  { id: "obj1", name: "Aumentare Entrate del 15%", target: 15, current: 10, unit: "%", status: "In Corso", iconName: 'TrendingUp' },
-  { id: "obj2", name: "Ridurre Sprechi Materiali del 5%", target: 5, current: 2, unit: "%", status: "In Corso", iconName: 'Target' },
-];
-
-
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [detailDialogCategoryName, setDetailDialogCategoryName] = useState<string | null>(null);
   const [detailDialogTitle, setDetailDialogTitle] = useState<string>("");
   const [detailDialogDescription, setDetailDialogDescription] = useState<string>("");
   const [transactionsForDialog, setTransactionsForDialog] = useState<Transaction[]>([]);
   
-  const [studioTotalBalance, setStudioTotalBalance] = useState<number>(50000); // Static for now
+  const [studioTotalBalance, setStudioTotalBalance] = useState<number>(50000); 
   const [isEditBalanceDialogOpen, setIsEditBalanceDialogOpen] = useState<boolean>(false);
   const [newBalanceInputValue, setNewBalanceInputValue] = useState<string>("50000");
 
@@ -166,17 +162,18 @@ export default function DashboardPage() {
   
   useEffect(() => {
     setIsClient(true);
-    setDashboardObjectives(staticObjectives.slice(0, 2)); 
   }, []);
 
-  const fetchFirestoreTransactions = useCallback(async () => {
+  const fetchFirestoreData = useCallback(async () => {
     setIsLoadingTransactions(true);
+    setIsLoadingObjectives(true);
     try {
+      // Fetch Transactions
       const transactionsCollectionRef = collection(db, "transactions");
-      const q = query(transactionsCollectionRef, orderBy("date", "desc"));
-      const querySnapshot = await getDocs(q);
+      const transactionsQuery = query(transactionsCollectionRef, orderBy("date", "desc"));
+      const transactionsSnapshot = await getDocs(transactionsQuery);
       const fetchedTransactions: Transaction[] = [];
-      querySnapshot.forEach((doc) => {
+      transactionsSnapshot.forEach((doc) => {
         const data = doc.data();
         fetchedTransactions.push({
           id: doc.id,
@@ -185,7 +182,7 @@ export default function DashboardPage() {
           category: data.category,
           subcategory: data.subcategory,
           type: data.type,
-          amount: data.amount, // Firestore stores amount with correct sign
+          amount: data.amount,
           status: data.status as Transaction['status'],
           isRecurring: data.isRecurring || false,
           recurrenceDetails: data.recurrenceDetails ? {
@@ -197,21 +194,34 @@ export default function DashboardPage() {
         });
       });
       setTransactions(fetchedTransactions);
+      setIsLoadingTransactions(false);
+
+      // Fetch Objectives
+      const objectivesCollectionRef = collection(db, "objectives");
+      const objectivesQuery = query(objectivesCollectionRef, orderBy("name", "asc"), limit(3)); // Limit to 3 for dashboard
+      const objectivesSnapshot = await getDocs(objectivesQuery);
+      const fetchedObjectives: ObjectiveListItem[] = [];
+      objectivesSnapshot.forEach((docSnap) => {
+        fetchedObjectives.push({ id: docSnap.id, ...docSnap.data() } as ObjectiveListItem);
+      });
+      setDashboardObjectives(fetchedObjectives);
+      setIsLoadingObjectives(false);
+
     } catch (error: any) {
-      console.error("Errore caricamento transazioni da Firestore:", error);
+      console.error("Errore caricamento dati da Firestore per Dashboard:", error);
       toast({
         title: "Errore Caricamento Dati",
-        description: "Impossibile caricare le transazioni da Firestore.",
+        description: "Impossibile caricare i dati da Firestore per la dashboard.",
         variant: "destructive",
       });
-    } finally {
       setIsLoadingTransactions(false);
+      setIsLoadingObjectives(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchFirestoreTransactions();
-  }, [fetchFirestoreTransactions]);
+    fetchFirestoreData();
+  }, [fetchFirestoreData]);
 
 
   useEffect(() => {
@@ -223,7 +233,18 @@ export default function DashboardPage() {
   }, [studioTotalBalance, isClient]);
 
   useEffect(() => {
-    if (isLoadingTransactions || transactions.length === 0) return;
+    if (isLoadingTransactions || transactions.length === 0) {
+        // Reset or set default values if no transactions or still loading
+        setTotalMonthlyIncome(0);
+        setTotalMonthlyExpenses(0);
+        setCurrentMonthlyBalance(0);
+        setBarChartData([]);
+        setPieChartData([]);
+        setCashflowChartData([]);
+        setExpenseCategoriesDisplay(initialExpenseCategoriesDisplayData.map(cat => ({...cat, value: 0, itemCount: 0, topItems: []})));
+        setUpcomingTransactions([]);
+        return;
+    }
 
     const todayDate = startOfToday();
     const currentMonthNum = getMonth(todayDate);
@@ -241,7 +262,7 @@ export default function DashboardPage() {
 
     const expensesCurrentMonth = currentMonthTransactions
       .filter(t => t.type === 'Uscita')
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0); // Use Math.abs for expenses
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     setTotalMonthlyExpenses(expensesCurrentMonth);
     setCurrentMonthlyBalance(incomeCurrentMonth - expensesCurrentMonth);
 
@@ -263,7 +284,7 @@ export default function DashboardPage() {
         if (monthlySummaries[monthKey]) {
           if (t.type === 'Entrata') {
             monthlySummaries[monthKey].income += t.amount;
-          } else if (t.type === 'Uscita') { // Ensure this check is correct for signed amounts
+          } else if (t.type === 'Uscita') {
             monthlySummaries[monthKey].expenses += Math.abs(t.amount);
           }
         }
@@ -301,14 +322,13 @@ export default function DashboardPage() {
     const firstDayOfMonth = startOfMonth(todayDate);
     const lastDayOfMonth = endOfMonth(todayDate);
     const daysInMonth = eachDayOfInterval({ start: firstDayOfMonth, end: lastDayOfMonth });
-    let runningBalance = 0; // This needs a starting point, perhaps from previous month's balance or total balance
+    let runningBalance = 0; 
 
     const cashflowData = daysInMonth.map(day => {
         const dailyTransactions = transactions.filter(t => {
             const transactionDate = parseISO(t.date);
             return isValid(transactionDate) && format(transactionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
-        // Amount is stored with sign in Firestore
         const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); 
         runningBalance += dailyNet;
         return { date: format(day, "dd/MM"), cashflow: runningBalance };
@@ -321,7 +341,7 @@ export default function DashboardPage() {
                (t.status === 'Pianificato' || t.status === 'In Attesa') &&
                (isFuture(transactionDate) || isEqual(transactionDate, todayDate));
       }).sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
-      .slice(0,3);
+      .slice(0,3); // Limit to 3 upcoming transactions for dashboard
     setUpcomingTransactions(upcoming);
 
   }, [transactions, isClient, isLoadingTransactions]); 
@@ -344,16 +364,19 @@ export default function DashboardPage() {
         } finally {
           setIsLoadingInsight(false);
         }
-      } else if (isClient && !isLoadingTransactions) {
-         setDashboardInsight("Non ci sono dati sufficienti per un'analisi AI del mese corrente o nessuna transazione caricata.");
+      } else if (isClient && !isLoadingTransactions && transactions.length > 0) {
+         setDashboardInsight("Non ci sono dati sufficienti per un'analisi AI del mese corrente.");
+         setIsLoadingInsight(false);
+      } else if (isClient && !isLoadingTransactions && transactions.length === 0) {
+         setDashboardInsight("Nessuna transazione in Firestore per generare un'analisi.");
          setIsLoadingInsight(false);
       }
     };
 
-    if (!isLoadingTransactions) {
+    if (!isLoadingTransactions) { // Ensure transactions are loaded before fetching insight
         fetchInsight();
     }
-  }, [isClient, totalMonthlyIncome, totalMonthlyExpenses, currentMonthlyBalance, isLoadingTransactions]);
+  }, [isClient, totalMonthlyIncome, totalMonthlyExpenses, currentMonthlyBalance, isLoadingTransactions, transactions]);
 
 
   const handleOpenEditBalanceDialog = () => {
@@ -400,8 +423,9 @@ export default function DashboardPage() {
   };
 
   const filterTransactionsForDialog = (categoryName: string): Transaction[] => {
-    const currentMonth = getMonth(new Date());
-    const currentYearValue = getYear(new Date());
+    const todayDate = startOfToday();
+    const currentMonth = getMonth(todayDate);
+    const currentYearValue = getYear(todayDate);
 
     return transactions.filter(t => {
       const transactionDate = parseISO(t.date);
@@ -430,7 +454,7 @@ export default function DashboardPage() {
     setIsDetailDialogOpen(true);
   };
 
-  if (isLoadingTransactions && isClient) {
+  if (isLoadingTransactions && isClient) { // Show loader only for transaction loading initially
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -510,7 +534,6 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">€{isClient? totalMonthlyIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : totalMonthlyIncome.toFixed(2)}</div>
-            {/* <p className="text-xs text-muted-foreground">+5.2% rispetto al mese scorso (esempio)</p> */}
           </CardContent>
         </Card>
         <Card>
@@ -520,7 +543,6 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600 dark:text-red-400">€{isClient ? totalMonthlyExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : totalMonthlyExpenses.toFixed(2)}</div>
-            {/* <p className="text-xs text-muted-foreground">-1.8% rispetto al mese scorso (esempio)</p> */}
           </CardContent>
         </Card>
         <Card>
@@ -552,7 +574,7 @@ export default function DashboardPage() {
             <CardDescription>Un breve commento sulla situazione finanziaria mensile, basato sui dati di Firestore.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingInsight ? (
+            {isLoadingInsight || (isLoadingTransactions && !dashboardInsight) ? (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 <p className="ml-2 text-muted-foreground">L'AI sta analizzando i dati...</p>
@@ -571,7 +593,7 @@ export default function DashboardPage() {
           <CardContent>
             {barChartData.length > 0 ? 
                 <DashboardBarChart data={barChartData} config={barChartConfig} />
-                : <p className="text-muted-foreground text-center py-10">Dati insufficienti per il grafico a barre.</p>
+                : <p className="text-muted-foreground text-center py-10">Dati insufficienti per il grafico a barre (da Firestore).</p>
             }
           </CardContent>
         </Card>
@@ -585,7 +607,9 @@ export default function DashboardPage() {
             <CardDescription>Eventi finanziari pianificati o in attesa (da Firestore).</CardDescription>
           </CardHeader>
           <CardContent>
-            {upcomingTransactions.length > 0 ? (
+            {isLoadingTransactions ? (
+                 <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento scadenze...</div>
+            ) : upcomingTransactions.length > 0 ? (
               <ul className="space-y-3">
                 {upcomingTransactions.map(t => (
                   <li key={t.id} className="flex items-start justify-between gap-2 p-2 border-b last:border-b-0">
@@ -623,9 +647,11 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Distribuzione Spese (Mese Corrente)</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
-            {pieChartData.length > 0 ?
+            {isLoadingTransactions ? (
+                 <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento grafico spese...</div>
+            ) : pieChartData.length > 0 ?
                 <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
-                : <p className="text-muted-foreground text-center py-10">Nessuna spesa registrata per il mese corrente per il grafico a torta.</p>
+                : <p className="text-muted-foreground text-center py-10">Nessuna spesa registrata per il mese corrente (da Firestore) per il grafico a torta.</p>
             }
           </CardContent>
         </Card>
@@ -634,9 +660,11 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Flusso di Cassa (Mese Corrente)</CardTitle>
           </CardHeader>
           <CardContent>
-            {cashflowChartData.length > 0 ?
+            {isLoadingTransactions ? (
+                 <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento flusso di cassa...</div>
+            ) : cashflowChartData.length > 0 ?
                 <DashboardCashflowLineChart data={cashflowChartData} config={lineChartConfig} />
-                : <p className="text-muted-foreground text-center py-10">Dati insufficienti per il grafico del flusso di cassa.</p>
+                : <p className="text-muted-foreground text-center py-10">Dati insufficienti (da Firestore) per il grafico del flusso di cassa.</p>
             }
           </CardContent>
         </Card>
@@ -644,26 +672,40 @@ export default function DashboardPage() {
 
       <div className="mt-8">
         <h2 className="text-2xl font-headline font-semibold mb-4 text-foreground">Categorie di Uscite (Mese Corrente)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {expenseCategoriesDisplay.map((category) => (
-            <ExpenseCategoryCard 
-              key={category.title} 
-              {...category} 
-              onViewAllClick={handleViewAllClick}
-              isClient={isClient}
-            />
-          ))}
-        </div>
+        {isLoadingTransactions ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({length:3}).map((_, i) => (
+                    <Card key={i} className="h-[200px] flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </Card>
+                ))}
+            </div>
+        ) : expenseCategoriesDisplay.some(cat => cat.value > 0) ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {expenseCategoriesDisplay.map((category) => (
+                <ExpenseCategoryCard 
+                key={category.title} 
+                {...category} 
+                onViewAllClick={handleViewAllClick}
+                isClient={isClient}
+                />
+            ))}
+            </div>
+        ) : (
+            <p className="text-muted-foreground text-center py-10">Nessuna uscita registrata per il mese corrente (da Firestore) per le categorie.</p>
+        )}
       </div>
 
       <div className="mt-6">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline">Obiettivi Finanziari Chiave (Dimostrativo)</CardTitle>
-            <CardDescription>Monitoraggio dei primi obiettivi impostati (dati statici).</CardDescription>
+            <CardTitle className="font-headline">Obiettivi Finanziari Chiave</CardTitle>
+            <CardDescription>Monitoraggio dei primi obiettivi impostati (da Firestore).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {dashboardObjectives.length > 0 ? dashboardObjectives.map((obj) => (
+            {isLoadingObjectives ? (
+                 <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento obiettivi...</div>
+            ) : dashboardObjectives.length > 0 ? dashboardObjectives.map((obj) => (
               <div key={obj.id} className="p-4 border rounded-lg shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -683,9 +725,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             )) : (
-              <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario impostato (dati dimostrativi).</p>
+              <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario trovato in Firestore.</p>
             )}
-             <Badge variant="outline">Vedi tutti gli obiettivi nella sezione 'Budget & Obiettivi' (attualmente con dati statici).</Badge>
+             <Badge variant="outline">Vedi tutti gli obiettivi nella sezione 'Budget & Obiettivi'.</Badge>
           </CardContent>
         </Card>
       </div>
