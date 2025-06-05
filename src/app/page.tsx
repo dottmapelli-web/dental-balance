@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit, CalendarClock, Info, Target, CheckCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Upload, Download, Edit, CalendarClock, Info, Target, CheckCircle, BotMessageSquare, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -23,6 +23,7 @@ import type { Transaction } from '@/data/transactions-data';
 import { initialTransactions } from '@/data/transactions-data'; 
 import { expenseCategories as expenseCategoryConfig } from '@/config/transaction-categories';
 import { initialObjectives, type ObjectiveListItem } from '@/app/budget-objectives/page';
+import { generateDashboardInsight } from '@/ai/flows/generate-dashboard-insight-flow';
 
 
 const barChartConfig = {
@@ -143,6 +144,9 @@ export default function DashboardPage() {
   const [upcomingTransactions, setUpcomingTransactions] = useState<Transaction[]>([]);
   const [dashboardObjectives, setDashboardObjectives] = useState<ObjectiveListItem[]>([]);
 
+  const [dashboardInsight, setDashboardInsight] = useState<string | null>(null);
+  const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
+
 
   const { toast } = useToast();
   
@@ -243,7 +247,7 @@ export default function DashboardPage() {
             const transactionDate = parseISO(t.date);
             return isValid(transactionDate) && format(transactionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
-        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); 
+        const dailyNet = dailyTransactions.reduce((sum, t) => sum + (t.type === 'Entrata' ? t.amount : -Math.abs(t.amount)), 0); 
         runningBalance += dailyNet;
         return { date: format(day, "dd/MM"), cashflow: runningBalance };
     });
@@ -259,6 +263,32 @@ export default function DashboardPage() {
     setUpcomingTransactions(upcoming);
 
   }, [initialTransactions, isClient]); 
+
+  useEffect(() => {
+    const fetchInsight = async () => {
+      if (isClient && (totalMonthlyIncome > 0 || totalMonthlyExpenses > 0)) {
+        setIsLoadingInsight(true);
+        setDashboardInsight(null);
+        try {
+          const result = await generateDashboardInsight({
+            totalIncome: totalMonthlyIncome,
+            totalExpenses: totalMonthlyExpenses,
+            balance: currentMonthlyBalance,
+          });
+          setDashboardInsight(result.insightText);
+        } catch (error) {
+          console.error("Error fetching dashboard insight:", error);
+          setDashboardInsight("Impossibile caricare l'analisi AI al momento.");
+        } finally {
+          setIsLoadingInsight(false);
+        }
+      } else if (isClient) {
+         setDashboardInsight("Non ci sono dati sufficienti per un'analisi AI del mese corrente.");
+         setIsLoadingInsight(false);
+      }
+    };
+    fetchInsight();
+  }, [isClient, totalMonthlyIncome, totalMonthlyExpenses, currentMonthlyBalance]);
 
 
   const handleOpenEditBalanceDialog = () => {
@@ -398,8 +428,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Entrate Totali (Mese)</CardTitle>
@@ -440,6 +469,26 @@ export default function DashboardPage() {
         </Card>
       </div>
       
+       <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center">
+              <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
+              Analisi Rapida AI (Mese Corrente)
+            </CardTitle>
+            <CardDescription>Un breve commento sulla situazione finanziaria mensile.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingInsight ? (
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">L'AI sta analizzando i dati...</p>
+              </div>
+            ) : (
+              <p className="text-sm text-foreground">{dashboardInsight || "Nessuna analisi disponibile."}</p>
+            )}
+          </CardContent>
+        </Card>
+
       <div className="grid gap-6 mt-8 md:grid-cols-2 lg:grid-cols-3">
          <Card className="lg:col-span-2">
           <CardHeader>
