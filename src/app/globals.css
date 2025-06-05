@@ -9,7 +9,7 @@ body {
 
 @layer base {
   :root {
-    --background: 220 60% 97%; /* Very Light Cool Blue-Gray */
+    --background: 208 100% 97%; /* Very light blue (AliceBlue #F0F8FF) */
     --foreground: 220 15% 25%; /* Dark Cool Gray */
 
     --card: 0 0% 100%; /* White */
@@ -18,8 +18,8 @@ body {
     --popover: 0 0% 100%; /* White */
     --popover-foreground: 220 15% 25%; /* Dark Cool Gray */
 
-    --primary: 214 80% 50%; /* Vibrant Blue */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 203 59% 82%; /* Light, desaturated blue (#A7D1EA) */
+    --primary-foreground: 220 15% 25%; /* Dark Cool Gray for contrast on light primary */
 
     --secondary: 210 30% 90%; /* Lighter Cool Gray */
     --secondary-foreground: 220 30% 25%; /* Darker Cool Gray */
@@ -27,19 +27,19 @@ body {
     --muted: 210 30% 94%; /* Light Cool Gray for subtle backgrounds/text */
     --muted-foreground: 210 30% 50%; /* Grayish Cool, less prominent text */
 
-    --accent: 200 80% 55%; /* Slightly lighter, more cyan blue */
-    --accent-foreground: 0 0% 100%; /* White for contrast */
+    --accent: 240 100% 25%; /* Navy blue (#000080) */
+    --accent-foreground: 0 0% 100%; /* White for contrast on navy */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 210 20% 88%; /* Light Gray */
     --input: 210 20% 92%; /* Slightly darker light gray for inputs */
-    --ring: 214 80% 45%; /* Darker Vibrant Blue for focus rings */
+    --ring: 203 59% 70%; /* Adjusted ring color based on new primary */
     
     --radius: 0.5rem;
 
-    /* Chart Colors - Vivid Pastel Palette */
+    /* Chart Colors - Vivid Pastel Palette (Kept as is, can be adjusted if needed) */
     --chart-1: 145 60% 68%;   /* Vivid Pastel Green (Income) */
     --chart-2: 0 75% 72%;    /* Vivid Pastel Red/Pink (Expenses) */
     --chart-3: 200 75% 70%;   /* Vivid Pastel Blue (Profit/Accent) */
@@ -47,14 +47,14 @@ body {
     --chart-5: 30 80% 72%;   /* Vivid Pastel Orange/Peach Accent */
 
     /* Sidebar specific colors (light theme example) */
-    --sidebar-background: 220 40% 96%;
-    --sidebar-foreground: 220 15% 25%;
-    --sidebar-border: 220 25% 88%;
-    --sidebar-primary: 214 80% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 60% 93%;
-    --sidebar-accent-foreground: 214 75% 45%;
-    --sidebar-ring: 214 80% 45%;
+    --sidebar-background: 208 80% 96%; /* Slightly darker than main background, more blueish */
+    --sidebar-foreground: 220 15% 30%; /* Dark grey for text */
+    --sidebar-border: 208 50% 88%; /* Softer blue-grey border */
+    --sidebar-primary: 203 59% 82%; /* New Primary for active item background */
+    --sidebar-primary-foreground: 220 15% 25%; /* Dark text for new light primary background */
+    --sidebar-accent: 203 59% 90%; /* Very light version of primary for hover background */
+    --sidebar-accent-foreground: 203 59% 40%; /* Darker blue for text on hover */
+    --sidebar-ring: 203 59% 70%; /* Adjusted ring for sidebar */
   }
 
   .dark {
@@ -67,8 +67,8 @@ body {
     --popover: 220 25% 15%;
     --popover-foreground: 210 30% 90%;
 
-    --primary: 214 70% 55%; /* Vibrant Blue (Dark Mode) */
-    --primary-foreground: 0 0% 98%;
+    --primary: 203 59% 55%; /* Dark mode version of new primary */
+    --primary-foreground: 0 0% 98%; /* Almost white */
 
     --secondary: 220 20% 25%; /* Darker Muted Blue-Gray */
     --secondary-foreground: 210 30% 85%;
@@ -76,17 +76,17 @@ body {
     --muted: 220 20% 20%;
     --muted-foreground: 210 30% 65%;
 
-    --accent: 200 70% 60%; /* Cyan Blue (Dark Mode) */
-    --accent-foreground: 0 0% 98%;
+    --accent: 240 80% 60%; /* Dark mode version of new accent (brighter navy) */
+    --accent-foreground: 0 0% 98%; /* Almost white */
 
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 220 20% 30%;
     --input: 220 20% 35%;
-    --ring: 214 70% 50%; /* Darker Blue for rings */
+    --ring: 203 59% 45%; /* Adjusted ring for dark mode */
 
-    /* Chart Colors - Dark Mode Vivid Pastel Palette */
+    /* Chart Colors - Dark Mode Vivid Pastel Palette (Kept as is) */
     --chart-1: 145 55% 62%; /* Dark Vivid Pastel Green */
     --chart-2: 0 65% 68%;  /* Dark Vivid Pastel Red/Pink */
     --chart-3: 200 65% 65%; /* Dark Vivid Pastel Blue */
@@ -94,14 +94,14 @@ body {
     --chart-5: 30 70% 70%;  /* Dark Vivid Pastel Orange/Peach */
 
     /* Sidebar specific colors (dark theme example) */
-    --sidebar-background: 220 15% 12%;
-    --sidebar-foreground: 210 30% 90%;
-    --sidebar-border: 220 15% 25%;
-    --sidebar-primary: 214 70% 55%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 220 15% 20%;
-    --sidebar-accent-foreground: 214 75% 65%;
-    --sidebar-ring: 214 70% 50%;
+    --sidebar-background: 220 20% 15%; /* Darker than main dark background */
+    --sidebar-foreground: 210 30% 85%; /* Light grey text */
+    --sidebar-border: 220 15% 28%; /* Dark border */
+    --sidebar-primary: 203 59% 55%; /* New Dark Primary for active item background */
+    --sidebar-primary-foreground: 0 0% 98%; /* Almost white text for new dark primary background */
+    --sidebar-accent: 203 59% 25%; /* Darker version of new dark primary for hover background */
+    --sidebar-accent-foreground: 203 59% 75%; /* Lighter blue for text on dark hover */
+    --sidebar-ring: 203 59% 45%; /* Adjusted ring for dark sidebar */
   }
 }
 
