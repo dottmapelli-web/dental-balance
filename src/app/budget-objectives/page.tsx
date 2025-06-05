@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2 } from "lucide-react";
+import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2, AlertCircle } from "lucide-react";
 import BudgetObjectiveModal, { type BudgetObjectiveFormData, type BudgetFormData as ModalBudgetFormData } from '@/components/budget-objective-modal';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -16,6 +16,7 @@ import { allExpenseCategories } from '@/config/transaction-categories';
 import { type Transaction } from '@/data/transactions-data';
 import { getMonth, getYear, parseISO, isValid, format } from 'date-fns';
 import { db } from '@/lib/firebase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   collection,
   getDocs,
@@ -37,6 +38,7 @@ interface DefinedBudget {
 
 export interface BudgetListItem extends DefinedBudget {
   actual: number;
+  calculationError?: string;
 }
 
 export interface ObjectiveListItem {
@@ -67,6 +69,10 @@ export default function BudgetObjectivesPage() {
   const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
+  const [budgetsError, setBudgetsError] = useState<string | null>(null);
+  const [objectivesError, setObjectivesError] = useState<string | null>(null);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetListItem | ObjectiveListItem | null>(null);
   const [modalType, setModalType] = useState<'budget' | 'objective' | null>(null);
@@ -79,6 +85,7 @@ export default function BudgetObjectivesPage() {
 
   const fetchFirestoreTransactions = useCallback(async () => {
     setIsLoadingTransactions(true);
+    setTransactionsError(null);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
       const q = query(transactionsCollectionRef, orderBy("date", "desc"));
@@ -103,12 +110,10 @@ export default function BudgetObjectivesPage() {
       setTransactions(fetchedTransactions);
     } catch (error: any) {
       console.error("!!! Errore caricamento TRANSAZIONI da Firestore (Budget Page):", error);
-      let rawErrorDetails = "Dettaglio grezzo non disponibile.";
-      if (error) {
-        rawErrorDetails = String(error);
-        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
-        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
-      }
+      let detailedError = "Impossibile caricare le transazioni per il calcolo dei budget.";
+      if (error.message) detailedError += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedError += ` (Codice: ${error.code})`;
+      setTransactionsError(detailedError);
       console.log("RAW ERROR OBJECT (transactions on budget page):", error);
       try {
         console.log("ERROR JSON.stringify (transactions on budget page):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
@@ -116,8 +121,8 @@ export default function BudgetObjectivesPage() {
         console.error("Could not stringify error object (transactions on budget page):", e_stringify);
       }
       toast({
-        title: "Errore Caricamento Transazioni (Budget Page)",
-        description: `Impossibile caricare le transazioni per il calcolo dei budget. ${rawErrorDetails}`,
+        title: "Errore Caricamento Transazioni",
+        description: detailedError,
         variant: "destructive",
       });
     } finally {
@@ -127,6 +132,7 @@ export default function BudgetObjectivesPage() {
 
   const fetchDefinedBudgets = useCallback(async () => {
     setIsLoadingBudgets(true);
+    setBudgetsError(null);
     try {
       const budgetsCollectionRef = collection(db, "budgets");
       const q = query(budgetsCollectionRef, orderBy("category", "asc"));
@@ -138,19 +144,17 @@ export default function BudgetObjectivesPage() {
       setDefinedBudgets(fetchedBudgets);
     } catch (error: any) {
       console.error("!!! Errore caricamento BUDGET da Firestore:", error);
-      let rawErrorDetails = "Dettaglio grezzo non disponibile.";
-      if (error) {
-        rawErrorDetails = String(error);
-        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
-        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
-      }
+      let detailedError = "Impossibile caricare i budget definiti.";
+      if (error.message) detailedError += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedError += ` (Codice: ${error.code})`;
+      setBudgetsError(detailedError);
       console.log("RAW ERROR OBJECT (budgets):", error);
       try {
         console.log("ERROR JSON.stringify (budgets):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       } catch (e_stringify) {
         console.error("Could not stringify error object (budgets):", e_stringify);
       }
-      toast({ title: "Errore Caricamento Budget", description: `Impossibile caricare i budget definiti. ${rawErrorDetails}`, variant: "destructive" });
+      toast({ title: "Errore Caricamento Budget", description: detailedError, variant: "destructive" });
     } finally {
       setIsLoadingBudgets(false);
     }
@@ -158,6 +162,7 @@ export default function BudgetObjectivesPage() {
 
   const fetchObjectives = useCallback(async () => {
     setIsLoadingObjectives(true);
+    setObjectivesError(null);
     try {
       const objectivesCollectionRef = collection(db, "objectives");
       const q = query(objectivesCollectionRef, orderBy("name", "asc"));
@@ -169,19 +174,17 @@ export default function BudgetObjectivesPage() {
       setObjectives(fetchedObjectives);
     } catch (error: any) {
       console.error("!!! Errore caricamento OBIETTIVI da Firestore:", error);
-       let rawErrorDetails = "Dettaglio grezzo non disponibile.";
-      if (error) {
-        rawErrorDetails = String(error);
-        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
-        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
-      }
+      let detailedError = "Impossibile caricare gli obiettivi.";
+      if (error.message) detailedError += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedError += ` (Codice: ${error.code})`;
+      setObjectivesError(detailedError);
       console.log("RAW ERROR OBJECT (objectives):", error);
       try {
         console.log("ERROR JSON.stringify (objectives):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
       } catch (e_stringify) {
         console.error("Could not stringify error object (objectives):", e_stringify);
       }
-      toast({ title: "Errore Caricamento Obiettivi", description: `Impossibile caricare gli obiettivi. ${rawErrorDetails}`, variant: "destructive" });
+      toast({ title: "Errore Caricamento Obiettivi", description: detailedError, variant: "destructive" });
     } finally {
       setIsLoadingObjectives(false);
     }
@@ -194,7 +197,22 @@ export default function BudgetObjectivesPage() {
   }, [fetchFirestoreTransactions, fetchDefinedBudgets, fetchObjectives]);
 
   const displayedBudgets: BudgetListItem[] = useMemo(() => {
-    if (isLoadingTransactions || isLoadingBudgets) return [];
+    if (isLoadingBudgets) return [];
+    if (transactionsError && !isLoadingTransactions) { // Se c'è stato un errore nel caricare le transazioni
+        return definedBudgets.map(budget => ({
+            ...budget,
+            actual: 0,
+            calculationError: "Impossibile calcolare la spesa effettiva (errore transazioni)."
+        }));
+    }
+    if (isLoadingTransactions) { // Se le transazioni sono ancora in caricamento
+         return definedBudgets.map(budget => ({
+            ...budget,
+            actual: 0,
+            calculationError: "Calcolo spesa in corso..."
+        }));
+    }
+
     const today = new Date();
     const currentMonth = getMonth(today);
     const currentYear = getYear(today);
@@ -217,7 +235,7 @@ export default function BudgetObjectivesPage() {
       // TODO: Implement logic for other periods (Bimestrale, Trimestrale, etc.) if needed
       return { ...budget, actual: actualSpent };
     });
-  }, [definedBudgets, transactions, isLoadingTransactions, isLoadingBudgets]);
+  }, [definedBudgets, transactions, isLoadingTransactions, isLoadingBudgets, transactionsError]);
 
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
@@ -242,10 +260,13 @@ export default function BudgetObjectivesPage() {
           await addDoc(collection(db, "budgets"), budgetToSave);
           toast({ title: "Nuovo Budget Aggiunto", description: `Budget per ${budgetDataFromForm.category} creato.` });
         }
-        fetchDefinedBudgets(); // Refresh budget list
-      } catch (error) {
+        fetchDefinedBudgets(); 
+      } catch (error: any) {
         console.error("Errore salvataggio budget:", error);
-        toast({ title: "Errore Salvataggio", description: "Impossibile salvare il budget.", variant: "destructive"});
+        let saveErrorMsg = "Impossibile salvare il budget.";
+        if (error.message) saveErrorMsg += ` Dettaglio: ${error.message}`;
+        if (error.code) saveErrorMsg += ` (Codice: ${error.code})`;
+        toast({ title: "Errore Salvataggio", description: saveErrorMsg, variant: "destructive"});
       }
     } else if (modalType === 'objective' && data.type === 'objective') {
       const objectiveToSave = {
@@ -265,10 +286,13 @@ export default function BudgetObjectivesPage() {
           await addDoc(collection(db, "objectives"), objectiveToSave);
           toast({ title: "Nuovo Obiettivo Aggiunto", description: `Obiettivo "${data.name}" creato.` });
         }
-        fetchObjectives(); // Refresh objectives list
-      } catch (error) {
+        fetchObjectives(); 
+      } catch (error: any) {
         console.error("Errore salvataggio obiettivo:", error);
-        toast({ title: "Errore Salvataggio", description: "Impossibile salvare l'obiettivo.", variant: "destructive"});
+        let saveErrorMsg = "Impossibile salvare l'obiettivo.";
+        if (error.message) saveErrorMsg += ` Dettaglio: ${error.message}`;
+        if (error.code) saveErrorMsg += ` (Codice: ${error.code})`;
+        toast({ title: "Errore Salvataggio", description: saveErrorMsg, variant: "destructive"});
       }
     }
     setIsModalOpen(false);
@@ -281,10 +305,13 @@ export default function BudgetObjectivesPage() {
       try {
         await deleteDoc(doc(db, "budgets", id));
         toast({ title: "Budget Eliminato" });
-        fetchDefinedBudgets(); // Refresh budget list
-      } catch (error) {
+        fetchDefinedBudgets(); 
+      } catch (error: any) {
         console.error("Errore eliminazione budget:", error);
-        toast({ title: "Errore Eliminazione", description: "Impossibile eliminare il budget.", variant: "destructive"});
+        let deleteErrorMsg = "Impossibile eliminare il budget.";
+        if (error.message) deleteErrorMsg += ` Dettaglio: ${error.message}`;
+        if (error.code) deleteErrorMsg += ` (Codice: ${error.code})`;
+        toast({ title: "Errore Eliminazione", description: deleteErrorMsg, variant: "destructive"});
       }
     }
   };
@@ -294,17 +321,20 @@ export default function BudgetObjectivesPage() {
       try {
         await deleteDoc(doc(db, "objectives", id));
         toast({ title: "Obiettivo Eliminato" });
-        fetchObjectives(); // Refresh objectives list
-      } catch (error) {
+        fetchObjectives(); 
+      } catch (error: any) {
         console.error("Errore eliminazione obiettivo:", error);
-        toast({ title: "Errore Eliminazione", description: "Impossibile eliminare l'obiettivo.", variant: "destructive"});
+        let deleteErrorMsg = "Impossibile eliminare l'obiettivo.";
+        if (error.message) deleteErrorMsg += ` Dettaglio: ${error.message}`;
+        if (error.code) deleteErrorMsg += ` (Codice: ${error.code})`;
+        toast({ title: "Errore Eliminazione", description: deleteErrorMsg, variant: "destructive"});
       }
     }
   };
 
   const isLoading = isLoadingBudgets || isLoadingObjectives || isLoadingTransactions;
 
-  if (isLoading && isClient) {
+  if (isLoading && isClient && !budgetsError && !objectivesError && !transactionsError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -321,16 +351,16 @@ export default function BudgetObjectivesPage() {
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button disabled={budgetsError || objectivesError || transactionsError}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nuovo Budget/Obiettivo
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onSelect={() => handleOpenModal('budget')}>
+              <DropdownMenuItem onSelect={() => handleOpenModal('budget')} disabled={!!budgetsError}>
                 Aggiungi Nuovo Budget
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleOpenModal('objective')}>
+              <DropdownMenuItem onSelect={() => handleOpenModal('objective')} disabled={!!objectivesError}>
                 Aggiungi Nuovo Obiettivo
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -338,9 +368,32 @@ export default function BudgetObjectivesPage() {
         }
       />
 
+      {budgetsError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore Caricamento Budget</AlertTitle>
+          <AlertDescription>{budgetsError}</AlertDescription>
+        </Alert>
+      )}
+      {objectivesError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore Caricamento Obiettivi</AlertTitle>
+          <AlertDescription>{objectivesError}</AlertDescription>
+        </Alert>
+      )}
+      {transactionsError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore Caricamento Transazioni</AlertTitle>
+          <AlertDescription>{transactionsError} Il calcolo della spesa effettiva per i budget potrebbe non essere accurato.</AlertDescription>
+        </Alert>
+      )}
+
+
       {isModalOpen && modalType && (
         <BudgetObjectiveModal
-          key={modalType}
+          key={modalType} 
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
@@ -357,13 +410,13 @@ export default function BudgetObjectivesPage() {
             <CardDescription>Visualizza lo stato dei budget impostati (dati da Firestore).</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingBudgets && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento budget...</div>}
-            {!isLoadingBudgets && displayedBudgets.length === 0 && (
+            {isLoadingBudgets && !budgetsError && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento budget...</div>}
+            {!isLoadingBudgets && !budgetsError && displayedBudgets.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nessun budget impostato in Firestore.</TableCell>
               </TableRow>
             )}
-            {!isLoadingBudgets && displayedBudgets.length > 0 && (
+            {!isLoadingBudgets && !budgetsError && displayedBudgets.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -382,10 +435,21 @@ export default function BudgetObjectivesPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.category}</TableCell>
                       <TableCell>€{isClient ? item.budgeted.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.budgeted.toFixed(2)}</TableCell>
-                      <TableCell>€{isClient ? item.actual.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.actual.toFixed(2)}</TableCell>
+                      <TableCell>
+                        {item.calculationError 
+                            ? <span className="text-xs text-destructive">{item.calculationError}</span>
+                            : `€${isClient ? item.actual.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.actual.toFixed(2)}`
+                        }
+                      </TableCell>
                       <TableCell className="w-[150px]">
-                        <Progress value={progress} aria-label={`${progress.toFixed(0)}% speso`} className={progress > 85 ? "[&>div]:bg-destructive" : ""} />
-                        <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
+                        {item.calculationError ? (
+                            <span className="text-xs text-muted-foreground">-</span>
+                        ) : (
+                            <>
+                            <Progress value={progress} aria-label={`${progress.toFixed(0)}% speso`} className={progress > 85 ? "[&>div]:bg-destructive" : ""} />
+                            <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
+                            </>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{item.period}</Badge>
@@ -406,6 +470,9 @@ export default function BudgetObjectivesPage() {
               </TableBody>
             </Table>
             )}
+            {budgetsError && (
+                 <p className="text-sm text-destructive text-center py-4">Impossibile visualizzare i budget a causa di un errore.</p>
+            )}
           </CardContent>
         </Card>
 
@@ -415,11 +482,11 @@ export default function BudgetObjectivesPage() {
             <CardDescription>Traccia il progresso verso gli obiettivi chiave (dati da Firestore).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {isLoadingObjectives && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento obiettivi...</div>}
-            {!isLoadingObjectives && objectives.length === 0 && (
+            {isLoadingObjectives && !objectivesError && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento obiettivi...</div>}
+            {!isLoadingObjectives && !objectivesError && objectives.length === 0 && (
                 <p className="text-center text-muted-foreground py-10">Nessun obiettivo finanziario impostato in Firestore.</p>
             )}
-            {!isLoadingObjectives && objectives.map((obj) => (
+            {!isLoadingObjectives && !objectivesError && objectives.map((obj) => (
               <div key={obj.id} className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
@@ -449,6 +516,9 @@ export default function BudgetObjectivesPage() {
                 </div>
               </div>
             ))}
+             {objectivesError && (
+                 <p className="text-sm text-destructive text-center py-4">Impossibile visualizzare gli obiettivi a causa di un errore.</p>
+            )}
           </CardContent>
         </Card>
       </div>
