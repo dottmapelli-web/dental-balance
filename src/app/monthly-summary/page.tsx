@@ -112,7 +112,8 @@ export default function MonthlySummaryPage() {
   useEffect(() => {
     const year = parseInt(chartSelectedYear);
     const dataForYear = Array.from({ length: 12 }).map((_, i) => ({
-      month: format(new Date(year, i), "MMM", { locale: it }),
+      monthFullName: format(new Date(year, i), "MMMM", { locale: it }), // For table display
+      month: format(new Date(year, i), "MMM", { locale: it }), // For chart display
       income: 0,
       expenses: 0,
       balance: 0,
@@ -266,7 +267,7 @@ export default function MonthlySummaryPage() {
                       indicator="line"
                       labelFormatter={(value, payload) => {
                         if (payload && payload.length > 0) {
-                            return `Mese: ${payload[0].payload.month}, ${chartSelectedYear}`;
+                            return `Mese: ${payload[0].payload.monthFullName}, ${chartSelectedYear}`;
                         }
                         return value;
                       }}
@@ -298,6 +299,7 @@ export default function MonthlySummaryPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="font-headline">Riepilogo Dettagliato Mensile per il {chartSelectedYear}</CardTitle>
+          <CardDescription>Entrate, uscite e saldo per ogni mese dell'anno selezionato.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -312,7 +314,7 @@ export default function MonthlySummaryPage() {
             <TableBody>
               {monthlyChartData.map((monthData, index) => (
                 <TableRow key={index}>
-                  <TableCell className="font-medium">{monthData.month}</TableCell>
+                  <TableCell className="font-medium">{monthData.monthFullName}</TableCell>
                   <TableCell className="text-right text-green-600 dark:text-green-400">
                     €{isClient ? monthData.income.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : monthData.income.toFixed(2)}
                   </TableCell>
@@ -324,6 +326,13 @@ export default function MonthlySummaryPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {monthlyChartData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                    Nessun dato mensile disponibile per l'anno {chartSelectedYear}.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -515,4 +524,3 @@ export default function MonthlySummaryPage() {
 }
 
     
-
