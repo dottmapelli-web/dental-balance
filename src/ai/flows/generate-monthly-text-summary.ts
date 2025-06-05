@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to generate a textual summary of monthly financial transactions.
+ * @fileOverview A Genkit flow to generate a textual summary of monthly financial transactions from Firestore.
  *
  * - generateMonthlyTextSummary - A function that generates the summary.
  * - GenerateMonthlyTextSummaryInput - The input type for the function.
@@ -10,9 +10,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { initialTransactions, type Transaction } from '@/data/transactions-data';
-import { format, getMonth, getYear, parseISO, isValid } from 'date-fns';
+import { type Transaction } from '@/data/transactions-data'; // Keep type definition
+import { format, isValid, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const GenerateMonthlyTextSummaryInputSchema = z.object({
   month: z.number().int().min(0).max(11).describe('The month for the summary (0-indexed, e.g., 0 for January).'),
@@ -29,13 +31,58 @@ export async function generateMonthlyTextSummary(input: GenerateMonthlyTextSumma
   return generateMonthlyTextSummaryFlow(input);
 }
 
+// Helper function to fetch transactions from Firestore for a specific month and year
+async function getTransactionsForMonth(year: number, month: number): Promise<Transaction[]> {
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999); // Last moment of the specified month
+
+  const transactionsCol = collection(db, 'transactions');
+  const q = query(
+    transactionsCol,
+    where('date', '>=', Timestamp.fromDate(startDate)),
+    where('date', '<=', Timestamp.fromDate(endDate)), // Use '<=' for endDate to include the whole last day
+    orderBy('date', 'asc')
+  );
+
+  const querySnapshot = await getDocs(q);
+  const transactions: Transaction[] = [];
+  querySnapshot.forEach((doc) => {
+    const data = doc.data();
+    transactions.push({
+      id: doc.id,
+      date: data.date instanceof Timestamp ? format(data.date.toDate(), "yyyy-MM-dd") : data.date,
+      description: data.description,
+      category: data.category,
+      subcategory: data.subcategory,
+      type: data.type,
+      amount: data.amount, // Amount is stored correctly in Firestore
+      status: data.status as Transaction['status'],
+      isRecurring: data.isRecurring || false,
+      recurrenceDetails: data.recurrenceDetails ? {
+        ...data.recurrenceDetails,
+        startDate: data.recurrenceDetails.startDate instanceof Timestamp ? format(data.recurrenceDetails.startDate.toDate(), "yyyy-MM-dd") : data.recurrenceDetails.startDate,
+        endDate: data.recurrenceDetails.endDate && data.recurrenceDetails.endDate instanceof Timestamp ? format(data.recurrenceDetails.endDate.toDate(), "yyyy-MM-dd") : undefined,
+      } : undefined,
+      originalRecurringId: data.originalRecurringId,
+    });
+  });
+  return transactions;
+}
+
+
 // Helper function to format transactions for the prompt
 const formatTransactionsForPrompt = (transactions: Transaction[]): string => {
   if (transactions.length === 0) {
     return "Nessuna transazione registrata per questo periodo.";
   }
   return transactions.map(t => {
-    const datePart = isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy", { locale: it }) : "Data non valida";
+    // Ensure date is valid before formatting
+    const dateObj = parseISO(t.date);
+    const datePart = isValid(dateObj) ? format(dateObj, "dd/MM/yyyy", { locale: it }) : "Data non valida";
+    
+    // Amounts are stored with correct sign in Firestore, prompt might expect absolute for expenses
+    // However, the current prompt seems to handle signed amounts.
+    // If expenses need to be positive in prompt: amount: €${t.type === 'Uscita' ? Math.abs(t.amount).toFixed(2) : t.amount.toFixed(2)}
     return `- Data: ${datePart}, Tipo: ${t.type}, Categoria: ${t.category}${t.subcategory ? ` (${t.subcategory})` : ''}, Importo: €${t.amount.toFixed(2)}${t.description ? `, Descrizione: ${t.description}` : ''}`;
   }).join('\n');
 };
@@ -71,18 +118,15 @@ const generateMonthlyTextSummaryFlow = ai.defineFlow(
     try {
       const monthName = format(new Date(year, month), "MMMM", { locale: it });
 
-      const monthlyTransactions = initialTransactions.filter(t => {
-        const transactionDate = parseISO(t.date);
-        return isValid(transactionDate) && getMonth(transactionDate) === month && getYear(transactionDate) === year;
-      });
+      // Fetch transactions from Firestore
+      const monthlyTransactions = await getTransactionsForMonth(year, month);
 
       if (monthlyTransactions.length === 0) {
-          return { summaryText: `Nessuna transazione registrata per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
+          return { summaryText: `Nessuna transazione registrata in Firestore per ${monthName} ${year}. Non è possibile generare un riepilogo dettagliato.` };
       }
 
       const formattedTransactions = formatTransactionsForPrompt(monthlyTransactions);
 
-      // Inner try-catch for the AI prompt call
       try {
         const response = await prompt({ month, year, formattedTransactions, monthName });
       
@@ -92,21 +136,23 @@ const generateMonthlyTextSummaryFlow = ai.defineFlow(
           console.error('AI output is not in the expected format or missing summaryText. Response:', response);
           const outputDetails = response && response.output ? JSON.stringify(response.output) : 'Nessun output ricevuto.';
           return { 
-            summaryText: `Impossibile generare il riepilogo AI per ${monthName} ${year}. L'output del modello non era nel formato previsto o il campo summaryText era mancante. Dettagli output: ${outputDetails}\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+            summaryText: `Impossibile generare il riepilogo AI per ${monthName} ${year}. L'output del modello non era nel formato previsto o il campo summaryText era mancante. Dettagli output: ${outputDetails}\n\nDati forniti al modello (da Firestore):\n${formattedTransactions}`
           };
         }
       } catch (promptError: any) {
           console.error('Error during AI prompt execution in generateMonthlyTextSummaryFlow:', promptError);
           return { 
-            summaryText: `Errore durante la generazione del riepilogo AI per ${monthName} ${year}: ${promptError.message || 'Errore sconosciuto durante l\'esecuzione del prompt.'}.\n\nDati grezzi forniti al modello:\n${formattedTransactions}`
+            summaryText: `Errore durante la generazione del riepilogo AI per ${monthName} ${year}: ${promptError.message || 'Errore sconosciuto durante l\'esecuzione del prompt.'}.\n\nDati forniti al modello (da Firestore):\n${formattedTransactions}`
           };
       }
-    } catch (flowError: any) { // Outer catch for any other error in the flow logic
-        console.error('Error in generateMonthlyTextSummaryFlow preparation stages:', flowError);
-        const monthForError = isValid(new Date(year, month)) ? format(new Date(year, month), "MMMM yyyy", { locale: it }) : `mese ${month + 1}, anno ${year}`;
+    } catch (flowError: any) { 
+        console.error('Error in generateMonthlyTextSummaryFlow preparation stages (Firestore fetch or date formatting):', flowError);
+        const monthForErrorDisplay = format(new Date(year, month), "MMMM yyyy", { locale: it });
         return { 
-          summaryText: `Si è verificato un errore imprevisto durante la preparazione dei dati per il riepilogo di ${monthForError}. Dettagli errore: ${flowError.message || 'Errore sconosciuto nella preparazione dei dati.'}`
+          summaryText: `Si è verificato un errore imprevisto durante la preparazione dei dati (recupero da Firestore o formattazione date) per il riepilogo di ${monthForErrorDisplay}. Dettagli errore: ${flowError.message || 'Errore sconosciuto.'}`
         };
     }
   }
 );
+
+    
