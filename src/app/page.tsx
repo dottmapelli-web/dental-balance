@@ -68,9 +68,9 @@ const initialExpenseCategoriesDisplayData: ExpenseCategoryDisplayData[] = (Objec
     const color = colors[index % colors.length];
     return {
       title: categoryKey,
-      value: 0, 
-      itemCount: 0, 
-      topItems: [], 
+      value: 0,
+      itemCount: 0,
+      topItems: [],
       ...color,
     };
 });
@@ -140,8 +140,8 @@ export default function DashboardPage() {
   const [detailDialogTitle, setDetailDialogTitle] = useState<string>("");
   const [detailDialogDescription, setDetailDialogDescription] = useState<string>("");
   const [transactionsForDialog, setTransactionsForDialog] = useState<Transaction[]>([]);
-  
-  const [studioTotalBalance, setStudioTotalBalance] = useState<number>(50000); 
+
+  const [studioTotalBalance, setStudioTotalBalance] = useState<number>(50000);
   const [isEditBalanceDialogOpen, setIsEditBalanceDialogOpen] = useState<boolean>(false);
   const [newBalanceInputValue, setNewBalanceInputValue] = useState<string>("50000");
 
@@ -159,7 +159,7 @@ export default function DashboardPage() {
   const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
 
   const { toast } = useToast();
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -171,7 +171,9 @@ export default function DashboardPage() {
       // Fetch Transactions
       const transactionsCollectionRef = collection(db, "transactions");
       const transactionsQuery = query(transactionsCollectionRef, orderBy("date", "desc"));
+      console.log("Dashboard: Attempting to fetch transactions...");
       const transactionsSnapshot = await getDocs(transactionsQuery);
+      console.log("Dashboard: Transactions fetched successfully. Count:", transactionsSnapshot.size);
       const fetchedTransactions: Transaction[] = [];
       transactionsSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -198,8 +200,10 @@ export default function DashboardPage() {
 
       // Fetch Objectives
       const objectivesCollectionRef = collection(db, "objectives");
-      const objectivesQuery = query(objectivesCollectionRef, orderBy("name", "asc"), limit(3)); // Limit to 3 for dashboard
+      const objectivesQuery = query(objectivesCollectionRef, orderBy("name", "asc"), limit(3));
+      console.log("Dashboard: Attempting to fetch objectives...");
       const objectivesSnapshot = await getDocs(objectivesQuery);
+      console.log("Dashboard: Objectives fetched successfully. Count:", objectivesSnapshot.size);
       const fetchedObjectives: ObjectiveListItem[] = [];
       objectivesSnapshot.forEach((docSnap) => {
         fetchedObjectives.push({ id: docSnap.id, ...docSnap.data() } as ObjectiveListItem);
@@ -208,10 +212,18 @@ export default function DashboardPage() {
       setIsLoadingObjectives(false);
 
     } catch (error: any) {
-      console.error("Errore caricamento dati da Firestore per Dashboard:", error);
+      console.error("!!! Errore caricamento dati da Firestore per Dashboard:", error);
+      let description = "Impossibile caricare i dati da Firestore per la dashboard.";
+      if (error.message) {
+        description += ` Dettaglio: ${error.message}`;
+      }
+      if (error.code) {
+        description += ` (Codice Errore Firebase: ${error.code})`;
+        console.error(`Firebase Error Code: ${error.code}, Message: ${error.message}`);
+      }
       toast({
         title: "Errore Caricamento Dati",
-        description: "Impossibile caricare i dati da Firestore per la dashboard.",
+        description: description,
         variant: "destructive",
       });
       setIsLoadingTransactions(false);
@@ -234,7 +246,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isLoadingTransactions || transactions.length === 0) {
-        // Reset or set default values if no transactions or still loading
         setTotalMonthlyIncome(0);
         setTotalMonthlyExpenses(0);
         setCurrentMonthlyBalance(0);
@@ -292,7 +303,7 @@ export default function DashboardPage() {
     });
     const barData = Object.entries(monthlySummaries)
       .map(([monthYear, data]) => ({ month: monthYear.split('-')[0], income: data.income, expenses: data.expenses }))
-      .slice(-6); 
+      .slice(-6);
     setBarChartData(barData);
 
     const currentMonthExpensesOnly = currentMonthTransactions.filter(t => t.type === 'Uscita');
@@ -300,7 +311,7 @@ export default function DashboardPage() {
     currentMonthExpensesOnly.forEach(t => {
       expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + Math.abs(t.amount);
     });
-    
+
     const updatedExpenseCategoriesDisplay = initialExpenseCategoriesDisplayData.map(catDisplay => {
         const totalForCategory = expensesByCategory[catDisplay.title] || 0;
         const categoryTransactions = currentMonthExpensesOnly.filter(t => t.category === catDisplay.title);
@@ -322,14 +333,14 @@ export default function DashboardPage() {
     const firstDayOfMonth = startOfMonth(todayDate);
     const lastDayOfMonth = endOfMonth(todayDate);
     const daysInMonth = eachDayOfInterval({ start: firstDayOfMonth, end: lastDayOfMonth });
-    let runningBalance = 0; 
+    let runningBalance = 0;
 
     const cashflowData = daysInMonth.map(day => {
         const dailyTransactions = transactions.filter(t => {
             const transactionDate = parseISO(t.date);
             return isValid(transactionDate) && format(transactionDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
         });
-        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0); 
+        const dailyNet = dailyTransactions.reduce((sum, t) => sum + t.amount, 0);
         runningBalance += dailyNet;
         return { date: format(day, "dd/MM"), cashflow: runningBalance };
     });
@@ -341,10 +352,10 @@ export default function DashboardPage() {
                (t.status === 'Pianificato' || t.status === 'In Attesa') &&
                (isFuture(transactionDate) || isEqual(transactionDate, todayDate));
       }).sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
-      .slice(0,3); // Limit to 3 upcoming transactions for dashboard
+      .slice(0,3);
     setUpcomingTransactions(upcoming);
 
-  }, [transactions, isClient, isLoadingTransactions]); 
+  }, [transactions, isClient, isLoadingTransactions]);
 
   useEffect(() => {
     const fetchInsight = async () => {
@@ -373,7 +384,7 @@ export default function DashboardPage() {
       }
     };
 
-    if (!isLoadingTransactions) { // Ensure transactions are loaded before fetching insight
+    if (!isLoadingTransactions) {
         fetchInsight();
     }
   }, [isClient, totalMonthlyIncome, totalMonthlyExpenses, currentMonthlyBalance, isLoadingTransactions, transactions]);
@@ -454,7 +465,7 @@ export default function DashboardPage() {
     setIsDetailDialogOpen(true);
   };
 
-  if (isLoadingTransactions && isClient) { // Show loader only for transaction loading initially
+  if (isLoadingTransactions && isClient && transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -511,7 +522,7 @@ export default function DashboardPage() {
             <Label htmlFor="newBalance" className="mb-2 block">Nuovo Saldo Totale (€)</Label>
             <Input
               id="newBalance"
-              type="text" 
+              type="text"
               value={newBalanceInputValue}
               onChange={(e) => setNewBalanceInputValue(e.target.value)}
               placeholder="Es. 50000"
@@ -547,7 +558,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Attuale (Mese)</CardTitle> 
+            <CardTitle className="text-sm font-medium">Saldo Attuale (Mese)</CardTitle>
             {currentMonthlyBalance >= 0 ? (
               <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
             ) : (
@@ -564,7 +575,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
+
        <Card className="mb-6">
           <CardHeader>
             <CardTitle className="font-headline flex items-center">
@@ -574,7 +585,7 @@ export default function DashboardPage() {
             <CardDescription>Un breve commento sulla situazione finanziaria mensile, basato sui dati di Firestore.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingInsight || (isLoadingTransactions && !dashboardInsight) ? (
+            {isLoadingInsight || (isLoadingTransactions && !dashboardInsight && transactions.length === 0) ? (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 <p className="ml-2 text-muted-foreground">L'AI sta analizzando i dati...</p>
@@ -591,7 +602,7 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Entrate vs Uscite (Ultimi 6 Mesi)</CardTitle>
           </CardHeader>
           <CardContent>
-            {barChartData.length > 0 ? 
+            {barChartData.length > 0 ?
                 <DashboardBarChart data={barChartData} config={barChartConfig} />
                 : <p className="text-muted-foreground text-center py-10">Dati insufficienti per il grafico a barre (da Firestore).</p>
             }
@@ -607,7 +618,7 @@ export default function DashboardPage() {
             <CardDescription>Eventi finanziari pianificati o in attesa (da Firestore).</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoadingTransactions ? (
+            {isLoadingTransactions && upcomingTransactions.length === 0 ? (
                  <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento scadenze...</div>
             ) : upcomingTransactions.length > 0 ? (
               <ul className="space-y-3">
@@ -647,7 +658,7 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Distribuzione Spese (Mese Corrente)</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center">
-            {isLoadingTransactions ? (
+            {isLoadingTransactions && pieChartData.length === 0 ? (
                  <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento grafico spese...</div>
             ) : pieChartData.length > 0 ?
                 <DashboardPieChart data={pieChartData} onSliceClick={handlePieSliceClick} />
@@ -660,7 +671,7 @@ export default function DashboardPage() {
             <CardTitle className="font-headline">Flusso di Cassa (Mese Corrente)</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingTransactions ? (
+            {isLoadingTransactions && cashflowChartData.length === 0 ? (
                  <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento flusso di cassa...</div>
             ) : cashflowChartData.length > 0 ?
                 <DashboardCashflowLineChart data={cashflowChartData} config={lineChartConfig} />
@@ -672,7 +683,7 @@ export default function DashboardPage() {
 
       <div className="mt-8">
         <h2 className="text-2xl font-headline font-semibold mb-4 text-foreground">Categorie di Uscite (Mese Corrente)</h2>
-        {isLoadingTransactions ? (
+        {isLoadingTransactions && expenseCategoriesDisplay.every(cat => cat.value === 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({length:3}).map((_, i) => (
                     <Card key={i} className="h-[200px] flex items-center justify-center">
@@ -683,9 +694,9 @@ export default function DashboardPage() {
         ) : expenseCategoriesDisplay.some(cat => cat.value > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {expenseCategoriesDisplay.map((category) => (
-                <ExpenseCategoryCard 
-                key={category.title} 
-                {...category} 
+                <ExpenseCategoryCard
+                key={category.title}
+                {...category}
                 onViewAllClick={handleViewAllClick}
                 isClient={isClient}
                 />
@@ -703,7 +714,7 @@ export default function DashboardPage() {
             <CardDescription>Monitoraggio dei primi obiettivi impostati (da Firestore).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {isLoadingObjectives ? (
+            {isLoadingObjectives && dashboardObjectives.length === 0 ? (
                  <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /> Caricamento obiettivi...</div>
             ) : dashboardObjectives.length > 0 ? dashboardObjectives.map((obj) => (
               <div key={obj.id} className="p-4 border rounded-lg shadow-sm">
@@ -733,7 +744,7 @@ export default function DashboardPage() {
       </div>
 
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="sm:max-w-3xl"> 
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{detailDialogTitle}</DialogTitle>
             <DialogDescriptionComponent>
@@ -741,7 +752,7 @@ export default function DashboardPage() {
             </DialogDescriptionComponent>
           </DialogHeader>
           {transactionsForDialog && transactionsForDialog.length > 0 ? (
-            <ScrollArea className="h-[400px] mt-4 border rounded-md"> 
+            <ScrollArea className="h-[400px] mt-4 border rounded-md">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -777,4 +788,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
