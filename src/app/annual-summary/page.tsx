@@ -7,13 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Line, LineChart as RechartsLineChart, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, BotMessageSquare, Loader2, AlertCircle, Wand2 } from "lucide-react";
 import { initialTransactions, type Transaction } from '@/data/transactions-data';
 import { getYear, getMonth, parseISO, isValid, format } from "date-fns";
 import { it } from "date-fns/locale";
 import DashboardPieChart from '@/components/charts/dashboard-pie-chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { expenseCategories as expenseCategoryConfig } from '@/config/transaction-categories';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { generateAnnualFinancialNarrative, type GenerateAnnualFinancialNarrativeInput } from '@/ai/flows/generate-annual-financial-narrative';
+import { Textarea } from '@/components/ui/textarea';
 
 const annualBarChartConfig = {
   totalIncome: { label: "Entrate Totali Annuali", color: "hsl(var(--chart-1))" },
@@ -58,6 +62,10 @@ export default function AnnualSummaryPage() {
   const [monthlyProfitDataForSelectedYear, setMonthlyProfitDataForSelectedYear] = useState<Array<{ month: string; profit: number }>>([]);
   const [monthlyBarChartDataForSelectedYear, setMonthlyBarChartDataForSelectedYear] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
   const [expenseBreakdownForSelectedYear, setExpenseBreakdownForSelectedYear] = useState<Array<{ name: string; value: number; fill: string }>>([]);
+  
+  const [annualNarrative, setAnnualNarrative] = useState<string | null>(null);
+  const [isLoadingNarrative, setIsLoadingNarrative] = useState<boolean>(false);
+  const [narrativeError, setNarrativeError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -159,7 +167,51 @@ export default function AnnualSummaryPage() {
         .filter(item => item.value > 0);
     setExpenseBreakdownForSelectedYear(pieData);
 
+    // Resetta il commento AI quando l'anno cambia
+    setAnnualNarrative(null);
+    setNarrativeError(null);
+
   }, [currentYear]);
+
+  const handleGenerateNarrative = async () => {
+    setIsLoadingNarrative(true);
+    setNarrativeError(null);
+    setAnnualNarrative(null);
+
+    const currentYearData = annualOverviewData.find(d => d.year === currentYear);
+    const previousYearData = annualOverviewData.find(d => d.year === (parseInt(currentYear) - 1).toString());
+
+    if (!currentYearData) {
+      setNarrativeError("Dati per l'anno corrente non trovati.");
+      setIsLoadingNarrative(false);
+      return;
+    }
+
+    const input: GenerateAnnualFinancialNarrativeInput = {
+      currentYear: parseInt(currentYear),
+      currentYearIncome: currentYearData.totalIncome,
+      currentYearExpenses: currentYearData.totalExpenses,
+      currentYearNetProfit: currentYearData.netProfit,
+      companyName: "Studio De Vecchi & Mapelli",
+    };
+
+    if (previousYearData) {
+      input.previousYearIncome = previousYearData.totalIncome;
+      input.previousYearExpenses = previousYearData.totalExpenses;
+      input.previousYearNetProfit = previousYearData.netProfit;
+    }
+    
+    try {
+      const result = await generateAnnualFinancialNarrative(input);
+      setAnnualNarrative(result.narrativeText);
+    } catch (e: any) {
+      console.error("Error generating annual narrative:", e);
+      setNarrativeError(e.message || "Si è verificato un errore durante la generazione del commento.");
+    } finally {
+      setIsLoadingNarrative(false);
+    }
+  };
+
 
   return (
     <>
@@ -213,6 +265,55 @@ export default function AnnualSummaryPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center">
+            <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
+            Commento Finanziario Annuale (AI) - {currentYear}
+          </CardTitle>
+          <CardDescription>
+            Un riepilogo generato dall'AI sulla performance finanziaria dell'anno selezionato.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button onClick={handleGenerateNarrative} disabled={isLoadingNarrative}>
+            {isLoadingNarrative ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="mr-2 h-4 w-4" />
+            )}
+            Genera Commento AI per il {currentYear}
+          </Button>
+          {isLoadingNarrative && (
+            <div className="flex items-center justify-center p-4 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Generazione commento in corso...
+            </div>
+          )}
+          {narrativeError && !isLoadingNarrative && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Errore Generazione</AlertTitle>
+              <AlertDescription>{narrativeError}</AlertDescription>
+            </Alert>
+          )}
+          {annualNarrative && !isLoadingNarrative && !narrativeError && (
+             <Textarea
+                value={annualNarrative}
+                readOnly
+                className="min-h-[100px] bg-muted/30 border-dashed"
+                rows={5}
+            />
+          )}
+           {!annualNarrative && !isLoadingNarrative && !narrativeError && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Clicca il pulsante sopra per generare un commento AI sull'anno {currentYear}.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card>
@@ -369,5 +470,3 @@ export default function AnnualSummaryPage() {
     </>
   );
 }
-
-      
