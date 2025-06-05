@@ -102,10 +102,22 @@ export default function BudgetObjectivesPage() {
       });
       setTransactions(fetchedTransactions);
     } catch (error: any) {
-      console.error("Errore caricamento transazioni da Firestore per budget:", error);
+      console.error("!!! Errore caricamento TRANSAZIONI da Firestore (Budget Page):", error);
+      let rawErrorDetails = "Dettaglio grezzo non disponibile.";
+      if (error) {
+        rawErrorDetails = String(error);
+        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
+        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
+      }
+      console.log("RAW ERROR OBJECT (transactions on budget page):", error);
+      try {
+        console.log("ERROR JSON.stringify (transactions on budget page):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      } catch (e_stringify) {
+        console.error("Could not stringify error object (transactions on budget page):", e_stringify);
+      }
       toast({
-        title: "Errore Caricamento Transazioni",
-        description: "Impossibile caricare le transazioni per il calcolo dei budget effettivi.",
+        title: "Errore Caricamento Transazioni (Budget Page)",
+        description: `Impossibile caricare le transazioni per il calcolo dei budget. ${rawErrorDetails}`,
         variant: "destructive",
       });
     } finally {
@@ -124,9 +136,21 @@ export default function BudgetObjectivesPage() {
         fetchedBudgets.push({ id: docSnap.id, ...docSnap.data() } as DefinedBudget);
       });
       setDefinedBudgets(fetchedBudgets);
-    } catch (error) {
-      console.error("Errore caricamento budget da Firestore:", error);
-      toast({ title: "Errore Caricamento Budget", description: "Impossibile caricare i budget definiti.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! Errore caricamento BUDGET da Firestore:", error);
+      let rawErrorDetails = "Dettaglio grezzo non disponibile.";
+      if (error) {
+        rawErrorDetails = String(error);
+        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
+        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
+      }
+      console.log("RAW ERROR OBJECT (budgets):", error);
+      try {
+        console.log("ERROR JSON.stringify (budgets):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      } catch (e_stringify) {
+        console.error("Could not stringify error object (budgets):", e_stringify);
+      }
+      toast({ title: "Errore Caricamento Budget", description: `Impossibile caricare i budget definiti. ${rawErrorDetails}`, variant: "destructive" });
     } finally {
       setIsLoadingBudgets(false);
     }
@@ -143,9 +167,21 @@ export default function BudgetObjectivesPage() {
         fetchedObjectives.push({ id: docSnap.id, ...docSnap.data() } as ObjectiveListItem);
       });
       setObjectives(fetchedObjectives);
-    } catch (error) {
-      console.error("Errore caricamento obiettivi da Firestore:", error);
-      toast({ title: "Errore Caricamento Obiettivi", description: "Impossibile caricare gli obiettivi.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! Errore caricamento OBIETTIVI da Firestore:", error);
+       let rawErrorDetails = "Dettaglio grezzo non disponibile.";
+      if (error) {
+        rawErrorDetails = String(error);
+        if (error.message) rawErrorDetails += ` | Msg: ${error.message}`;
+        if (error.code) rawErrorDetails += ` | Code: ${error.code}`;
+      }
+      console.log("RAW ERROR OBJECT (objectives):", error);
+      try {
+        console.log("ERROR JSON.stringify (objectives):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      } catch (e_stringify) {
+        console.error("Could not stringify error object (objectives):", e_stringify);
+      }
+      toast({ title: "Errore Caricamento Obiettivi", description: `Impossibile caricare gli obiettivi. ${rawErrorDetails}`, variant: "destructive" });
     } finally {
       setIsLoadingObjectives(false);
     }
@@ -304,7 +340,7 @@ export default function BudgetObjectivesPage() {
 
       {isModalOpen && modalType && (
         <BudgetObjectiveModal
-          key={modalType} 
+          key={modalType}
           isOpen={isModalOpen}
           onOpenChange={setIsModalOpen}
           modalType={modalType}
@@ -419,4 +455,3 @@ export default function BudgetObjectivesPage() {
     </>
   );
 }
-
