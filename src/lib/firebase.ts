@@ -6,13 +6,13 @@ import { getAnalytics, type Analytics } from "firebase/analytics";
 // import { getStorage, type FirebaseStorage } from 'firebase/storage'; // Se useremo Storage
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAgOm6Krm0IzH8BhnEzTmOvX22YK0IxKcM",
-  authDomain: "studio-dvo-dentalbalance.firebaseapp.com",
-  projectId: "studio-dvo-dentalbalance",
-  storageBucket: "studio-dvo-dentalbalance.firebasestorage.app", // Corretto da .firebasestorage.app a .appspot.com se quello è il formato standard atteso, altrimenti lascio come fornito. Solitamente è .appspot.com
-  messagingSenderId: "411690245713",
-  appId: "1:411690245713:web:e62cf84c11edadf518e270",
-  measurementId: "G-DVF3EKV745"
+  apiKey: "AIzaSyAkOZvcwoOIFOwlona3JI6aZ930W-3MX0Y",
+  authDomain: "studio-dvo-dentalbalance-5268a.firebaseapp.com",
+  projectId: "studio-dvo-dentalbalance-5268a",
+  storageBucket: "studio-dvo-dentalbalance-5268a.firebasestorage.app",
+  messagingSenderId: "48639551990",
+  appId: "1:48639551990:web:1269469079284227c8bfd7",
+  measurementId: "G-C8T0852YP3"
 };
 
 let app: FirebaseApp;
