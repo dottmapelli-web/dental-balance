@@ -13,13 +13,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set, subMonths, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses, allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies } from "@/config/transaction-categories";
-import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit } from "lucide-react";
+import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit, Loader2 } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import BulkStatusUpdateDialog from '../../components/bulk-status-update-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { type Transaction } from '@/data/transactions-data';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 import { db } from '@/lib/firebase';
 import {
@@ -65,6 +67,7 @@ const columnDisplayNames: Record<keyof Transaction | 'actions', string> = {
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
@@ -81,11 +84,14 @@ export default function TransactionsPage() {
 
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
+    setLoadingError(null);
+    console.log("fetchTransactions: Attempting to fetch transactions from Firestore...");
     try {
       const transactionsCollectionRef = collection(db, "transactions");
       const q = query(transactionsCollectionRef, orderBy("date", "desc"));
       const querySnapshot = await getDocs(q);
       const fetchedTransactions: Transaction[] = [];
+      console.log(`fetchTransactions: querySnapshot received, size: ${querySnapshot.size}`);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         fetchedTransactions.push({
@@ -107,19 +113,22 @@ export default function TransactionsPage() {
         });
       });
       setTransactions(fetchedTransactions);
+      console.log("fetchTransactions: Successfully fetched and set transactions. Count:", fetchedTransactions.length);
     } catch (error: any) {
-      console.error("Errore dettagliato nel caricamento transazioni:", error);
-      if (error.code) {
-        console.error("Codice errore Firestore:", error.code);
-        console.error("Messaggio errore Firestore:", error.message);
-      }
+      console.error("!!! ERROR fetching transactions in fetchTransactions:", error);
+      console.error("fetchTransactions - Error object (raw):", error);
+      let detailedDescription = "Impossibile caricare le transazioni da Firestore.";
+      if (error.message) detailedDescription += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedDescription += ` (Codice: ${error.code})`;
+      setLoadingError(detailedDescription);
       toast({
-        title: "Errore nel Caricamento",
-        description: "Impossibile caricare le transazioni da Firestore. Controlla la console per dettagli.",
+        title: "Errore nel Caricamento Transazioni",
+        description: detailedDescription,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      console.log("fetchTransactions: setIsLoading(false)");
     }
   }, [toast]);
 
@@ -190,66 +199,108 @@ export default function TransactionsPage() {
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
       isRecurring: data.isRecurring || false,
-      originalRecurringId: editingTransaction?.originalRecurringId || null,
+      originalRecurringId: editingTransaction?.originalRecurringId || null, // Mantieni se è un'istanza
     };
 
-    if (data.isRecurring && data.recurrenceFrequency) {
+    if (data.isRecurring && data.recurrenceFrequency && data.type === 'Uscita') { // Solo uscite possono essere ricorrenti (come da modal)
       transactionDataToSave.recurrenceDetails = {
         frequency: data.recurrenceFrequency as RecurrenceFrequency,
-        startDate: Timestamp.fromDate(data.date),
+        startDate: Timestamp.fromDate(data.date), // La data della definizione è la start date
         endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
       };
-      transactionDataToSave.originalRecurringId = null;
+      // Se stiamo creando una *nuova* definizione ricorrente, originalRecurringId deve essere null
+      if (!id) { // Solo per nuove transazioni che sono definizioni ricorrenti
+        transactionDataToSave.originalRecurringId = null;
+      }
     } else {
       transactionDataToSave.recurrenceDetails = null;
+      // Se non è ricorrente (o è un'entrata), non dovrebbe avere dettagli di ricorrenza.
+      // Se era una definizione ricorrente e ora non lo è più, cancelliamo le istanze future?
+      // Per ora, la modifichiamo e basta, le istanze rimangono orfane o devono essere gestite a parte.
+      // Se è un'istanza e la modifichiamo, rimane un'istanza.
     }
-
+    
+    console.log("Attempting to save transaction. ID:", id, "Data to save:", JSON.stringify(transactionDataToSave, null, 2));
 
     try {
-      if (id) {
+      if (id) { // Modifica transazione esistente
         const transactionRef = doc(db, "transactions", id);
         await updateDoc(transactionRef, transactionDataToSave);
         toast({ title: "Transazione Modificata", description: "La transazione è stata aggiornata con successo." });
-      } else {
+        console.log("Transaction updated successfully. ID:", id);
+        // Se una definizione ricorrente viene modificata, potremmo dover aggiornare/ricreare le istanze future.
+        // Questa logica può diventare complessa e per ora non la implementiamo.
+      } else { // Nuova transazione
+        console.log("Adding new transaction (principal doc):", JSON.stringify(transactionDataToSave, null, 2));
         const newDocRef = await addDoc(collection(db, "transactions"), transactionDataToSave);
-        toast({ title: "Transazione Aggiunta", description: "La transazione è stata aggiunta con successo." });
+        toast({ title: "Transazione Principale Aggiunta", description: `La transazione principale (${transactionDataToSave.description || 'N/A'}) è stata creata.` });
+        console.log("Principal transaction added successfully. New ID:", newDocRef.id);
 
-        if (transactionDataToSave.isRecurring && transactionDataToSave.recurrenceDetails) {
+        // Se la nuova transazione è una definizione ricorrente (e quindi non ha un id originale)
+        if (transactionDataToSave.isRecurring && transactionDataToSave.recurrenceDetails && !transactionDataToSave.originalRecurringId) {
+          console.log("Preparing batch for recurring instances. Original Definition ID:", newDocRef.id);
           const batch = writeBatch(db);
-          let currentDate = data.date; 
+          const definitionDate = data.date; // Data della prima occorrenza (la definizione stessa)
           const recurrenceEndDate = data.recurrenceEndDate; 
+          let instancesCreatedCount = 0;
+          const MAX_RECURRING_INSTANCES = 120; // Es: 10 anni di istanze mensili
 
-          for (let i = 0; i < 3; i++) { 
-            let nextDate = currentDate;
+          for (let i = 0; i < MAX_RECURRING_INSTANCES; i++) { 
+            let nextInstanceDate: Date;
+            // Calcola la data dell'istanza (i+1)-esima *dopo* la definizione
             switch(transactionDataToSave.recurrenceDetails.frequency) {
-                case 'Mensile': nextDate = addMonths(currentDate, i + 1); break;
-                case 'Bimestrale': nextDate = addMonths(currentDate, (i + 1) * 2); break;
-                case 'Trimestrale': nextDate = addMonths(currentDate, (i + 1) * 3); break;
-                case 'Semestrale': nextDate = addMonths(currentDate, (i + 1) * 6); break;
-                case 'Annuale': nextDate = addMonths(currentDate, (i + 1) * 12); break;
-                default: nextDate = addMonths(currentDate, i + 1); break;
+                case 'Mensile': nextInstanceDate = addMonths(definitionDate, i + 1); break;
+                case 'Bimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 2); break;
+                case 'Trimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 3); break;
+                case 'Semestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 6); break;
+                case 'Annuale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 12); break;
+                default: nextInstanceDate = addMonths(definitionDate, i + 1); break; // Fallback a mensile
             }
-            if (recurrenceEndDate && nextDate > recurrenceEndDate) break;
+
+            if (recurrenceEndDate && nextInstanceDate > recurrenceEndDate) {
+              console.log(`Recurring instance date ${format(nextInstanceDate, "yyyy-MM-dd")} is after end date ${format(recurrenceEndDate, "yyyy-MM-dd")}. Stopping.`);
+              break; 
+            }
+            
+            console.log(`Generating instance ${i+1} (after definition) for date: ${format(nextInstanceDate, "yyyy-MM-dd")}`);
 
             const instanceData = {
-              ...transactionDataToSave,
-              date: Timestamp.fromDate(nextDate),
-              isRecurring: false,
-              recurrenceDetails: null,
-              originalRecurringId: newDocRef.id,
-              status: 'Pianificato' as TransactionStatus,
+              ...transactionDataToSave, // Copia i dati della definizione
+              date: Timestamp.fromDate(nextInstanceDate), 
+              isRecurring: false, // Le istanze non sono esse stesse definizioni
+              recurrenceDetails: null, 
+              originalRecurringId: newDocRef.id, // Link alla definizione originale
+              status: 'Pianificato' as TransactionStatus, 
             };
-            const newInstanceRef = doc(collection(db, "transactions"));
+            const newInstanceRef = doc(collection(db, "transactions")); // Crea un nuovo ID per l'istanza
             batch.set(newInstanceRef, instanceData);
+            instancesCreatedCount++;
           }
-          await batch.commit();
-          toast({ title: "Istanze Ricorrenti Create", description: "Le prossime istanze sono state pianificate."});
+
+          if (instancesCreatedCount > 0) {
+            console.log(`Attempting to commit batch for ${instancesCreatedCount} recurring instances.`);
+            await batch.commit();
+            toast({ title: "Istanze Ricorrenti Create", description: `${instancesCreatedCount} istanze future sono state pianificate.`});
+            console.log("Recurring instances batch committed successfully.");
+          } else {
+            console.log("No recurring instances to generate or commit for this definition.");
+          }
         }
       }
+      console.log("Requesting fetchTransactions after save operation.");
       fetchTransactions(); 
-    } catch (error) {
-      console.error("Error saving transaction: ", error);
-      toast({ title: "Errore nel Salvataggio", description: "Impossibile salvare la transazione.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! ERROR saving/batching transaction:", error);
+      console.error("Error object (raw):", error);
+      let detailedDescription = "Impossibile salvare la transazione.";
+      if (error.message) detailedDescription += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedDescription += ` (Codice: ${error.code})`;
+      
+      toast({ 
+        title: "Errore nel Salvataggio", 
+        description: detailedDescription,
+        variant: "destructive" 
+      });
     }
     setEditingTransaction(null);
   };
@@ -278,43 +329,59 @@ export default function TransactionsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Sei sicuro di voler eliminare questa transazione e le sue eventuali istanze ricorrenti future?")) return;
+    if (!window.confirm("Sei sicuro di voler eliminare questa transazione e le sue eventuali istanze ricorrenti future pianificate?")) return;
 
+    console.log(`Attempting to delete transaction ID: ${id}`);
     try {
       const batch = writeBatch(db);
       const transactionRef = doc(db, "transactions", id);
       batch.delete(transactionRef);
+      console.log(`Marked transaction ${id} for deletion.`);
 
       const deletedTransaction = transactions.find(t => t.id === id);
+      // Se è una definizione ricorrente, elimina le istanze future pianificate
       if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
-        const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
+        console.log(`Transaction ${id} is a recurring definition. Looking for future instances to delete.`);
+        const instancesQuery = query(
+            collection(db, "transactions"), 
+            where("originalRecurringId", "==", id),
+            where("status", "in", ["Pianificato", "In Attesa"]) // Solo quelle non completate
+        );
         const instancesSnapshot = await getDocs(instancesQuery);
-        instancesSnapshot.forEach(instanceDoc => {
-          const instanceDate = (instanceDoc.data().date as Timestamp).toDate();
-          if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') { 
-             batch.delete(doc(db, "transactions", instanceDoc.id));
-          }
-        });
+        if (instancesSnapshot.empty) {
+            console.log(`No future/pending instances found for recurring definition ${id}.`);
+        } else {
+            instancesSnapshot.forEach(instanceDoc => {
+                console.log(`Marking instance ${instanceDoc.id} (from definition ${id}) for deletion.`);
+                batch.delete(doc(db, "transactions", instanceDoc.id));
+            });
+        }
       }
 
       await batch.commit();
-      toast({ title: "Transazione Eliminata", description: "La transazione e le istanze future sono state rimosse." });
+      console.log(`Batch delete for transaction ${id} (and instances, if any) committed.`);
+      toast({ title: "Transazione Eliminata", description: "La transazione e le istanze future pianificate sono state rimosse." });
       fetchTransactions(); 
       setSelectedRows(prev => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
-    } catch (error) {
-      console.error("Error deleting transaction: ", error);
-      toast({ title: "Errore Eliminazione", description: "Impossibile eliminare la transazione.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! ERROR deleting transaction:", error);
+      console.error("Delete Error object (raw):", error);
+      let detailedDescription = "Impossibile eliminare la transazione.";
+      if (error.message) detailedDescription += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedDescription += ` (Codice: ${error.code})`;
+      toast({ title: "Errore Eliminazione", description: detailedDescription, variant: "destructive" });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedRows.size === 0) return;
-    if (!window.confirm(`Sei sicuro di voler eliminare ${selectedRows.size} transazioni selezionate e le loro eventuali istanze ricorrenti future?`)) return;
-
+    if (!window.confirm(`Sei sicuro di voler eliminare ${selectedRows.size} transazioni selezionate e le loro eventuali istanze ricorrenti future pianificate?`)) return;
+    
+    console.log(`Attempting to bulk delete ${selectedRows.size} transactions.`);
     try {
       const batch = writeBatch(db);
       const idsToDelete = Array.from(selectedRows);
@@ -322,46 +389,62 @@ export default function TransactionsPage() {
       for (const id of idsToDelete) {
         const transactionRef = doc(db, "transactions", id);
         batch.delete(transactionRef);
+        console.log(`Marked transaction ${id} for bulk deletion.`);
         
         const deletedTransaction = transactions.find(t => t.id === id);
         if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
-            const instancesQuery = query(collection(db, "transactions"), where("originalRecurringId", "==", id));
+            console.log(`Transaction ${id} (in bulk delete) is a recurring definition. Looking for future instances.`);
+            const instancesQuery = query(
+                collection(db, "transactions"), 
+                where("originalRecurringId", "==", id),
+                where("status", "in", ["Pianificato", "In Attesa"])
+            );
             const instancesSnapshot = await getDocs(instancesQuery);
             instancesSnapshot.forEach(instanceDoc => {
-                 const instanceDate = (instanceDoc.data().date as Timestamp).toDate();
-                 if (instanceDate >= startOfToday() || deletedTransaction.status !== 'Completato') {
-                    batch.delete(doc(db, "transactions", instanceDoc.id));
-                 }
+                console.log(`Marking instance ${instanceDoc.id} (from definition ${id}) for bulk deletion.`);
+                batch.delete(doc(db, "transactions", instanceDoc.id));
             });
         }
       }
       await batch.commit();
-      toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate sono state rimosse.` });
+      console.log(`Bulk delete batch committed for ${idsToDelete.length} transactions.`);
+      toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate e le loro istanze future pianificate sono state rimosse.` });
       fetchTransactions(); 
       setSelectedRows(new Set());
-    } catch (error) {
-      console.error("Error bulk deleting transactions: ", error);
-      toast({ title: "Errore Eliminazione Multipla", description: "Impossibile eliminare le transazioni selezionate.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! ERROR bulk deleting transactions:", error);
+      console.error("Bulk Delete Error object (raw):", error);
+      let detailedDescription = "Impossibile eliminare le transazioni selezionate.";
+      if (error.message) detailedDescription += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedDescription += ` (Codice: ${error.code})`;
+      toast({ title: "Errore Eliminazione Multipla", description: detailedDescription, variant: "destructive" });
     }
   };
 
 
   const handleBulkStatusUpdateConfirm = async (newStatus: TransactionStatus) => {
     if (selectedRows.size === 0) return;
+    console.log(`Attempting to bulk update status to "${newStatus}" for ${selectedRows.size} transactions.`);
     try {
       const batch = writeBatch(db);
       selectedRows.forEach(id => {
         const transactionRef = doc(db, "transactions", id);
         batch.update(transactionRef, { status: newStatus });
+        console.log(`Marked transaction ${id} for status update to "${newStatus}".`);
       });
       await batch.commit();
+      console.log(`Bulk status update batch to "${newStatus}" committed.`);
       toast({ title: "Stato Aggiornato", description: `Lo stato di ${selectedRows.size} transazioni è stato aggiornato a "${newStatus}".` });
       fetchTransactions(); 
       setSelectedRows(new Set());
       setIsBulkStatusModalOpen(false);
-    } catch (error) {
-      console.error("Error bulk updating status: ", error);
-      toast({ title: "Errore Aggiornamento Stato", description: "Impossibile aggiornare lo stato delle transazioni.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("!!! ERROR bulk updating status:", error);
+      console.error("Bulk Status Update Error object (raw):", error);
+      let detailedDescription = "Impossibile aggiornare lo stato delle transazioni.";
+      if (error.message) detailedDescription += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedDescription += ` (Codice: ${error.code})`;
+      toast({ title: "Errore Aggiornamento Stato", description: detailedDescription, variant: "destructive" });
     }
   };
 
@@ -393,13 +476,16 @@ export default function TransactionsPage() {
     setIsModalOpen(true);
   };
 
-  if (isLoading) {
+
+  if (isLoading && transactions.length === 0) { // Mostra solo al caricamento iniziale se non ci sono dati vecchi
     return (
-      <div className="flex justify-center items-center h-64">
-        <p>Caricamento transazioni...</p>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">Caricamento transazioni da Firestore...</p>
       </div>
     );
   }
+
 
   return (
     <TooltipProvider>
@@ -417,6 +503,14 @@ export default function TransactionsPage() {
           </div>
         }
       />
+
+      {loadingError && !isLoading && (
+         <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore Caricamento Transazioni</AlertTitle>
+          <AlertDescription>{loadingError} La tabella potrebbe non essere aggiornata o completa.</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openModalForNew('Entrata')}>
@@ -461,12 +555,14 @@ export default function TransactionsPage() {
             <Repeat className="mr-2 h-5 w-5 text-primary" />
             Transazioni Ricorrenti Definite
           </CardTitle>
-          <CardDescription>Elenco delle tue spese e entrate ricorrenti principali.</CardDescription>
+          <CardDescription>Elenco delle tue spese e entrate ricorrenti principali (solo definizioni).</CardDescription>
         </CardHeader>
         <CardContent>
-          {recurringTransactionsDefinitions.length === 0 ? (
+          {isLoading && recurringTransactionsDefinitions.length === 0 && <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>}
+          {!isLoading && recurringTransactionsDefinitions.length === 0 && !loadingError && (
             <p className="text-sm text-muted-foreground">Nessuna transazione ricorrente definita.</p>
-          ) : (
+          )}
+          {!isLoading && recurringTransactionsDefinitions.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -602,118 +698,120 @@ export default function TransactionsPage() {
             )}
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40px]">
-                  <Checkbox
-                    checked={selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0}
-                    onCheckedChange={handleSelectAllRows}
-                    aria-label="Seleziona tutte"
-                  />
-                </TableHead>
-                {columnOrder.map(key => (
-                    <TableHead key={key} onClick={() => key !== 'actions' && handleSort(key as keyof Transaction)} className={key !== 'actions' ? "cursor-pointer hover:bg-muted/50" : ""}>
-                        <div className="flex items-center">
-                            {columnDisplayNames[key as keyof Transaction | 'actions']}
-                            {sortConfig.key === key && key !== 'actions' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
-                            {sortConfig.key !== key && key !== 'actions' && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
-                        </div>
-                    </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedTransactions.map((transaction) => (
-                <TableRow key={transaction.id} data-state={selectedRows.has(transaction.id) ? "selected" : ""}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedRows.has(transaction.id)}
-                      onCheckedChange={() => handleSelectRow(transaction.id)}
-                      aria-label={`Seleziona transazione ${transaction.description}`}
-                    />
-                  </TableCell>
-                  <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
-                  <TableCell>
-                    <Badge variant={transaction.type === "Entrata" ? "default" : "destructive"} className={transaction.type === "Entrata" ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 border-green-200 dark:border-green-700" : "bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-300 border-red-200 dark:border-red-700"}>
-                      {transaction.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{transaction.category}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
-                  </TableCell>
-                   <TableCell className={`text-right font-semibold ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    €{transaction.type === 'Entrata' ? transaction.amount.toFixed(2) : Math.abs(transaction.amount).toFixed(2)}
-                  </TableCell>
-                  <TableCell className="font-medium flex items-center">
-                    <span className="truncate max-w-[200px] inline-block" title={transaction.description}>{transaction.description}</span>
-                    {transaction.isRecurring && !transaction.originalRecurringId && (
-                      <Tooltip>
-                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-blue-500 flex-shrink-0" /></TooltipTrigger>
-                        <TooltipContent><p>Transazione Ricorrente (Definizione)</p></TooltipContent>
-                      </Tooltip>
-                    )}
-                    {transaction.originalRecurringId && (
-                      <Tooltip>
-                        <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0" /></TooltipTrigger>
-                        <TooltipContent><p>Istanza di transazione ricorrente</p></TooltipContent>
-                      </Tooltip>
-                    )}
-                    </TableCell>
-                  <TableCell>
-                     <Badge
-                        variant={transaction.status === "Completato" ? "default" : transaction.status === "In Attesa" ? "secondary" : "outline"}
-                        className={
-                            transaction.status === "Completato" ? "border-green-500 text-green-600 dark:border-green-600 dark:text-green-400 bg-green-500/10" :
-                            transaction.status === "In Attesa" ? "border-yellow-500 text-yellow-600 dark:border-yellow-600 dark:text-yellow-400 bg-yellow-500/10" :
-                            "border-blue-500 text-blue-600 dark:border-blue-600 dark:text-blue-400 bg-blue-500/10"
-                        }
-                     >
-                        {transaction.status}
-                      </Badge>
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleDuplicate(transaction)}>
-                              <Copy className="h-4 w-4" />
-                          </Button>
-                      </TooltipTrigger>
-                      <TooltipContent><p>Duplica Transazione</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}
-                                    disabled={!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring}
-                            >
-                            <Edit3 className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>{!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring ? "Modifica la definizione ricorrente originale" : "Modifica Transazione/Definizione"}</p></TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(transaction.id)}>
-                            <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Elimina</p></TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredAndSortedTransactions.length === 0 && (
+          {isLoading && transactions.length === 0 && <div className="text-center p-6"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Caricamento istanze transazioni...</p></div>}
+          {!isLoading && transactions.length === 0 && !loadingError && (
+             <p className="text-center text-muted-foreground py-10">Nessuna transazione trovata in Firestore. Inizia aggiungendone qualcuna!</p>
+          )}
+          {filteredAndSortedTransactions.length > 0 && (
+            <Table>
+                <TableHeader>
                 <TableRow>
-                    <TableCell colSpan={columnOrder.length + 1} className="text-center text-muted-foreground h-24">
-                        Nessuna transazione trovata per i filtri selezionati.
-                    </TableCell>
+                    <TableHead className="w-[40px]">
+                    <Checkbox
+                        checked={selectedRows.size === filteredAndSortedTransactions.length && filteredAndSortedTransactions.length > 0}
+                        onCheckedChange={handleSelectAllRows}
+                        aria-label="Seleziona tutte"
+                    />
+                    </TableHead>
+                    {columnOrder.map(key => (
+                        <TableHead key={key} onClick={() => key !== 'actions' && handleSort(key as keyof Transaction)} className={key !== 'actions' ? "cursor-pointer hover:bg-muted/50" : ""}>
+                            <div className="flex items-center">
+                                {columnDisplayNames[key as keyof Transaction | 'actions']}
+                                {sortConfig.key === key && key !== 'actions' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+                                {sortConfig.key !== key && key !== 'actions' && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
+                            </div>
+                        </TableHead>
+                    ))}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {filteredAndSortedTransactions.map((transaction) => (
+                    <TableRow key={transaction.id} data-state={selectedRows.has(transaction.id) ? "selected" : ""}>
+                    <TableCell>
+                        <Checkbox
+                        checked={selectedRows.has(transaction.id)}
+                        onCheckedChange={() => handleSelectRow(transaction.id)}
+                        aria-label={`Seleziona transazione ${transaction.description}`}
+                        />
+                    </TableCell>
+                    <TableCell>{isValid(parseISO(transaction.date)) ? format(parseISO(transaction.date), "dd/MM/yyyy", { locale: it }) : "Data non valida"}</TableCell>
+                    <TableCell>
+                        <Badge variant={transaction.type === "Entrata" ? "default" : "destructive"} className={transaction.type === "Entrata" ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300 border-green-200 dark:border-green-700" : "bg-red-100 text-red-700 dark:bg-red-800/50 dark:text-red-300 border-red-200 dark:border-red-700"}>
+                        {transaction.type}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant="secondary">{transaction.category}</Badge>
+                    </TableCell>
+                    <TableCell>
+                        {transaction.subcategory ? <Badge variant="outline">{transaction.subcategory}</Badge> : "-"}
+                    </TableCell>
+                    <TableCell className={`text-right font-semibold ${transaction.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        €{transaction.type === 'Entrata' ? transaction.amount.toFixed(2) : Math.abs(transaction.amount).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="font-medium flex items-center">
+                        <span className="truncate max-w-[200px] inline-block" title={transaction.description}>{transaction.description}</span>
+                        {transaction.isRecurring && !transaction.originalRecurringId && (
+                        <Tooltip>
+                            <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-blue-500 flex-shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p>Transazione Ricorrente (Definizione)</p></TooltipContent>
+                        </Tooltip>
+                        )}
+                        {transaction.originalRecurringId && (
+                        <Tooltip>
+                            <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0" /></TooltipTrigger>
+                            <TooltipContent><p>Istanza di transazione ricorrente</p></TooltipContent>
+                        </Tooltip>
+                        )}
+                        </TableCell>
+                    <TableCell>
+                        <Badge
+                            variant={transaction.status === "Completato" ? "default" : transaction.status === "In Attesa" ? "secondary" : "outline"}
+                            className={
+                                transaction.status === "Completato" ? "border-green-500 text-green-600 dark:border-green-600 dark:text-green-400 bg-green-500/10" :
+                                transaction.status === "In Attesa" ? "border-yellow-500 text-yellow-600 dark:border-yellow-600 dark:text-yellow-400 bg-yellow-500/10" :
+                                "border-blue-500 text-blue-600 dark:border-blue-600 dark:text-blue-400 bg-blue-500/10"
+                            }
+                        >
+                            {transaction.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                        <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => handleDuplicate(transaction)}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Duplica Transazione</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(transaction)}
+                                        disabled={!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring}
+                                >
+                                <Edit3 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{!!transaction.originalRecurringId && transaction.isRecurring === false && !transactions.find(t => t.id === transaction.originalRecurringId)?.isRecurring ? "Modifica la definizione ricorrente originale" : "Modifica Transazione/Definizione"}</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(transaction.id)}>
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Elimina</p></TooltipContent>
+                        </Tooltip>
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+          )}
+          {!isLoading && filteredAndSortedTransactions.length === 0 && transactions.length > 0 && !loadingError && (
+             <p className="text-center text-muted-foreground py-10">Nessuna transazione trovata per i filtri selezionati.</p>
+          )}
         </CardContent>
       </Card>
     </TooltipProvider>
