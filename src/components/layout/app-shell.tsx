@@ -18,7 +18,7 @@ import {
 import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { cn } from '@/lib/utils';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
-import AuthModal from '@/components/auth-modal'; // Changed back to alias path
+import AuthModal from '@/components/auth-modal'; // Ensuring alias import
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import FullScreenLoader from '@/components/ui/full-screen-loader';
@@ -29,13 +29,13 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
     <defs>
       <style>
-        {`
+        {\`
           .logo-text { font-family: 'Literata', 'Georgia', serif; }
           .logo-text-main { fill: hsl(var(--sidebar-foreground)); }
           .logo-text-amp { fill: hsl(var(--sidebar-primary)); }
           .divider-line { stroke: hsl(var(--sidebar-foreground)); stroke-width:1.5; }
           .tooth-icon { fill: hsl(var(--sidebar-primary)); }
-        `}
+        \`}
       </style>
     </defs>
     <g transform="translate(10, 22.5)" className="tooth-icon">
@@ -77,17 +77,11 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleTransactionSubmit = (data: TransactionFormData) => {
-    // This function is likely a placeholder or needs to be connected to the actual
-    // transaction creation logic, which is currently in transactions/page.tsx
-    // For now, it just shows a toast.
     console.log("AppShell transaction submitted (simulated):", data);
     toast({
       title: "Transazione Aggiunta (Simulato da AppShell)",
-      description: `Aggiunta ${data.type}: ${data.description || 'N/A'} - €${data.amount.toFixed(2)}`,
+      description: \`Aggiunta \${data.type}: \${data.description || 'N/A'} - €\${data.amount.toFixed(2)}\`,
     });
-    // If this modal is meant to *actually* create transactions,
-    // it needs to call the same Firestore logic as in transactions/page.tsx
-    // or that logic needs to be centralized (e.g., in AuthContext or a new service).
   };
 
   const handleGenerateReport = () => {
@@ -107,7 +101,6 @@ export default function AppShell({ children }: AppShellProps) {
     return <FullScreenLoader message="Autenticazione in corso..." />;
   }
 
-  // Se l'utente è autenticato, mostra l'app completa
   if (user) {
     return (
       <SidebarProvider defaultOpen>
@@ -200,7 +193,7 @@ export default function AppShell({ children }: AppShellProps) {
           isOpen={isTransactionModalOpen}
           onOpenChange={setTransactionModalOpen}
           transactionTypeInitial={transactionTypeForModal}
-          onSubmitSuccess={handleTransactionSubmit} // This needs to be connected to actual save logic
+          onSubmitSuccess={handleTransactionSubmit}
         />
         <AuthModal 
           isOpen={isAuthModalOpen}
@@ -210,7 +203,6 @@ export default function AppShell({ children }: AppShellProps) {
     );
   }
 
-  // Se l'utente NON è autenticato, mostra la schermata di login
   if (!user && mounted) {
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
@@ -249,6 +241,5 @@ export default function AppShell({ children }: AppShellProps) {
     );
   }
 
-  return null; // Should not be reached if mounted and authLoading are handled
+  return null;
 }
-
