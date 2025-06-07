@@ -59,6 +59,7 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+
 interface AppShellProps {
   children: React.ReactNode;
 }
@@ -91,103 +92,100 @@ export default function AppShell({ children }: AppShellProps) {
       title: "Impostazioni",
       href: "/settings",
       icon: Settings,
-      disabled: true,
+      disabled: true, // TODO: Implement settings page
     }
   ];
 
   return (
     <SidebarProvider defaultOpen>
-      <div className="min-h-screen flex flex-col bg-muted/40 print-hidden">
-        <Sidebar side="left" variant="sidebar" collapsible="icon">
-          <SidebarHeader className="items-center">
-            <BrandLogoIcon className="h-10 w-auto group-data-[collapsible=icon]:hidden" />
-            <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
-          </SidebarHeader>
-          <SidebarContent>
-            <MainSidebarNav items={siteConfig.navItems} />
-          </SidebarContent>
-          <SidebarFooter>
-            {subHeaderNavItems && subHeaderNavItems.length > 0 && <MainSidebarNav items={subHeaderNavItems} />}
-          </SidebarFooter>
-        </Sidebar>
+      <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-2 border-red-500"> {/* DEBUG BORDER */}
+        <SidebarHeader className="items-center">
+          <BrandLogoIcon className="h-10 w-auto group-data-[collapsible=icon]:hidden" />
+          <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
+        </SidebarHeader>
+        <SidebarContent>
+          <MainSidebarNav items={siteConfig.navItems} />
+        </SidebarContent>
+        <SidebarFooter>
+          {subHeaderNavItems && subHeaderNavItems.length > 0 && <MainSidebarNav items={subHeaderNavItems} />}
+        </SidebarFooter>
+      </Sidebar>
 
-        {/* SidebarInset è il contenitore principale per header e contenuto pagina */}
-        <SidebarInset> 
-          <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden">
-            <SidebarTrigger className="md:hidden" />
-            
-            <div className="flex flex-col sm:hidden">
-              <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
-            </div>
-            
-            <div className="flex-1" />
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              aria-label="Toggle theme"
-            >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
-
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">Utente</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOutIcon className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setIsAuthModalOpen(true)}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Accedi / Registrati
-              </Button>
-            )}
-          </header>
+      <SidebarInset className="border-2 border-green-500"> {/* DEBUG BORDER on SidebarInset (main tag) */}
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden border-2 border-blue-500"> {/* DEBUG BORDER */}
+          <SidebarTrigger className="md:hidden" />
           
-          {/* Questo div ora contiene il contenuto della pagina, prendendo lo spazio rimanente */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            {user ? (
-              children
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full">
-                <Card className="w-full max-w-md shadow-lg">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Accesso Richiesto</CardTitle>
-                    <CardDescription>
-                      Per continuare e accedere alle funzionalità dell'applicazione, per favore effettua il login o crea un nuovo account.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col items-center">
-                    <LogIn className="h-16 w-16 text-primary mb-6" />
-                    <Button className="w-full" onClick={() => setIsAuthModalOpen(true)} size="lg">
-                      Accedi o Registrati
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+          <div className="flex flex-col sm:hidden">
+            <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
           </div>
-        </SidebarInset>
-      </div>
+          
+          <div className="flex-1" /> {/* Spacer */}
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            aria-label="Toggle theme"
+          >
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          </Button>
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                  <Avatar className="h-9 w-9">
+                    {/* <AvatarImage src={user.photoURL || ""} alt="User avatar" /> */}
+                    <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">Utente</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOutIcon className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setIsAuthModalOpen(true)}>
+              <LogIn className="mr-2 h-4 w-4" />
+              Accedi / Registrati
+            </Button>
+          )}
+        </header>
+        
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 border-2 border-purple-500"> {/* DEBUG BORDER on content wrapper */}
+          {user ? (
+            children
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full">
+              <Card className="w-full max-w-md shadow-lg">
+                <CardHeader className="text-center">
+                  <CardTitle className="text-2xl">Accesso Richiesto</CardTitle>
+                  <CardDescription>
+                    Per continuare e accedere alle funzionalità dell'applicazione, per favore effettua il login o crea un nuovo account.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center">
+                  <LogIn className="h-16 w-16 text-primary mb-6" />
+                  <Button className="w-full" onClick={() => setIsAuthModalOpen(true)} size="lg">
+                    Accedi o Registrati
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </SidebarInset>
       <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
     </SidebarProvider>
   );
