@@ -2,12 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-// Rimosso PageHeader generico da qui, costruiremo un header custom
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, PlusCircle, MinusCircle, FileText } from "lucide-react"; // Aggiunte icone
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, PlusCircle, MinusCircle, FileText } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
@@ -17,9 +16,9 @@ import { collection, getDocs, query, where, Timestamp, orderBy } from 'firebase/
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { siteConfig } from '@/config/site'; // Importa siteConfig per il nome dell'app
-import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal'; // Per aprire il modale
-import { useRouter } from 'next/navigation'; // Per navigazione
+import { siteConfig } from '@/config/site';
+import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+import { useRouter } from 'next/navigation';
 
 const dashboardChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
@@ -41,7 +40,6 @@ export default function DashboardPage() {
   const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
-  // State per il TransactionModal
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
 
@@ -157,7 +155,7 @@ export default function DashboardPage() {
 
   }, [transactions, isLoadingTransactions, transactionsError]);
 
-  const handleGenerateInsight = async () => {
+  const handleGenerateInsight = useCallback(async () => {
     if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0) {
         setDashboardInsight("Nessun dato di entrate o uscite per il mese corrente per generare un insight dettagliato.");
         setInsightError(null);
@@ -165,7 +163,7 @@ export default function DashboardPage() {
     }
     setIsLoadingInsight(true);
     setInsightError(null);
-    setDashboardInsight(null);
+    setDashboardInsight(null); // Clear previous insight before generating new one
     try {
       const input: GenerateDashboardInsightInput = {
         totalIncome: currentMonthSummary.income,
@@ -179,11 +177,34 @@ export default function DashboardPage() {
       console.error("Error generating dashboard insight:", e);
       const errorMessage = e.message || "Errore sconosciuto durante la generazione dell'insight.";
       setInsightError(`Errore AI: ${errorMessage}`);
+      setDashboardInsight(null); // Ensure insight is cleared on error
       toast({ title: "Errore Generazione Insight", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingInsight(false);
     }
-  };
+  }, [currentMonthSummary, toast, setIsLoadingInsight, setInsightError, setDashboardInsight]);
+  
+  useEffect(() => {
+    if (
+      !isLoadingTransactions &&
+      !transactionsError &&
+      (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
+      !dashboardInsight && 
+      !isLoadingInsight && 
+      !insightError        
+    ) {
+      handleGenerateInsight();
+    }
+  }, [
+    currentMonthSummary,
+    dashboardInsight,
+    isLoadingInsight,
+    insightError,
+    handleGenerateInsight,
+    isLoadingTransactions,
+    transactionsError
+  ]);
+
 
   const handleOpenTransactionModal = (type: 'Entrata' | 'Uscita') => {
     setTransactionTypeForModal(type);
@@ -191,15 +212,12 @@ export default function DashboardPage() {
   };
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    // Questa è una funzione di base per chiudere il modale e ricaricare.
-    // La logica effettiva di salvataggio è in `transactions/page.tsx`
-    // Se si vuole salvare direttamente dalla dashboard, questa funzione andrebbe espansa.
     console.log("Transaction submitted from dashboard (placeholder):", data, id);
     setIsTransactionModalOpen(false);
     fetchFirestoreTransactions(); 
     toast({
       title: `Transazione ${id ? 'Modificata' : 'Aggiunta'} (Placeholder)`,
-      description: `Azione completata per ${data.description || 'N/A'}.`,
+      description: `Azione completata per ${data.description || 'N/A'}. Per il salvataggio effettivo, usare la pagina Transazioni.`,
     });
   };
   
@@ -214,7 +232,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* === CUSTOM DASHBOARD HEADER === */}
       <div className="mb-6">
         <h1 className="text-3xl font-headline font-bold tracking-tight md:text-4xl">
           {siteConfig.name}
@@ -237,7 +254,6 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
-      {/* === END CUSTOM DASHBOARD HEADER === */}
 
       {transactionsError && (
         <Alert variant="destructive" className="mb-6">
@@ -301,7 +317,7 @@ export default function DashboardPage() {
             <CardContent className="space-y-4">
               <Button 
                 onClick={handleGenerateInsight} 
-                disabled={isLoadingInsight || isLoadingTransactions || (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && transactions.length > 0)}
+                disabled={isLoadingInsight || isLoadingTransactions || (!isLoadingTransactions && currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)}
               >
                 {isLoadingInsight ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -333,13 +349,11 @@ export default function DashboardPage() {
               )}
               {!dashboardInsight && !isLoadingInsight && !insightError && (
                  <p className="text-sm text-muted-foreground text-center py-4">
-                  {(isLoadingTransactions && transactions.length === 0) 
+                  {isLoadingTransactions 
                       ? "Caricamento dati transazioni in corso..."
-                      : (transactions.length === 0 && !isLoadingTransactions)
-                          ? "Nessuna transazione registrata in Firestore per generare un insight."
-                          : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions)
-                              ? `Nessun dato finanziario per il mese corrente per generare un insight.`
-                              : `Clicca il pulsante sopra per generare un insight AI sul mese corrente.`}
+                      : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)
+                          ? `Nessun dato finanziario per il mese corrente per generare un insight.`
+                          : `Insight AI non ancora disponibile. Prova a generarlo manualmente.`}
                 </p>
               )}
             </CardContent>
@@ -366,10 +380,11 @@ export default function DashboardPage() {
         isOpen={isTransactionModalOpen}
         onOpenChange={setIsTransactionModalOpen}
         transactionTypeInitial={transactionTypeForModal}
-        // editingTransaction={null} // In questo contesto, non modifichiamo transazioni esistenti
-        onSubmitSuccess={handleTransactionSubmit} // Usiamo la versione placeholder
+        onSubmitSuccess={handleTransactionSubmit}
       />
     </>
   );
 }
     
+
+      
