@@ -25,10 +25,12 @@ import FullScreenLoader from '@/components/ui/full-screen-loader';
 // import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 // import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Simplified BrandLogoIcon from previous step
+
+// Simplified BrandLogoIcon from previous step - this should be safe now
 const BrandLogoIcon = ({ className }: { className?: string }) => (
-  <div className={cn("p-2 bg-muted text-muted-foreground", className)}>Logo</div>
+    <div className={cn("p-2 bg-muted text-muted-foreground", className)}>Logo</div>
 );
+
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -36,19 +38,17 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [mounted, setMounted] = useState(false);
-  const { user, loading: authLoading, logout, login, signup } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth(); // Removed login, signup for now from destructuring as modal is simplified
   // const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Keep this commented
+
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted || authLoading) {
-    return <FullScreenLoader message="Caricamento applicazione..." />;
+    return <FullScreenLoader message="Caricamento applicazione (auth context test)..." />;
   }
-
-  // For now, we are not showing the "Accesso Richiesto" screen or automatically opening the modal.
-  // We'll just display a basic header and the children.
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -65,7 +65,7 @@ export default function AppShell({ children }: AppShellProps) {
             <Button variant="outline" size="sm" onClick={logout}>Logout</Button>
           </div>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => alert("AuthModal would open here") /* setIsAuthModalOpen(true) */}>
+          <Button variant="outline" size="sm" onClick={() => alert("AuthModal (simplified) would open here for login/signup") /* setIsAuthModalOpen(true) */}>
             Accedi / Registrati (Test)
           </Button>
         )}
@@ -73,7 +73,7 @@ export default function AppShell({ children }: AppShellProps) {
       <main className="flex-1 overflow-auto p-4 sm:p-6">
         {children}
       </main>
-      {/* <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} /> */}
+      {/* <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />  // AuthModal is simplified, don't try to use it with AuthProvider yet*/}
     </div>
   );
 }
