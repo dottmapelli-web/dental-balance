@@ -1,12 +1,12 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 // import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
-// import AuthModal from '@/components/auth-modal'; // AuthModal ancora commentato
-import { useAuth } from '@/contexts/auth-context'; // Reintrodotto useAuth
-import FullScreenLoader from '@/components/ui/full-screen-loader'; // Reintrodotto FullScreenLoader
+import AuthModal from '@/components/auth-modal'; // Re-enable the actual AuthModal import
+// import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
+import FullScreenLoader from '@/components/ui/full-screen-loader';
 // import { UserCircle, PlusCircle, FileText, Moon, Sun, LogOut, LogIn, Menu } from 'lucide-react';
 // import { useTheme } from "next-themes";
 // import { siteConfig } from '@/config/site';
@@ -24,7 +24,6 @@ import FullScreenLoader from '@/components/ui/full-screen-loader'; // Reintrodot
 // import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-// BrandLogoIcon super-semplificato
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <div className={cn("p-2 bg-primary text-primary-foreground text-xs font-bold", className)}>LOGO</div>
 );
@@ -35,8 +34,8 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [mounted, setMounted] = useState(false);
-  const { user, loading: authLoading } = useAuth(); // logout non è ancora usato
-  // const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // AuthModal non usato
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -46,7 +45,15 @@ export default function AppShell({ children }: AppShellProps) {
     return <FullScreenLoader message="Caricamento App (Auth)..." />;
   }
 
-  // Header e logica di autenticazione semplificati al massimo
+  const handleOpenAuthModal = () => {
+    setIsAuthModalOpen(true);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 flex h-16 items-center gap-x-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 print:hidden">
@@ -59,21 +66,20 @@ export default function AppShell({ children }: AppShellProps) {
         {user ? (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{user.email}</span>
-            <Button variant="outline" size="sm" onClick={() => alert("Logout Placeholder")}>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
               Logout
             </Button>
           </div>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => alert("Auth Placeholder: Apri Modale Login/Signup")}>
-              Accedi / Registrati (Placeholder)
+          <Button variant="outline" size="sm" onClick={handleOpenAuthModal}>
+              Accedi / Registrati
           </Button>
         )}
       </header>
       <main className="flex-1 overflow-auto p-4 sm:p-6">
         {children}
       </main>
-      {/* AuthModal e TransactionModal non vengono renderizzati attivamente qui per ora */}
-      {/* <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} /> */}
+      <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
     </div>
   );
 }
