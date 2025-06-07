@@ -114,10 +114,15 @@ export default function AppShell({ children }: AppShellProps) {
         <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden"> 
           <SidebarTrigger className="md:hidden" />
           
-          {/* App Name - Always visible */}
-          <h1 className="text-xl font-semibold text-foreground hidden md:block">{siteConfig.name}</h1>
-          <div className="flex items-center md:hidden">
-             <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
+          {/* App Name - Visible on Desktop */}
+          <div className="hidden md:flex flex-col items-start">
+            <span className="text-2xl font-bold text-foreground leading-tight">Studio De Vecchi & Mapelli</span>
+            <span className="text-base font-medium text-muted-foreground -mt-1 leading-tight">{siteConfig.name}</span>
+          </div>
+          {/* App Name - Visible on Mobile */}
+          <div className="flex md:hidden flex-col items-start ml-1">
+            <span className="text-base font-bold text-foreground leading-tight truncate max-w-[200px] sm:max-w-xs">Studio De Vecchi & Mapelli</span>
+            <span className="text-xs font-medium text-muted-foreground -mt-1 leading-tight">{siteConfig.name}</span>
           </div>
           
           <div className="flex-1" /> 
