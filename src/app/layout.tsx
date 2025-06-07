@@ -3,16 +3,13 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import AppShell from '@/components/layout/app-shell';
-import { siteConfig } from '@/config/site';
-import { ThemeProvider } from "next-themes";
+import AppShell from '@/components/layout/app-shell'; // AppShell è già semplificata
+// import { siteConfig } from '@/config/site'; // Temporaneamente rimosso
+// import { ThemeProvider } from "next-themes"; // Temporaneamente rimosso
 
 export const metadata: Metadata = {
-  title: {
-    default: siteConfig.name,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
+  title: "Dental Balance - Test Semplificato",
+  description: "Test di caricamento semplificato",
 };
 
 export default function RootLayout({
@@ -23,30 +20,19 @@ export default function RootLayout({
   return (
     <html lang="it" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&display=swap" rel="stylesheet" />
+        {/* Font links temporaneamente rimossi */}
       </head>
       <body
         className={cn(
-          "min-h-screen bg-background font-body antialiased"
+          "min-h-screen bg-background font-sans antialiased" // Usiamo font-sans di default
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AppShell>
-            {children}
-          </AppShell>
-          <Toaster />
-        </ThemeProvider>
+        {/* ThemeProvider temporaneamente rimosso */}
+        <AppShell> {/* AppShell è già stata semplificata nella risposta precedente */}
+          {children}
+        </AppShell>
+        <Toaster />
       </body>
     </html>
   );
 }
-
-    
