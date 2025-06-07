@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/contexts/auth-context';
 import FullScreenLoader from '@/components/ui/full-screen-loader';
-import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard } from 'lucide-react';
+import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard, PlusCircle, MinusCircle } from 'lucide-react';
 import { useTheme } from "next-themes";
 import { siteConfig } from '@/config/site';
 import {
@@ -23,6 +23,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
+import { useToast } from '@/hooks/use-toast';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
@@ -68,6 +70,10 @@ export default function AppShell({ children }: AppShellProps) {
   const { user, loading: authLoading, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { setTheme, theme } = useTheme();
+  const { toast } = useToast();
+
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
 
   useEffect(() => {
     setMounted(true);
@@ -95,6 +101,20 @@ export default function AppShell({ children }: AppShellProps) {
     }
   ];
 
+  const handleOpenTransactionModal = (type: 'Entrata' | 'Uscita') => {
+    setTransactionTypeForModal(type);
+    setIsTransactionModalOpen(true);
+  };
+
+  const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
+    console.log("Global transaction modal submitted (placeholder):", data, id);
+    setIsTransactionModalOpen(false);
+    toast({
+      title: `Azione Registrata (Placeholder)`,
+      description: `L'aggiunta/modifica di "${data.description || 'N/A'}" è stata registrata. Il salvataggio effettivo avviene nella pagina Transazioni.`,
+    });
+  };
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar side="left" variant="sidebar" collapsible="icon" className=""> 
@@ -111,30 +131,67 @@ export default function AppShell({ children }: AppShellProps) {
       </Sidebar>
 
       <SidebarInset className=""> 
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden"> 
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-x-2 sm:gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm print-hidden">
           <SidebarTrigger className="md:hidden" />
           
-          {/* App Name - Visible on Desktop */}
-          <div className="hidden md:flex flex-col items-start">
-            <span className="text-2xl font-bold text-foreground leading-tight">Studio De Vecchi & Mapelli</span>
-            <span className="text-base font-medium text-muted-foreground -mt-1 leading-tight">{siteConfig.name}</span>
-          </div>
-          {/* App Name - Visible on Mobile */}
-          <div className="flex md:hidden flex-col items-start ml-1">
-            <span className="text-base font-bold text-foreground leading-tight truncate max-w-[200px] sm:max-w-xs">Studio De Vecchi & Mapelli</span>
-            <span className="text-xs font-medium text-muted-foreground -mt-1 leading-tight">{siteConfig.name}</span>
+          <div className="flex flex-col items-start">
+            <span className="text-base font-bold text-foreground leading-tight md:text-2xl">Studio De Vecchi & Mapelli</span>
+            <span className="text-xs font-medium text-muted-foreground -mt-1 leading-tight md:text-base">{siteConfig.name}</span>
           </div>
           
           <div className="flex-1" /> 
+
+          {user && (
+            <>
+              {/* Desktop Buttons */}
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-green-500 hover:bg-green-600 text-white hidden md:flex"
+                onClick={() => handleOpenTransactionModal('Entrata')}
+              >
+                <PlusCircle className="mr-2 h-4 w-4" /> Nuova Entrata
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-red-500 hover:bg-red-600 text-white ml-2 hidden md:flex"
+                onClick={() => handleOpenTransactionModal('Uscita')}
+              >
+                <MinusCircle className="mr-2 h-4 w-4" /> Nuova Uscita
+              </Button>
+
+              {/* Mobile Icon Buttons */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-green-500 hover:bg-green-600 text-white rounded-full md:hidden h-8 w-8 sm:h-9 sm:w-9"
+                onClick={() => handleOpenTransactionModal('Entrata')}
+                aria-label="Nuova Entrata"
+              >
+                <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-red-500 hover:bg-red-600 text-white rounded-full ml-1 md:hidden h-8 w-8 sm:h-9 sm:w-9"
+                onClick={() => handleOpenTransactionModal('Uscita')}
+                aria-label="Nuova Uscita"
+              >
+                <MinusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+            </>
+          )}
           
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             aria-label="Toggle theme"
+            className="h-8 w-8 sm:h-9 sm:w-9"
           >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <Sun className="h-4 w-4 sm:h-5 sm:w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 sm:h-5 sm:w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
 
           {user ? (
@@ -192,6 +249,14 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
       </SidebarInset>
       <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
+      {user && (
+        <TransactionModal
+            isOpen={isTransactionModalOpen}
+            onOpenChange={setIsTransactionModalOpen}
+            transactionTypeInitial={transactionTypeForModal}
+            onSubmitSuccess={handleTransactionSubmit}
+        />
+      )}
     </SidebarProvider>
   );
 }

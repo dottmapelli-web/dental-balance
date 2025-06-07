@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, PlusCircle, MinusCircle, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
@@ -17,7 +17,6 @@ import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth,
 import { it } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { siteConfig } from '@/config/site';
-import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import { useRouter } from 'next/navigation';
 
 const dashboardChartConfig = {
@@ -39,9 +38,6 @@ export default function DashboardPage() {
   const [dashboardInsight, setDashboardInsight] = useState<string | null>(null);
   const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
-
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
 
   useEffect(() => {
     setIsClient(true);
@@ -156,14 +152,14 @@ export default function DashboardPage() {
   }, [transactions, isLoadingTransactions, transactionsError]);
 
   const handleGenerateInsight = useCallback(async () => {
-    if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0) {
+    if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions) {
         setDashboardInsight("Nessun dato di entrate o uscite per il mese corrente per generare un insight dettagliato.");
         setInsightError(null);
         return;
     }
     setIsLoadingInsight(true);
     setInsightError(null);
-    setDashboardInsight(null); // Clear previous insight before generating new one
+    setDashboardInsight(null); 
     try {
       const input: GenerateDashboardInsightInput = {
         totalIncome: currentMonthSummary.income,
@@ -177,12 +173,12 @@ export default function DashboardPage() {
       console.error("Error generating dashboard insight:", e);
       const errorMessage = e.message || "Errore sconosciuto durante la generazione dell'insight.";
       setInsightError(`Errore AI: ${errorMessage}`);
-      setDashboardInsight(null); // Ensure insight is cleared on error
+      setDashboardInsight(null); 
       toast({ title: "Errore Generazione Insight", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingInsight(false);
     }
-  }, [currentMonthSummary, toast, setIsLoadingInsight, setInsightError, setDashboardInsight]);
+  }, [currentMonthSummary, toast, setIsLoadingInsight, setInsightError, setDashboardInsight, isLoadingTransactions]);
   
   useEffect(() => {
     if (
@@ -204,22 +200,6 @@ export default function DashboardPage() {
     isLoadingTransactions,
     transactionsError
   ]);
-
-
-  const handleOpenTransactionModal = (type: 'Entrata' | 'Uscita') => {
-    setTransactionTypeForModal(type);
-    setIsTransactionModalOpen(true);
-  };
-
-  const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    console.log("Transaction submitted from dashboard (placeholder):", data, id);
-    setIsTransactionModalOpen(false);
-    fetchFirestoreTransactions(); 
-    toast({
-      title: `Transazione ${id ? 'Modificata' : 'Aggiunta'} (Placeholder)`,
-      description: `Azione completata per ${data.description || 'N/A'}. Per il salvataggio effettivo, usare la pagina Transazioni.`,
-    });
-  };
   
   if (isLoadingTransactions && isClient) {
     return (
@@ -232,24 +212,20 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-3xl font-headline font-bold tracking-tight md:text-4xl">
-          {siteConfig.name}
-        </h1>
-        <p className="mt-1 text-lg text-muted-foreground">
-          Dashboard principale - Riepilogo finanziario per {format(new Date(), "MMMM yyyy", { locale: it })}.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button onClick={() => handleOpenTransactionModal('Entrata')} variant="outline" size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" /> Nuova Entrata
-          </Button>
-          <Button onClick={() => handleOpenTransactionModal('Uscita')} variant="outline" size="sm">
-            <MinusCircle className="mr-2 h-4 w-4" /> Nuova Uscita
-          </Button>
-          <Button onClick={() => router.push('/monthly-summary')} variant="outline" size="sm">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div>
+          <h1 className="text-3xl font-headline font-bold tracking-tight md:text-4xl">
+            Dashboard Principale
+          </h1>
+          <p className="mt-1 text-lg text-muted-foreground">
+            Riepilogo finanziario per {format(new Date(), "MMMM yyyy", { locale: it })}.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:ml-auto sm:items-end mt-4 sm:mt-0">
+          <Button onClick={() => router.push('/monthly-summary')} variant="outline" size="sm" className="w-full sm:w-auto justify-start sm:justify-center">
             <FileText className="mr-2 h-4 w-4" /> Report Mensile
           </Button>
-           <Button onClick={() => router.push('/annual-summary')} variant="outline" size="sm">
+          <Button onClick={() => router.push('/annual-summary')} variant="outline" size="sm" className="w-full sm:w-auto justify-start sm:justify-center">
             <FileText className="mr-2 h-4 w-4" /> Report Annuale
           </Button>
         </div>
@@ -376,15 +352,7 @@ export default function DashboardPage() {
           </Card>
         </>
       )}
-      <TransactionModal
-        isOpen={isTransactionModalOpen}
-        onOpenChange={setIsTransactionModalOpen}
-        transactionTypeInitial={transactionTypeForModal}
-        onSubmitSuccess={handleTransactionSubmit}
-      />
     </>
   );
 }
     
-
-      
