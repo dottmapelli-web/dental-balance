@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import PageHeader from "@/components/page-header";
+// Rimosso PageHeader generico da qui, costruiremo un header custom
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2 } from "lucide-react";
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, PlusCircle, MinusCircle, FileText } from "lucide-react"; // Aggiunte icone
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
@@ -17,6 +17,9 @@ import { collection, getDocs, query, where, Timestamp, orderBy } from 'firebase/
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { siteConfig } from '@/config/site'; // Importa siteConfig per il nome dell'app
+import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal'; // Per aprire il modale
+import { useRouter } from 'next/navigation'; // Per navigazione
 
 const dashboardChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
@@ -29,6 +32,7 @@ export default function DashboardPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const [currentMonthSummary, setCurrentMonthSummary] = useState<{ income: number; expenses: number; balance: number }>({ income: 0, expenses: 0, balance: 0 });
   const [lastSixMonthsChartData, setLastSixMonthsChartData] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
@@ -36,6 +40,10 @@ export default function DashboardPage() {
   const [dashboardInsight, setDashboardInsight] = useState<string | null>(null);
   const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
+
+  // State per il TransactionModal
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [transactionTypeForModal, setTransactionTypeForModal] = useState<'Entrata' | 'Uscita'>('Uscita');
 
   useEffect(() => {
     setIsClient(true);
@@ -46,7 +54,6 @@ export default function DashboardPage() {
     setTransactionsError(null);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
-      // Fetch transactions from the last 12 months for dashboard purposes, ordered by date descending
       const oneYearAgo = subMonths(new Date(), 12);
       const q = query(
         transactionsCollectionRef,
@@ -177,6 +184,24 @@ export default function DashboardPage() {
       setIsLoadingInsight(false);
     }
   };
+
+  const handleOpenTransactionModal = (type: 'Entrata' | 'Uscita') => {
+    setTransactionTypeForModal(type);
+    setIsTransactionModalOpen(true);
+  };
+
+  const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
+    // Questa è una funzione di base per chiudere il modale e ricaricare.
+    // La logica effettiva di salvataggio è in `transactions/page.tsx`
+    // Se si vuole salvare direttamente dalla dashboard, questa funzione andrebbe espansa.
+    console.log("Transaction submitted from dashboard (placeholder):", data, id);
+    setIsTransactionModalOpen(false);
+    fetchFirestoreTransactions(); 
+    toast({
+      title: `Transazione ${id ? 'Modificata' : 'Aggiunta'} (Placeholder)`,
+      description: `Azione completata per ${data.description || 'N/A'}.`,
+    });
+  };
   
   if (isLoadingTransactions && isClient) {
     return (
@@ -189,10 +214,30 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard Principale"
-        description={`Riepilogo finanziario per ${format(new Date(), "MMMM yyyy", { locale: it })}.`}
-      />
+      {/* === CUSTOM DASHBOARD HEADER === */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-headline font-bold tracking-tight md:text-4xl">
+          {siteConfig.name}
+        </h1>
+        <p className="mt-1 text-lg text-muted-foreground">
+          Dashboard principale - Riepilogo finanziario per {format(new Date(), "MMMM yyyy", { locale: it })}.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button onClick={() => handleOpenTransactionModal('Entrata')} variant="outline" size="sm">
+            <PlusCircle className="mr-2 h-4 w-4" /> Nuova Entrata
+          </Button>
+          <Button onClick={() => handleOpenTransactionModal('Uscita')} variant="outline" size="sm">
+            <MinusCircle className="mr-2 h-4 w-4" /> Nuova Uscita
+          </Button>
+          <Button onClick={() => router.push('/monthly-summary')} variant="outline" size="sm">
+            <FileText className="mr-2 h-4 w-4" /> Report Mensile
+          </Button>
+           <Button onClick={() => router.push('/annual-summary')} variant="outline" size="sm">
+            <FileText className="mr-2 h-4 w-4" /> Report Annuale
+          </Button>
+        </div>
+      </div>
+      {/* === END CUSTOM DASHBOARD HEADER === */}
 
       {transactionsError && (
         <Alert variant="destructive" className="mb-6">
@@ -238,7 +283,7 @@ export default function DashboardPage() {
                 <div className={`text-3xl font-bold ${currentMonthSummary.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   €{isClient ? currentMonthSummary.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : currentMonthSummary.balance.toFixed(2)}
                 </div>
-                 <p className="text-xs text-muted-foreground">Differenza tra entrate e uscite.</p>
+                 <p className="text-xs text-muted-foreground">Differenza tra entrate e uscite (Saldo attuale studio).</p>
               </CardContent>
             </Card>
           </div>
@@ -317,8 +362,14 @@ export default function DashboardPage() {
           </Card>
         </>
       )}
+      <TransactionModal
+        isOpen={isTransactionModalOpen}
+        onOpenChange={setIsTransactionModalOpen}
+        transactionTypeInitial={transactionTypeForModal}
+        // editingTransaction={null} // In questo contesto, non modifichiamo transazioni esistenti
+        onSubmitSuccess={handleTransactionSubmit} // Usiamo la versione placeholder
+      />
     </>
   );
 }
-
     
