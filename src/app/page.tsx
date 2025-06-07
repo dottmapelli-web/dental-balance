@@ -6,23 +6,38 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText, Landmark, Edit } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
 import { type Transaction } from '@/data/transactions-data';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { siteConfig } from '@/config/site';
 import { useRouter } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const dashboardChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
   expenses: { label: "Uscite", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
+
+const BANK_BALANCE_DOC_PATH = "studioInfo/mainBalance";
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
@@ -39,9 +54,75 @@ export default function DashboardPage() {
   const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
+  const [bankBalance, setBankBalance] = useState<number>(0);
+  const [isLoadingBankBalance, setIsLoadingBankBalance] = useState<boolean>(true);
+  const [isEditingBankBalance, setIsEditingBankBalance] = useState<boolean>(false);
+  const [newBankBalanceValue, setNewBankBalanceValue] = useState<string>("");
+
+
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const fetchBankBalance = useCallback(async () => {
+    setIsLoadingBankBalance(true);
+    try {
+      const balanceDocRef = doc(db, BANK_BALANCE_DOC_PATH);
+      const docSnap = await getDoc(balanceDocRef);
+      if (docSnap.exists()) {
+        setBankBalance(docSnap.data().balance || 0);
+        setNewBankBalanceValue((docSnap.data().balance || 0).toString());
+      } else {
+        setBankBalance(0); // Default if not set
+        setNewBankBalanceValue("0");
+        // Optionally, create the document with a default balance if it doesn't exist
+        // await setDoc(balanceDocRef, { balance: 0 });
+      }
+    } catch (error) {
+      console.error("Errore caricamento giacenza bancaria:", error);
+      toast({
+        title: "Errore Giacenza Bancaria",
+        description: "Impossibile caricare la giacenza bancaria da Firestore.",
+        variant: "destructive",
+      });
+      setBankBalance(0); // Fallback on error
+      setNewBankBalanceValue("0");
+    } finally {
+      setIsLoadingBankBalance(false);
+    }
+  }, [toast]);
+
+  const handleUpdateBankBalance = async () => {
+    const newBalance = parseFloat(newBankBalanceValue);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({
+        title: "Valore Non Valido",
+        description: "Inserisci un importo valido per la giacenza bancaria.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsLoadingBankBalance(true);
+    try {
+      const balanceDocRef = doc(db, BANK_BALANCE_DOC_PATH);
+      await setDoc(balanceDocRef, { balance: newBalance }, { merge: true });
+      setBankBalance(newBalance);
+      toast({
+        title: "Giacenza Aggiornata",
+        description: `La giacenza bancaria è stata aggiornata a €${newBalance.toFixed(2)}.`,
+      });
+      setIsEditingBankBalance(false);
+    } catch (error) {
+      console.error("Errore aggiornamento giacenza bancaria:", error);
+      toast({
+        title: "Errore Aggiornamento Giacenza",
+        description: "Impossibile aggiornare la giacenza bancaria in Firestore.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingBankBalance(false);
+    }
+  };
 
   const fetchFirestoreTransactions = useCallback(async () => {
     setIsLoadingTransactions(true);
@@ -95,7 +176,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchFirestoreTransactions();
-  }, [fetchFirestoreTransactions]);
+    fetchBankBalance();
+  }, [fetchFirestoreTransactions, fetchBankBalance]);
 
   useEffect(() => {
     if (isLoadingTransactions || transactionsError || transactions.length === 0) {
@@ -182,6 +264,7 @@ export default function DashboardPage() {
   
   useEffect(() => {
     if (
+      isClient && // Ensure client-side only for this auto-generation
       !isLoadingTransactions &&
       !transactionsError &&
       (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
@@ -192,6 +275,7 @@ export default function DashboardPage() {
       handleGenerateInsight();
     }
   }, [
+    isClient,
     currentMonthSummary,
     dashboardInsight,
     isLoadingInsight,
@@ -201,7 +285,7 @@ export default function DashboardPage() {
     transactionsError
   ]);
   
-  if (isLoadingTransactions && isClient) {
+  if ((isLoadingTransactions || isLoadingBankBalance) && isClient) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -212,7 +296,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold tracking-tight md:text-4xl">
             Dashboard Principale
@@ -241,6 +325,64 @@ export default function DashboardPage() {
 
       {!transactionsError && (
         <>
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-xl font-medium flex items-center">
+                  <Landmark className="mr-2 h-5 w-5 text-primary" />
+                  Giacenza Bancaria Totale
+                </CardTitle>
+                <CardDescription>Liquidità attuale disponibile nel conto dello studio.</CardDescription>
+              </div>
+              <AlertDialog open={isEditingBankBalance} onOpenChange={setIsEditingBankBalance}>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setNewBankBalanceValue(bankBalance.toString())}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Modifica
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Modifica Giacenza Bancaria</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Inserisci il nuovo importo totale della liquidità disponibile.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="py-4">
+                    <Label htmlFor="bankBalanceInput" className="sr-only">Nuova Giacenza</Label>
+                    <Input
+                      id="bankBalanceInput"
+                      type="number"
+                      step="0.01"
+                      value={newBankBalanceValue}
+                      onChange={(e) => setNewBankBalanceValue(e.target.value)}
+                      placeholder="Es. 15000.00"
+                      onFocus={(e) => e.target.select()}
+                    />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annulla</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleUpdateBankBalance} disabled={isLoadingBankBalance}>
+                      {isLoadingBankBalance && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salva Giacenza
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardHeader>
+            <CardContent>
+              {isLoadingBankBalance ? (
+                <div className="flex items-center justify-center h-10">
+                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="text-4xl font-bold text-primary">
+                  €{isClient ? bankBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : bankBalance.toFixed(2)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -355,4 +497,6 @@ export default function DashboardPage() {
     </>
   );
 }
+    
+
     
