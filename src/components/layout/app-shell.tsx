@@ -22,7 +22,7 @@ import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Rimossa AvatarImage se non usata
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
@@ -49,8 +49,6 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
         .dark .logo-text { fill: #ecf0f1; } /* Testo chiaro per tema scuro */
         .dark .logo-text-italic { fill: #bdc3c7; } /* Testo grigio chiaro per tema scuro */
         .dark .tooth-icon { fill: #5dade2; stroke: #3498db; } /* Icona dente per tema scuro */
-        /* Commentato per non sovrascrivere lo sfondo di default del SVG se non necessario per il tema */
-        /* .dark rect { fill: #2c3e50; stroke: #34495e; } */
       ` }} />
     </defs>
     <rect width="170" height="70" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" rx="5" ry="5" />
@@ -116,8 +114,10 @@ export default function AppShell({ children }: AppShellProps) {
         <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden"> 
           <SidebarTrigger className="md:hidden" />
           
-          <div className="flex flex-col sm:hidden">
-            <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
+          {/* App Name - Always visible */}
+          <h1 className="text-xl font-semibold text-foreground hidden md:block">{siteConfig.name}</h1>
+          <div className="flex items-center md:hidden">
+             <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
           </div>
           
           <div className="flex-1" /> 
@@ -137,7 +137,6 @@ export default function AppShell({ children }: AppShellProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
-                    {/* <AvatarImage src={user.photoURL || ""} alt="User avatar" /> */}
                     <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
                   </Avatar>
                 </Button>
