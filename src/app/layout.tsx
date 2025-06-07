@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import AppShell from '@/components/layout/app-shell'; // AppShell è già semplificata
+import AppShell from '@/components/layout/app-shell';
+import { AuthProvider } from '@/contexts/auth-context'; // Reintrodotto AuthProvider
+
 // import { siteConfig } from '@/config/site'; // Temporaneamente rimosso
 // import { ThemeProvider } from "next-themes"; // Temporaneamente rimosso
 
@@ -28,9 +30,11 @@ export default function RootLayout({
         )}
       >
         {/* ThemeProvider temporaneamente rimosso */}
-        <AppShell> {/* AppShell è già stata semplificata nella risposta precedente */}
-          {children}
-        </AppShell>
+        <AuthProvider> {/* AuthProvider wrappa AppShell */}
+          <AppShell>
+            {children}
+          </AppShell>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>
