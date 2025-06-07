@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/contexts/auth-context';
 import FullScreenLoader from '@/components/ui/full-screen-loader';
-import { UserCircle, LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard, ArrowRightLeft, CalendarDays, BarChart3, Goal } from 'lucide-react';
+import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard } from 'lucide-react';
 import { useTheme } from "next-themes";
 import { siteConfig } from '@/config/site';
 import {
@@ -22,7 +22,7 @@ import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Rimossa AvatarImage se non usata
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
@@ -49,10 +49,11 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
         .dark .logo-text { fill: #ecf0f1; } /* Testo chiaro per tema scuro */
         .dark .logo-text-italic { fill: #bdc3c7; } /* Testo grigio chiaro per tema scuro */
         .dark .tooth-icon { fill: #5dade2; stroke: #3498db; } /* Icona dente per tema scuro */
-        .dark rect { fill: #2c3e50; stroke: #34495e; } /* Sfondo e bordo del rettangolo per tema scuro */
+        /* Commentato per non sovrascrivere lo sfondo di default del SVG se non necessario per il tema */
+        /* .dark rect { fill: #2c3e50; stroke: #34495e; } */
       ` }} />
     </defs>
-    <rect width="170" height="70" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1" rx="5" ry="5" />
+    <rect width="170" height="70" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" rx="5" ry="5" />
     <path className="tooth-icon" d="M20 15 Q25 10 30 15 L30 30 Q25 40 20 30 Z M30 15 Q35 10 40 15 L40 30 Q35 40 30 30 Z M25 38 Q32.5 55 40 38 Z" transform="translate(5, 5) scale(0.9)" />
     <text x="60" y="30" className="logo-text">Studio De Vecchi</text>
     <text x="60" y="50" className="logo-text">& Mapelli</text>
@@ -92,13 +93,13 @@ export default function AppShell({ children }: AppShellProps) {
       title: "Impostazioni",
       href: "/settings",
       icon: Settings,
-      disabled: true, // TODO: Implement settings page
+      disabled: true, 
     }
   ];
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-2 border-red-500"> {/* DEBUG BORDER */}
+      <Sidebar side="left" variant="sidebar" collapsible="icon" className=""> 
         <SidebarHeader className="items-center">
           <BrandLogoIcon className="h-10 w-auto group-data-[collapsible=icon]:hidden" />
           <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
@@ -111,15 +112,15 @@ export default function AppShell({ children }: AppShellProps) {
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset className="border-2 border-green-500"> {/* DEBUG BORDER on SidebarInset (main tag) */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden border-2 border-blue-500"> {/* DEBUG BORDER */}
+      <SidebarInset className=""> 
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden"> 
           <SidebarTrigger className="md:hidden" />
           
           <div className="flex flex-col sm:hidden">
             <h1 className="text-lg font-bold text-foreground truncate max-w-[150px]">{siteConfig.name}</h1>
           </div>
           
-          <div className="flex-1" /> {/* Spacer */}
+          <div className="flex-1" /> 
           
           <Button
             variant="ghost"
@@ -163,7 +164,7 @@ export default function AppShell({ children }: AppShellProps) {
           )}
         </header>
         
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 border-2 border-purple-500"> {/* DEBUG BORDER on content wrapper */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6"> 
           {user ? (
             children
           ) : (
