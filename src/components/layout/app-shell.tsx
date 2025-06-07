@@ -59,7 +59,6 @@ const BrandLogoIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-
 interface AppShellProps {
   children: React.ReactNode;
 }
@@ -90,9 +89,9 @@ export default function AppShell({ children }: AppShellProps) {
   const subHeaderNavItems = [
     {
       title: "Impostazioni",
-      href: "/settings", // Placeholder, or create a settings page
+      href: "/settings",
       icon: Settings,
-      disabled: true, // Temporaneamente disabilitato
+      disabled: true,
     }
   ];
 
@@ -101,7 +100,7 @@ export default function AppShell({ children }: AppShellProps) {
       <div className="min-h-screen flex flex-col bg-muted/40 print-hidden">
         <Sidebar side="left" variant="sidebar" collapsible="icon">
           <SidebarHeader className="items-center">
-            <BrandLogoIcon className="h-12 w-auto group-data-[collapsible=icon]:hidden" />
+            <BrandLogoIcon className="h-10 w-auto group-data-[collapsible=icon]:hidden" />
             <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
           </SidebarHeader>
           <SidebarContent>
@@ -112,7 +111,8 @@ export default function AppShell({ children }: AppShellProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset>
+        {/* SidebarInset è il contenitore principale per header e contenuto pagina */}
+        <SidebarInset> 
           <header className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6 print-hidden">
             <SidebarTrigger className="md:hidden" />
             
@@ -137,7 +137,6 @@ export default function AppShell({ children }: AppShellProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
-                      {/* <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User avatar'} /> */}
                       <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -145,13 +144,8 @@ export default function AppShell({ children }: AppShellProps) {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {/* {user.displayName || 'Utente'} */}
-                        Utente
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
+                      <p className="text-sm font-medium leading-none">Utente</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -168,33 +162,33 @@ export default function AppShell({ children }: AppShellProps) {
               </Button>
             )}
           </header>
-
-          {user ? (
-            <main className="flex-1 overflow-auto p-4 sm:p-6">
-              {children}
-            </main>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
-              <Card className="w-full max-w-md shadow-lg">
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">Accesso Richiesto</CardTitle>
-                  <CardDescription>
-                    Per continuare e accedere alle funzionalità dell'applicazione, per favore effettua il login o crea un nuovo account.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center">
-                  <LogIn className="h-16 w-16 text-primary mb-6" />
-                  <Button className="w-full" onClick={() => setIsAuthModalOpen(true)} size="lg">
-                    Accedi o Registrati
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          
+          {/* Questo div ora contiene il contenuto della pagina, prendendo lo spazio rimanente */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            {user ? (
+              children
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full">
+                <Card className="w-full max-w-md shadow-lg">
+                  <CardHeader className="text-center">
+                    <CardTitle className="text-2xl">Accesso Richiesto</CardTitle>
+                    <CardDescription>
+                      Per continuare e accedere alle funzionalità dell'applicazione, per favore effettua il login o crea un nuovo account.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center">
+                    <LogIn className="h-16 w-16 text-primary mb-6" />
+                    <Button className="w-full" onClick={() => setIsAuthModalOpen(true)} size="lg">
+                      Accedi o Registrati
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
         </SidebarInset>
       </div>
       <AuthModal isOpen={isAuthModalOpen} onOpenChange={setIsAuthModalOpen} />
     </SidebarProvider>
   );
 }
-
