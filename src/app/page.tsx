@@ -8,14 +8,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText, Landmark, Edit } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText, Landmark, Edit, PieChart as PieChartIcon, LineChart as LineChartIcon, ListChecks, Target as TargetIcon } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
+import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
+import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
 import { type Transaction } from '@/data/transactions-data';
+import type { ObjectiveListItem } from '@/app/budget-objectives/page'; // Assuming this type is exported
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
-import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc, limit } from 'firebase/firestore';
+import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, getDate, isBefore, isEqual } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { siteConfig } from '@/config/site';
@@ -31,13 +36,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
 
 const dashboardChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
   expenses: { label: "Uscite", color: "hsl(var(--chart-2))" },
 } satisfies ChartConfig;
 
+const cashflowChartConfig = {
+  cashflow: { label: "Flusso di Cassa", color: "hsl(var(--chart-3))" },
+} satisfies ChartConfig;
+
 const BANK_BALANCE_DOC_PATH = "studioInfo/mainBalance";
+const pieChartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
@@ -59,6 +71,19 @@ export default function DashboardPage() {
   const [isEditingBankBalance, setIsEditingBankBalance] = useState<boolean>(false);
   const [newBankBalanceValue, setNewBankBalanceValue] = useState<string>("");
 
+  // State for new dashboard sections
+  const [expenseBreakdownCurrentMonth, setExpenseBreakdownCurrentMonth] = useState<Array<{ name: string; value: number; fill: string }>>([]);
+  const [isLoadingExpenseBreakdown, setIsLoadingExpenseBreakdown] = useState(true);
+  
+  const [cashflowCurrentMonth, setCashflowCurrentMonth] = useState<Array<{ date: string; cashflow: number }>>([]);
+  const [isLoadingCashflow, setIsLoadingCashflow] = useState(true);
+  
+  const [topExpenseCategoriesCurrentMonth, setTopExpenseCategoriesCurrentMonth] = useState<Array<{ category: string; amount: number }>>([]);
+  const [isLoadingTopCategories, setIsLoadingTopCategories] = useState(true);
+  
+  const [keyFinancialObjectives, setKeyFinancialObjectives] = useState<ObjectiveListItem[]>([]);
+  const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -73,10 +98,8 @@ export default function DashboardPage() {
         setBankBalance(docSnap.data().balance || 0);
         setNewBankBalanceValue((docSnap.data().balance || 0).toString());
       } else {
-        setBankBalance(0); // Default if not set
+        setBankBalance(0);
         setNewBankBalanceValue("0");
-        // Optionally, create the document with a default balance if it doesn't exist
-        // await setDoc(balanceDocRef, { balance: 0 });
       }
     } catch (error) {
       console.error("Errore caricamento giacenza bancaria:", error);
@@ -85,7 +108,7 @@ export default function DashboardPage() {
         description: "Impossibile caricare la giacenza bancaria da Firestore.",
         variant: "destructive",
       });
-      setBankBalance(0); // Fallback on error
+      setBankBalance(0);
       setNewBankBalanceValue("0");
     } finally {
       setIsLoadingBankBalance(false);
@@ -132,8 +155,8 @@ export default function DashboardPage() {
       const oneYearAgo = subMonths(new Date(), 12);
       const q = query(
         transactionsCollectionRef,
-        where("date", ">=", Timestamp.fromDate(oneYearAgo)),
-        orderBy("date", "desc")
+        // where("date", ">=", Timestamp.fromDate(oneYearAgo)), // Consider fetching all for more accurate cashflow if needed
+        orderBy("date", "asc") // Order by date ascending for cash flow calculation
       );
       const querySnapshot = await getDocs(q);
       const fetchedTransactions: Transaction[] = [];
@@ -174,64 +197,148 @@ export default function DashboardPage() {
     }
   }, [toast]);
 
+  const fetchKeyObjectives = useCallback(async () => {
+    setIsLoadingObjectives(true);
+    try {
+      const objectivesCol = collection(db, "objectives");
+      // Fetch top 3, ordered by name for consistency, could be by progress or target date later
+      const qObjectives = query(objectivesCol, orderBy("name"), limit(3));
+      const objectivesSnapshot = await getDocs(qObjectives);
+      const fetchedObjectives: ObjectiveListItem[] = [];
+      objectivesSnapshot.forEach(docSnap => {
+        fetchedObjectives.push({ id: docSnap.id, ...docSnap.data() } as ObjectiveListItem);
+      });
+      setKeyFinancialObjectives(fetchedObjectives);
+    } catch (error) {
+      console.error("Errore caricamento obiettivi chiave:", error);
+      toast({ title: "Errore Obiettivi", description: "Impossibile caricare gli obiettivi finanziari.", variant: "destructive" });
+    } finally {
+      setIsLoadingObjectives(false);
+    }
+  }, [toast]);
+
+
   useEffect(() => {
     fetchFirestoreTransactions();
     fetchBankBalance();
-  }, [fetchFirestoreTransactions, fetchBankBalance]);
+    fetchKeyObjectives();
+  }, [fetchFirestoreTransactions, fetchBankBalance, fetchKeyObjectives]);
 
   useEffect(() => {
-    if (isLoadingTransactions || transactionsError || transactions.length === 0) {
+    if (isLoadingTransactions || transactionsError) {
       setCurrentMonthSummary({ income: 0, expenses: 0, balance: 0 });
       setLastSixMonthsChartData([]);
+      setExpenseBreakdownCurrentMonth([]);
+      setCashflowCurrentMonth([]);
+      setTopExpenseCategoriesCurrentMonth([]);
+      setIsLoadingExpenseBreakdown(false);
+      setIsLoadingCashflow(false);
+      setIsLoadingTopCategories(false);
       return;
     }
 
     const today = new Date();
-    const currentMonth = getMonth(today);
+    const currentMonthValue = getMonth(today);
     const currentYearValue = getYear(today);
 
+    // Calculate Current Month Summary (Income, Expenses, Balance)
     let cmIncome = 0;
     let cmExpenses = 0;
-
     transactions.forEach(t => {
       const transactionDate = parseISO(t.date);
-      if (isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonth) {
-        if (t.type === 'Entrata' && t.status === 'Completato') {
-          cmIncome += t.amount;
-        } else if (t.type === 'Uscita' && t.status === 'Completato') {
-          cmExpenses += Math.abs(t.amount);
-        }
+      if (isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonthValue) {
+        if (t.type === 'Entrata' && t.status === 'Completato') cmIncome += t.amount;
+        else if (t.type === 'Uscita' && t.status === 'Completato') cmExpenses += Math.abs(t.amount);
       }
     });
     setCurrentMonthSummary({ income: cmIncome, expenses: cmExpenses, balance: cmIncome - cmExpenses });
 
-    const chartData: Array<{ month: string; income: number; expenses: number }> = [];
+    // Calculate Last Six Months Chart Data
+    const sixMonthChartData: Array<{ month: string; income: number; expenses: number }> = [];
     for (let i = 5; i >= 0; i--) {
       const dateIterator = subMonths(today, i);
       const monthForChart = getMonth(dateIterator);
       const yearForChart = getYear(dateIterator);
       let monthlyIncome = 0;
       let monthlyExpenses = 0;
-
       transactions.forEach(t => {
         const transactionDate = parseISO(t.date);
         if (isValid(transactionDate) && getYear(transactionDate) === yearForChart && getMonth(transactionDate) === monthForChart) {
-          if (t.type === 'Entrata' && t.status === 'Completato') {
-            monthlyIncome += t.amount;
-          } else if (t.type === 'Uscita' && t.status === 'Completato') {
-            monthlyExpenses += Math.abs(t.amount);
-          }
+          if (t.type === 'Entrata' && t.status === 'Completato') monthlyIncome += t.amount;
+          else if (t.type === 'Uscita' && t.status === 'Completato') monthlyExpenses += Math.abs(t.amount);
         }
       });
-      chartData.push({
-        month: format(dateIterator, "MMM", { locale: it }),
-        income: monthlyIncome,
-        expenses: monthlyExpenses,
-      });
+      sixMonthChartData.push({ month: format(dateIterator, "MMM", { locale: it }), income: monthlyIncome, expenses: monthlyExpenses });
     }
-    setLastSixMonthsChartData(chartData);
+    setLastSixMonthsChartData(sixMonthChartData);
 
-  }, [transactions, isLoadingTransactions, transactionsError]);
+    // Calculate Expense Breakdown for Current Month (Pie Chart)
+    setIsLoadingExpenseBreakdown(true);
+    const currentMonthExpensesByCategory: Record<string, number> = {};
+    transactions
+      .filter(t => {
+        const transactionDate = parseISO(t.date);
+        return isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonthValue && t.type === 'Uscita' && t.status === 'Completato';
+      })
+      .forEach(t => {
+        currentMonthExpensesByCategory[t.category] = (currentMonthExpensesByCategory[t.category] || 0) + Math.abs(t.amount);
+      });
+    setExpenseBreakdownCurrentMonth(
+      Object.entries(currentMonthExpensesByCategory)
+        .map(([name, value], index) => ({ name, value, fill: pieChartColors[index % pieChartColors.length] }))
+        .filter(item => item.value > 0)
+    );
+    setIsLoadingExpenseBreakdown(false);
+    
+    // Calculate Cash Flow for Current Month (Line Chart)
+    setIsLoadingCashflow(true);
+    const firstDayOfMonth = startOfMonth(today);
+    const lastDayOfMonth = endOfMonth(today);
+    const daysInMonth = eachDayOfInterval({ start: firstDayOfMonth, end: lastDayOfMonth });
+    let cumulativeBalance = bankBalance; // Start with initial bank balance if available, or 0
+
+    // Sum up all transactions *before* the start of the current month to get starting balance
+    let openingBalanceForMonth = bankBalance; // Use current bank balance as a proxy if no historical calculation
+    transactions.forEach(t => {
+        const tDate = parseISO(t.date);
+        if (isValid(tDate) && isBefore(tDate, firstDayOfMonth) && t.status === 'Completato') {
+            // This part is tricky without full history. Assuming bankBalance is "current" and we build relative.
+            // For a true historical cashflow, we'd need *all* transactions ever.
+            // For simplicity, let's consider cashflow *within* the month relative to initial display.
+        }
+    });
+    // For this dashboard, let's make cashflow relative to the start of *displayed transactions*
+    // or simply track monthly change starting from 0 if bankBalance is separate.
+    // Let's restart balance daily for the chart starting at 0 for the month's activities
+    
+    let dailyRunningBalance = 0; // This will be the balance change *within* the month
+    const cashflowData = daysInMonth.map(day => {
+        let dailyNet = 0;
+        transactions.forEach(t => {
+            const transactionDate = parseISO(t.date);
+            if (isValid(transactionDate) && isEqual(transactionDate, day) && t.status === 'Completato') {
+                dailyNet += t.amount; // Amount is signed
+            }
+        });
+        dailyRunningBalance += dailyNet;
+        return { date: format(day, "dd/MM"), cashflow: dailyRunningBalance };
+    });
+    setCashflowCurrentMonth(cashflowData);
+    setIsLoadingCashflow(false);
+
+    // Calculate Top Expense Categories for Current Month (Table)
+    setIsLoadingTopCategories(true);
+    // currentMonthExpensesByCategory is already calculated for pie chart
+    setTopExpenseCategoriesCurrentMonth(
+      Object.entries(currentMonthExpensesByCategory)
+        .sort(([, a], [, b]) => b - a) // Sort descending by amount
+        // .slice(0, 5) // Optionally limit to top N categories
+        .map(([category, amount]) => ({ category, amount }))
+    );
+    setIsLoadingTopCategories(false);
+
+
+  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
 
   const handleGenerateInsight = useCallback(async () => {
     if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions) {
@@ -250,7 +357,7 @@ export default function DashboardPage() {
       };
       const result = await generateDashboardInsight(input);
       setDashboardInsight(result.insightText);
-      toast({ title: "Insight Generato", description: "L'insight AI per la dashboard è pronto." });
+      // toast({ title: "Insight Generato", description: "L'insight AI per la dashboard è pronto." });
     } catch (e: any) {
       console.error("Error generating dashboard insight:", e);
       const errorMessage = e.message || "Errore sconosciuto durante la generazione dell'insight.";
@@ -264,7 +371,7 @@ export default function DashboardPage() {
   
   useEffect(() => {
     if (
-      isClient && // Ensure client-side only for this auto-generation
+      isClient &&
       !isLoadingTransactions &&
       !transactionsError &&
       (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
@@ -285,7 +392,9 @@ export default function DashboardPage() {
     transactionsError
   ]);
   
-  if ((isLoadingTransactions || isLoadingBankBalance) && isClient) {
+  const mainContentLoading = isLoadingTransactions || isLoadingBankBalance;
+
+  if (mainContentLoading && isClient) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -417,10 +526,79 @@ export default function DashboardPage() {
                 <div className={`text-3xl font-bold ${currentMonthSummary.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   €{isClient ? currentMonthSummary.balance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : currentMonthSummary.balance.toFixed(2)}
                 </div>
-                 <p className="text-xs text-muted-foreground">Differenza tra entrate e uscite (Saldo attuale studio).</p>
+                 <p className="text-xs text-muted-foreground">Differenza tra entrate e uscite.</p>
               </CardContent>
             </Card>
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline flex items-center">
+                  <PieChartIcon className="mr-2 h-5 w-5 text-primary" />
+                  Distribuzione Spese (Mese Corrente)
+                </CardTitle>
+                <CardDescription>Ripartizione delle uscite per categoria nel mese corrente.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center">
+                {isLoadingExpenseBreakdown ? <Loader2 className="h-8 w-8 animate-spin" /> : 
+                  expenseBreakdownCurrentMonth.length > 0 ? (
+                  <DashboardPieChart data={expenseBreakdownCurrentMonth} />
+                ) : (
+                  <p className="text-muted-foreground h-[250px] flex items-center justify-center">Nessuna spesa registrata per il mese corrente (da Firestore) per il grafico a torta.</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline flex items-center">
+                  <LineChartIcon className="mr-2 h-5 w-5 text-primary" />
+                  Flusso di Cassa (Mese Corrente)
+                </CardTitle>
+                <CardDescription>Andamento del saldo giornaliero (variazione) nel mese corrente.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingCashflow ? <Loader2 className="h-8 w-8 animate-spin" /> : (
+                  <DashboardCashflowLineChart data={cashflowCurrentMonth} config={cashflowChartConfig} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center">
+                <ListChecks className="mr-2 h-5 w-5 text-primary" />
+                Categorie di Uscite (Mese Corrente)
+              </CardTitle>
+              <CardDescription>Dettaglio delle uscite per categoria nel mese corrente.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTopCategories ? <Loader2 className="h-8 w-8 animate-spin" /> : 
+                topExpenseCategoriesCurrentMonth.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-right">Importo Speso</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topExpenseCategoriesCurrentMonth.map(cat => (
+                      <TableRow key={cat.category}>
+                        <TableCell className="font-medium">{cat.category}</TableCell>
+                        <TableCell className="text-right text-red-600 dark:text-red-400">
+                          €{isClient ? cat.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : cat.amount.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Nessuna uscita registrata per il mese corrente (da Firestore) per le categorie.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="mb-6">
             <CardHeader>
@@ -442,7 +620,7 @@ export default function DashboardPage() {
                 ) : (
                   <Wand2 className="mr-2 h-4 w-4" />
                 )}
-                Genera Insight AI
+                Rigenera Insight AI
               </Button>
               {isLoadingInsight && (
                 <div className="flex items-center justify-center p-4 text-muted-foreground">
@@ -471,9 +649,43 @@ export default function DashboardPage() {
                       ? "Caricamento dati transazioni in corso..."
                       : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)
                           ? `Nessun dato finanziario per il mese corrente per generare un insight.`
-                          : `Insight AI non ancora disponibile. Prova a generarlo manualmente.`}
+                          : `Insight AI non ancora disponibile. Prova a generarlo.`}
                 </p>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center">
+                  <TargetIcon className="mr-2 h-5 w-5 text-primary" />
+                  Obiettivi Finanziari Chiave
+              </CardTitle>
+              <CardDescription>Monitoraggio dei primi obiettivi impostati (da Firestore).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingObjectives ? <div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
+                keyFinancialObjectives.length > 0 ? (
+                  keyFinancialObjectives.map(obj => (
+                    <div key={obj.id} className="p-3 border rounded-md">
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-semibold">{obj.name}</h4>
+                        <Badge variant={obj.current >= obj.target ? "default" : "secondary"} className={obj.current >= obj.target ? "bg-green-100 text-green-700 dark:bg-green-800/50 dark:text-green-300" : ""}>
+                          {obj.current >= obj.target ? "Completato" : "In Corso"}
+                        </Badge>
+                      </div>
+                      <Progress value={obj.target > 0 ? (obj.current / obj.target) * 100 : 0} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-1 text-right">
+                        {isClient ? obj.current.toLocaleString('it-IT') : obj.current}{obj.unit} / {isClient ? obj.target.toLocaleString('it-IT') : obj.target}{obj.unit}
+                      </p>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Nessun obiettivo finanziario trovato in Firestore.</p>
+              )}
+              <Button variant="link" onClick={() => router.push('/budget-objectives')} className="w-full">
+                Vedi tutti gli obiettivi nella sezione 'Budget & Obiettivi'
+              </Button>
             </CardContent>
           </Card>
 
