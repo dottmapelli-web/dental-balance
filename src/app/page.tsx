@@ -17,11 +17,11 @@ import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
 import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
 import { generateDashboardInsight, type GenerateDashboardInsightInput, type GenerateDashboardInsightOutput } from '@/ai/flows/generate-dashboard-insight-flow';
 import { type Transaction } from '@/data/transactions-data';
-import type { ObjectiveListItem } from '@/app/budget-objectives/page'; // Assuming this type is exported
+import type { ObjectiveListItem } from '@/app/budget-objectives/page';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc, limit } from 'firebase/firestore';
-import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, getDate, isBefore, isEqual } from 'date-fns';
-import { it } from 'date-fns/locale';
+import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, getDate, isEqual } from 'date-fns';
+import { it } from "date-fns/locale";
 import { useToast } from '@/hooks/use-toast';
 import { siteConfig } from '@/config/site';
 import { useRouter } from 'next/navigation';
@@ -37,6 +37,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import { cn } from "@/lib/utils";
+import Link from 'next/link';
+import { allExpenseCategories } from '@/config/transaction-categories';
+
 
 const dashboardChartConfig = {
   income: { label: "Entrate", color: "hsl(var(--chart-1))" },
@@ -49,6 +53,26 @@ const cashflowChartConfig = {
 
 const BANK_BALANCE_DOC_PATH = "studioInfo/mainBalance";
 const pieChartColors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+interface DetailCardData {
+  category: string;
+  totalAmount: number;
+  itemCount: number;
+  topItems: Array<{ name: string; amount: number }>;
+  colorClasses: { bg: string; text: string; border: string; textMuted?: string; bgAlt?: string };
+}
+
+// Updated pastel colors inspired by the image
+const categoryCardColors = [
+  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', textMuted: 'text-purple-600' },
+  { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', textMuted: 'text-green-600' },
+  { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', textMuted: 'text-pink-600' },
+  { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', textMuted: 'text-yellow-600' },
+  { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', textMuted: 'text-red-600' },
+  { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', textMuted: 'text-blue-600' },
+  { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', textMuted: 'text-orange-600' },
+  // Add more if there are more categories than colors
+];
 
 
 export default function DashboardPage() {
@@ -71,15 +95,14 @@ export default function DashboardPage() {
   const [isEditingBankBalance, setIsEditingBankBalance] = useState<boolean>(false);
   const [newBankBalanceValue, setNewBankBalanceValue] = useState<string>("");
 
-  // State for new dashboard sections
   const [expenseBreakdownCurrentMonth, setExpenseBreakdownCurrentMonth] = useState<Array<{ name: string; value: number; fill: string }>>([]);
   const [isLoadingExpenseBreakdown, setIsLoadingExpenseBreakdown] = useState(true);
   
   const [cashflowCurrentMonth, setCashflowCurrentMonth] = useState<Array<{ date: string; cashflow: number }>>([]);
   const [isLoadingCashflow, setIsLoadingCashflow] = useState(true);
   
-  const [topExpenseCategoriesCurrentMonth, setTopExpenseCategoriesCurrentMonth] = useState<Array<{ category: string; amount: number }>>([]);
-  const [isLoadingTopCategories, setIsLoadingTopCategories] = useState(true);
+  const [detailedExpenseCategoryCards, setDetailedExpenseCategoryCards] = useState<DetailCardData[]>([]);
+  const [isLoadingDetailedCategories, setIsLoadingDetailedCategories] = useState(true);
   
   const [keyFinancialObjectives, setKeyFinancialObjectives] = useState<ObjectiveListItem[]>([]);
   const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
@@ -152,10 +175,9 @@ export default function DashboardPage() {
     setTransactionsError(null);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
-      // const oneYearAgo = subMonths(new Date(), 12); // Consider fetching all for more accurate cashflow if needed
       const q = query(
         transactionsCollectionRef,
-        orderBy("date", "asc") // Order by date ascending for cash flow calculation
+        orderBy("date", "asc") 
       );
       const querySnapshot = await getDocs(q);
       const fetchedTransactions: Transaction[] = [];
@@ -200,7 +222,6 @@ export default function DashboardPage() {
     setIsLoadingObjectives(true);
     try {
       const objectivesCol = collection(db, "objectives");
-      // Fetch top 3, ordered by name for consistency, could be by progress or target date later
       const qObjectives = query(objectivesCol, orderBy("name"), limit(3));
       const objectivesSnapshot = await getDocs(qObjectives);
       const fetchedObjectives: ObjectiveListItem[] = [];
@@ -229,10 +250,10 @@ export default function DashboardPage() {
       setLastSixMonthsChartData([]);
       setExpenseBreakdownCurrentMonth([]);
       setCashflowCurrentMonth([]);
-      setTopExpenseCategoriesCurrentMonth([]);
+      setDetailedExpenseCategoryCards([]);
       setIsLoadingExpenseBreakdown(false);
       setIsLoadingCashflow(false);
-      setIsLoadingTopCategories(false);
+      setIsLoadingDetailedCategories(false);
       return;
     }
 
@@ -240,19 +261,19 @@ export default function DashboardPage() {
     const currentMonthValue = getMonth(today);
     const currentYearValue = getYear(today);
 
-    // Calculate Current Month Summary (Income, Expenses, Balance)
     let cmIncome = 0;
     let cmExpenses = 0;
-    transactions.forEach(t => {
-      const transactionDate = parseISO(t.date);
-      if (isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonthValue) {
-        if (t.type === 'Entrata' && t.status === 'Completato') cmIncome += t.amount;
-        else if (t.type === 'Uscita' && t.status === 'Completato') cmExpenses += Math.abs(t.amount);
-      }
+    const currentMonthTransactions = transactions.filter(t => {
+        const transactionDate = parseISO(t.date);
+        return isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonthValue && t.status === 'Completato';
+    });
+
+    currentMonthTransactions.forEach(t => {
+      if (t.type === 'Entrata') cmIncome += t.amount;
+      else if (t.type === 'Uscita') cmExpenses += Math.abs(t.amount);
     });
     setCurrentMonthSummary({ income: cmIncome, expenses: cmExpenses, balance: cmIncome - cmExpenses });
 
-    // Calculate Last Six Months Chart Data
     const sixMonthChartData: Array<{ month: string; income: number; expenses: number }> = [];
     for (let i = 5; i >= 0; i--) {
       const dateIterator = subMonths(today, i);
@@ -262,23 +283,19 @@ export default function DashboardPage() {
       let monthlyExpenses = 0;
       transactions.forEach(t => {
         const transactionDate = parseISO(t.date);
-        if (isValid(transactionDate) && getYear(transactionDate) === yearForChart && getMonth(transactionDate) === monthForChart) {
-          if (t.type === 'Entrata' && t.status === 'Completato') monthlyIncome += t.amount;
-          else if (t.type === 'Uscita' && t.status === 'Completato') monthlyExpenses += Math.abs(t.amount);
+        if (isValid(transactionDate) && getYear(transactionDate) === yearForChart && getMonth(transactionDate) === monthForChart && t.status === 'Completato') {
+          if (t.type === 'Entrata') monthlyIncome += t.amount;
+          else if (t.type === 'Uscita') monthlyExpenses += Math.abs(t.amount);
         }
       });
       sixMonthChartData.push({ month: format(dateIterator, "MMM", { locale: it }), income: monthlyIncome, expenses: monthlyExpenses });
     }
     setLastSixMonthsChartData(sixMonthChartData);
 
-    // Calculate Expense Breakdown for Current Month (Pie Chart)
     setIsLoadingExpenseBreakdown(true);
     const currentMonthExpensesByCategory: Record<string, number> = {};
-    transactions
-      .filter(t => {
-        const transactionDate = parseISO(t.date);
-        return isValid(transactionDate) && getYear(transactionDate) === currentYearValue && getMonth(transactionDate) === currentMonthValue && t.type === 'Uscita' && t.status === 'Completato';
-      })
+    currentMonthTransactions
+      .filter(t => t.type === 'Uscita')
       .forEach(t => {
         currentMonthExpensesByCategory[t.category] = (currentMonthExpensesByCategory[t.category] || 0) + Math.abs(t.amount);
       });
@@ -289,7 +306,6 @@ export default function DashboardPage() {
     );
     setIsLoadingExpenseBreakdown(false);
     
-    // Calculate Cash Flow for Current Month (Line Chart)
     setIsLoadingCashflow(true);
     const firstDayOfMonth = startOfMonth(today);
     const lastDayOfMonth = endOfMonth(today);
@@ -301,26 +317,50 @@ export default function DashboardPage() {
         transactions.forEach(t => {
             const transactionDate = parseISO(t.date);
             if (isValid(transactionDate) && isEqual(transactionDate, day) && t.status === 'Completato') {
-                dailyNet += t.amount; // Amount is signed
+                dailyNet += t.amount; 
             }
         });
         dailyRunningBalance += dailyNet;
-        return { date: format(day, "dd/MM"), cashflow: dailyRunningBalance };
+        return { date: format(day, "dd"), cashflow: dailyRunningBalance }; // Changed to "dd" for simpler X-axis
     });
     setCashflowCurrentMonth(cashflowData);
     setIsLoadingCashflow(false);
 
-    // Calculate Top Expense Categories for Current Month (Table)
-    setIsLoadingTopCategories(true);
-    setTopExpenseCategoriesCurrentMonth(
-      Object.entries(currentMonthExpensesByCategory)
-        .sort(([, a], [, b]) => b - a) 
-        .map(([category, amount]) => ({ category, amount }))
-    );
-    setIsLoadingTopCategories(false);
+    setIsLoadingDetailedCategories(true);
+    const mainCategoriesForCards = allExpenseCategories; 
+    const cardDataArray: DetailCardData[] = [];
 
+    mainCategoriesForCards.forEach((category, index) => {
+      const categoryTrans = currentMonthTransactions.filter(t => t.category === category && t.type === 'Uscita');
+      
+      if (categoryTrans.length === 0) return; 
 
-  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]); // Removed isClient from deps, not needed here
+      const totalAmount = categoryTrans.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      const subCategoryExpenses: Record<string, number> = {};
+      categoryTrans.forEach(t => {
+        const itemKey = t.subcategory || t.description || "Voce non specificata";
+        subCategoryExpenses[itemKey] = (subCategoryExpenses[itemKey] || 0) + Math.abs(t.amount);
+      });
+
+      const itemCount = Object.keys(subCategoryExpenses).length;
+      const topItems = Object.entries(subCategoryExpenses)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 2) 
+        .map(([name, amount]) => ({ name, amount }));
+
+      cardDataArray.push({
+        category,
+        totalAmount,
+        itemCount,
+        topItems,
+        colorClasses: categoryCardColors[index % categoryCardColors.length],
+      });
+    });
+    setDetailedExpenseCategoryCards(cardDataArray);
+    setIsLoadingDetailedCategories(false);
+
+  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
 
   const handleGenerateInsight = useCallback(async () => {
     if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions) {
@@ -348,11 +388,11 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingInsight(false);
     }
-  }, [currentMonthSummary, toast, isLoadingTransactions]); // Added isLoadingTransactions dependency
+  }, [currentMonthSummary, toast, isLoadingTransactions]); 
   
   useEffect(() => {
     if (
-      isClient && // Ensure we are on client-side
+      isClient && 
       !isLoadingTransactions &&
       !transactionsError &&
       (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
@@ -511,7 +551,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-
+          
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="font-headline flex items-center">
@@ -619,38 +659,53 @@ export default function DashboardPage() {
           
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="font-headline flex items-center">
-                <ListChecks className="mr-2 h-5 w-5 text-primary" />
-                Categorie di Uscite (Mese Corrente)
-              </CardTitle>
-              <CardDescription>Dettaglio delle uscite per categoria nel mese corrente.</CardDescription>
+                <CardTitle className="font-headline">
+                    <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded-md">Categorie di Uscite (Mese Corrente)</span>
+                </CardTitle>
+                <CardDescription>Riepilogo delle principali categorie di spesa del mese.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingTopCategories ? <Loader2 className="h-8 w-8 animate-spin" /> : 
-                topExpenseCategoriesCurrentMonth.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead className="text-right">Importo Speso</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topExpenseCategoriesCurrentMonth.map(cat => (
-                      <TableRow key={cat.category}>
-                        <TableCell className="font-medium">{cat.category}</TableCell>
-                        <TableCell className="text-right text-red-600 dark:text-red-400">
-                          €{isClient ? cat.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : cat.amount.toFixed(2)}
-                        </TableCell>
-                      </TableRow>
+                {isLoadingDetailedCategories ? <div className="flex justify-center p-4"><Loader2 className="h-8 w-8 animate-spin" /></div> : 
+                detailedExpenseCategoryCards.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {detailedExpenseCategoryCards.map((card) => (
+                        <Card key={card.category} className={cn("shadow-sm", card.colorClasses.bg, card.colorClasses.border)}>
+                        <CardHeader className="pb-3 pt-4 px-4">
+                            <div className="flex justify-between items-start mb-1">
+                                <CardTitle className={cn("text-base font-bold", card.colorClasses.text)}>
+                                    {card.category}
+                                </CardTitle>
+                                <span className={cn("text-xs", card.colorClasses.textMuted || card.colorClasses.text)}>
+                                    {card.itemCount} {card.itemCount === 1 ? 'voce' : 'voci'}
+                                </span>
+                            </div>
+                            <CardDescription className={cn("text-xs", card.colorClasses.textMuted || card.colorClasses.text)}>
+                                Totale: €{isClient ? card.totalAmount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : card.totalAmount.toFixed(2)}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-0 pb-3 px-4">
+                            <ul className="space-y-0.5 text-xs mb-2">
+                            {card.topItems.map((item, idx) => (
+                                <li key={idx} className="flex justify-between">
+                                <span className={cn("truncate max-w-[65%]", card.colorClasses.textMuted || card.colorClasses.text)} title={item.name}>{item.name}</span>
+                                <span className={cn("font-medium", card.colorClasses.text)}>€{isClient ? item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.amount.toFixed(2)}</span>
+                                </li>
+                            ))}
+                            {card.topItems.length === 0 && <p className={cn("text-xs", card.colorClasses.textMuted || card.colorClasses.text)}>Nessuna spesa specifica.</p>}
+                            </ul>
+                            <Link href="/transactions" className={cn("text-xs", card.colorClasses.textMuted || card.colorClasses.text, `hover:underline hover:${card.colorClasses.text}`)}>
+                                Vedi tutte &rarr;
+                            </Link>
+                        </CardContent>
+                        </Card>
                     ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">Nessuna uscita registrata per il mese corrente (da Firestore) per le categorie.</p>
-              )}
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground text-center py-4">Nessuna uscita registrata per il mese corrente da categorizzare.</p>
+                )}
             </CardContent>
           </Card>
+
 
           <Card className="mb-6">
             <CardHeader>
@@ -691,7 +746,3 @@ export default function DashboardPage() {
   );
 }
     
-
-    
-
-
