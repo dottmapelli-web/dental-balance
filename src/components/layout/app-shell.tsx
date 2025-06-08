@@ -25,6 +25,10 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { collection, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import type { RecurrenceFrequency, TransactionStatus } from '@/config/transaction-categories';
+
 
 const BrandLogoIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
@@ -107,13 +111,82 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    console.log("Global transaction modal submitted (placeholder):", data, id);
+    // id non è usato qui perché stiamo gestendo solo NUOVE transazioni dal modale globale
+    // e il salvataggio di modifiche avverrà dalla pagina Transazioni
     setIsTransactionModalOpen(false);
-    toast({
-      title: `Azione Registrata (Placeholder)`,
-      description: `L'aggiunta/modifica di "${data.description || 'N/A'}" è stata registrata. Il salvataggio effettivo avviene nella pagina Transazioni.`,
-    });
+  
+    const transactionDataForFirestore = {
+      date: Timestamp.fromDate(data.date),
+      description: data.description || "",
+      category: data.category,
+      subcategory: data.subcategory || "",
+      type: data.type,
+      amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
+      status: data.status as TransactionStatus,
+      isRecurring: data.type === 'Uscita' ? data.isRecurring : false,
+      recurrenceDetails: data.type === 'Uscita' && data.isRecurring && data.recurrenceFrequency ? {
+        frequency: data.recurrenceFrequency as RecurrenceFrequency,
+        startDate: Timestamp.fromDate(data.date), // La data della definizione è la start date
+        endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
+      } : null,
+      originalRecurringId: null, // Nuove transazioni dal modale globale non sono istanze di ricorrenza
+    };
+  
+    try {
+      const newTransactionRef = doc(collection(db, "transactions"));
+      const bankBalanceDocRef = doc(db, "studioInfo/mainBalance");
+  
+      if (data.status === 'Completato') {
+        await runTransaction(db, async (firestoreTransaction) => {
+          const balanceDoc = await firestoreTransaction.get(bankBalanceDocRef);
+          let currentBalance = 0;
+          if (balanceDoc.exists()) {
+            currentBalance = balanceDoc.data()?.balance || 0;
+          }
+  
+          const newBalance = currentBalance + transactionDataForFirestore.amount; // amount è già correttamente segnato (+ o -)
+  
+          firestoreTransaction.set(newTransactionRef, transactionDataForFirestore);
+          firestoreTransaction.set(bankBalanceDocRef, { balance: newBalance }, { merge: true }); // merge: true per creare il doc se non esiste
+        });
+  
+        toast({
+          title: `Transazione Aggiunta e Saldo Aggiornato`,
+          description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)}. Il saldo bancario è stato aggiornato.`,
+        });
+
+        // Se la transazione è una definizione ricorrente, crea le istanze (logica da pagina transazioni)
+        // Qui, dal modale globale, gestiamo solo transazioni singole per l'aggiornamento del saldo
+        if (transactionDataForFirestore.isRecurring && transactionDataForFirestore.recurrenceDetails && !transactionDataForFirestore.originalRecurringId) {
+          // Potremmo aggiungere qui la logica di creazione istanze se vogliamo che anche da qui si creino
+          // Per ora, questo modale si concentra su transazioni "one-shot" o definizioni senza creare istanze immediatamente
+           console.warn("Creazione istanze ricorrenti dal modale globale non implementata per aggiornamento saldo immediato. Gestire dalla pagina transazioni.");
+        }
+
+
+      } else {
+        // Salva solo la transazione se non è 'Completato', senza modificare il saldo bancario
+        // Usiamo runTransaction anche qui per coerenza, anche se potremmo usare un set diretto.
+        await runTransaction(db, async (firestoreTransaction) => {
+            firestoreTransaction.set(newTransactionRef, transactionDataForFirestore);
+        });
+
+        toast({
+          title: `Transazione Aggiunta`,
+          description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)} (${data.status}). Il saldo bancario non è stato modificato.`,
+        });
+      }
+  
+    } catch (error: any) {
+      console.error("Errore aggiunta transazione o aggiornamento saldo:", error);
+      toast({
+        title: "Errore Operazione",
+        description: `Impossibile aggiungere la transazione o aggiornare il saldo: ${error.message}`,
+        variant: "destructive",
+      });
+    }
   };
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -254,7 +327,7 @@ export default function AppShell({ children }: AppShellProps) {
             isOpen={isTransactionModalOpen}
             onOpenChange={setIsTransactionModalOpen}
             transactionTypeInitial={transactionTypeForModal}
-            onSubmitSuccess={handleTransactionSubmit}
+            onSubmitSuccess={handleTransactionSubmit} // Passa la nuova funzione di submit
         />
       )}
     </SidebarProvider>
