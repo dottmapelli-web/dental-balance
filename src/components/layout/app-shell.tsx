@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/contexts/auth-context';
 import FullScreenLoader from '@/components/ui/full-screen-loader';
-import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard, PlusCircle, MinusCircle } from 'lucide-react';
+import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard, PlusCircle, MinusCircle, PanelLeftOpen, PanelLeftClose } from 'lucide-react'; // Added PanelLeftOpen/Close
 import { useTheme } from "next-themes";
 import { siteConfig } from '@/config/site';
 import {
@@ -17,6 +17,7 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
+  useSidebar, // Import useSidebar
 } from '@/components/ui/sidebar';
 import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -26,43 +27,90 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, Timestamp, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import type { RecurrenceFrequency, TransactionStatus } from '@/config/transaction-categories';
+import { addMonths } from 'date-fns';
 
 
-const BrandLogoIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 170 70" xmlns="http://www.w3.org/2000/svg" className={cn(className)} aria-label="Studio De Vecchi & Mapelli Logo with tooth icon" data-ai-hint="clinic logo tooth vertical">
+const NewBrandLogoIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 280 100" 
+    xmlns="http://www.w3.org/2000/svg" 
+    className={cn("transition-all duration-300 ease-in-out", className)} 
+    aria-label="Studio De Vecchi & Mapelli Logo"
+    data-ai-hint="dental clinic logo tooth horizontal"
+  >
     <defs>
       <style dangerouslySetInnerHTML={{ __html: `
-        .logo-text {
-          font-family: 'Arial', sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap');
+        .logo-main-text {
+          font-family: 'Kalam', cursive;
           font-size: 20px;
-          font-weight: bold;
-          fill: #2c3e50; /* Blu scuro */
+          font-weight: 700;
+          fill: hsl(var(--foreground));
         }
-        .logo-text-italic {
-          font-family: 'Arial', sans-serif;
-          font-style: italic;
-          font-size: 14px;
-          fill: #34495e; /* Blu-grigio */
+        .logo-sub-text {
+          font-family: 'Kalam', cursive;
+          font-size: 10px;
+          font-weight: 400;
+          fill: hsl(var(--foreground));
         }
-        .tooth-icon {
-          fill: #3498db; /* Blu brillante */
-          stroke: #2980b9; /* Blu più scuro per il bordo */
-          stroke-width: 0.5px;
+        .tooth-icon-white {
+          fill: hsl(var(--card)); 
+          stroke: hsl(var(--foreground)); 
+          stroke-width: 1.5px;
         }
-        /* Dark theme adjustments */
-        .dark .logo-text { fill: #ecf0f1; } /* Testo chiaro per tema scuro */
-        .dark .logo-text-italic { fill: #bdc3c7; } /* Testo grigio chiaro per tema scuro */
-        .dark .tooth-icon { fill: #5dade2; stroke: #3498db; } /* Icona dente per tema scuro */
+        .tooth-icon-brown {
+          fill: #A0522D; /* Sienna brown */
+          stroke: #8B4513; /* Darker sienna */
+          stroke-width: 1.5px;
+        }
+        .line-separator {
+          stroke: hsl(var(--foreground));
+          stroke-width: 1.5px;
+        }
+        .bottom-line {
+          stroke: #A0522D; /* Sienna brown */
+          stroke-width: 1.5px;
+        }
+        .dark .tooth-icon-white {
+           fill: hsl(var(--popover)); 
+           stroke: hsl(var(--popover-foreground));
+        }
+        .dark .logo-main-text, .dark .logo-sub-text {
+            fill: hsl(var(--popover-foreground));
+        }
+        .dark .line-separator {
+            stroke: hsl(var(--popover-foreground));
+        }
       ` }} />
     </defs>
-    <rect width="170" height="70" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" rx="5" ry="5" />
-    <path className="tooth-icon" d="M20 15 Q25 10 30 15 L30 30 Q25 40 20 30 Z M30 15 Q35 10 40 15 L40 30 Q35 40 30 30 Z M25 38 Q32.5 55 40 38 Z" transform="translate(5, 5) scale(0.9)" />
-    <text x="60" y="30" className="logo-text">Studio De Vecchi</text>
-    <text x="60" y="50" className="logo-text">& Mapelli</text>
+    
+    {/* Tooth Icon */}
+    <path className="tooth-icon-brown" d="M35 25 C32 15, 48 15, 45 25 L45 52 Q40 65, 35 52 Z" />
+    <path className="tooth-icon-white" d="M20 25 C23 15, 37 15, 40 25 L40 52 Q35 65, 30 52 Z M40 25 C43 15, 57 15, 60 25 L60 52 Q55 65, 50 52 Z M35 60 Q42.5 80, 50 60 Z" />
+
+    {/* Vertical Line */}
+    <line className="line-separator" x1="75" y1="20" x2="75" y2="80" />
+
+    {/* Text De Vecchi & Mapelli */}
+    <text x="90" y="38" className="logo-main-text">De Vecchi</text>
+    <text x="90" y="63" className="logo-main-text">& Mapelli</text>
+
+    {/* Horizontal Line */}
+    <line className="bottom-line" x1="90" y1="73" x2="265" y2="73" />
+    
+    {/* Sub Text */}
+    <text x="90" y="88" className="logo-sub-text">Odontoiatria, Estetica e Innovazione</text>
   </svg>
 );
+
+// Component to conditionally render PanelLeftOpen or PanelLeftClose
+const SidebarToggleIcon = () => {
+  const { open, isMobile } = useSidebar(); // Get sidebar state
+  if (isMobile) return <PanelLeftOpen />; // Always show open for mobile trigger
+  return open ? <PanelLeftClose /> : <PanelLeftOpen />;
+};
 
 
 interface AppShellProps {
@@ -111,8 +159,6 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    // id non è usato qui perché stiamo gestendo solo NUOVE transazioni dal modale globale
-    // e il salvataggio di modifiche avverrà dalla pagina Transazioni
     setIsTransactionModalOpen(false);
   
     const transactionDataForFirestore = {
@@ -126,56 +172,71 @@ export default function AppShell({ children }: AppShellProps) {
       isRecurring: data.type === 'Uscita' ? data.isRecurring : false,
       recurrenceDetails: data.type === 'Uscita' && data.isRecurring && data.recurrenceFrequency ? {
         frequency: data.recurrenceFrequency as RecurrenceFrequency,
-        startDate: Timestamp.fromDate(data.date), // La data della definizione è la start date
+        startDate: Timestamp.fromDate(data.date),
         endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
       } : null,
-      originalRecurringId: null, // Nuove transazioni dal modale globale non sono istanze di ricorrenza
+      originalRecurringId: null, 
     };
   
     try {
       const newTransactionRef = doc(collection(db, "transactions"));
       const bankBalanceDocRef = doc(db, "studioInfo/mainBalance");
-  
+      const batch = writeBatch(db);
+
+      batch.set(newTransactionRef, transactionDataForFirestore);
+
       if (data.status === 'Completato') {
-        await runTransaction(db, async (firestoreTransaction) => {
-          const balanceDoc = await firestoreTransaction.get(bankBalanceDocRef);
-          let currentBalance = 0;
-          if (balanceDoc.exists()) {
-            currentBalance = balanceDoc.data()?.balance || 0;
-          }
-  
-          const newBalance = currentBalance + transactionDataForFirestore.amount; // amount è già correttamente segnato (+ o -)
-  
-          firestoreTransaction.set(newTransactionRef, transactionDataForFirestore);
-          firestoreTransaction.set(bankBalanceDocRef, { balance: newBalance }, { merge: true }); // merge: true per creare il doc se non esiste
-        });
-  
-        toast({
-          title: `Transazione Aggiunta e Saldo Aggiornato`,
-          description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)}. Il saldo bancario è stato aggiornato.`,
-        });
-
-        // Se la transazione è una definizione ricorrente, crea le istanze (logica da pagina transazioni)
-        // Qui, dal modale globale, gestiamo solo transazioni singole per l'aggiornamento del saldo
-        if (transactionDataForFirestore.isRecurring && transactionDataForFirestore.recurrenceDetails && !transactionDataForFirestore.originalRecurringId) {
-          // Potremmo aggiungere qui la logica di creazione istanze se vogliamo che anche da qui si creino
-          // Per ora, questo modale si concentra su transazioni "one-shot" o definizioni senza creare istanze immediatamente
-           console.warn("Creazione istanze ricorrenti dal modale globale non implementata per aggiornamento saldo immediato. Gestire dalla pagina transazioni.");
+        const balanceDoc = await getDoc(bankBalanceDocRef); // Leggi fuori dalla transazione Firestore
+        let currentBalance = 0;
+        if (balanceDoc.exists()) {
+          currentBalance = balanceDoc.data()?.balance || 0;
         }
-
-
-      } else {
-        // Salva solo la transazione se non è 'Completato', senza modificare il saldo bancario
-        // Usiamo runTransaction anche qui per coerenza, anche se potremmo usare un set diretto.
-        await runTransaction(db, async (firestoreTransaction) => {
-            firestoreTransaction.set(newTransactionRef, transactionDataForFirestore);
-        });
-
-        toast({
-          title: `Transazione Aggiunta`,
-          description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)} (${data.status}). Il saldo bancario non è stato modificato.`,
-        });
+        const newBalance = currentBalance + transactionDataForFirestore.amount;
+        batch.set(bankBalanceDocRef, { balance: newBalance }, { merge: true });
       }
+
+      // Gestione istanze ricorrenti SE la nuova transazione è una DEFINIZIONE ricorrente
+      if (transactionDataForFirestore.isRecurring && transactionDataForFirestore.recurrenceDetails && !transactionDataForFirestore.originalRecurringId) {
+        const definitionDate = data.date;
+        const recurrenceEndDate = data.recurrenceEndDate;
+        let instancesCreatedCount = 0;
+        const MAX_RECURRING_INSTANCES = 120;
+
+        for (let i = 0; i < MAX_RECURRING_INSTANCES; i++) {
+          let nextInstanceDate: Date;
+          switch(transactionDataForFirestore.recurrenceDetails.frequency) {
+            case 'Mensile': nextInstanceDate = addMonths(definitionDate, i + 1); break;
+            case 'Bimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 2); break;
+            case 'Trimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 3); break;
+            case 'Semestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 6); break;
+            case 'Annuale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 12); break;
+            default: nextInstanceDate = addMonths(definitionDate, i + 1); break;
+          }
+          if (recurrenceEndDate && nextInstanceDate > recurrenceEndDate) break;
+          
+          const instanceData = {
+            ...transactionDataForFirestore,
+            date: Timestamp.fromDate(nextInstanceDate),
+            isRecurring: false,
+            recurrenceDetails: null,
+            originalRecurringId: newTransactionRef.id, // Link alla nuova definizione
+            status: 'Pianificato' as TransactionStatus,
+          };
+          const newInstanceRef = doc(collection(db, "transactions"));
+          batch.set(newInstanceRef, instanceData);
+          instancesCreatedCount++;
+        }
+        if (instancesCreatedCount > 0) {
+          toast({ title: "Istanze Ricorrenti Create", description: `${instancesCreatedCount} istanze future sono state pianificate.`});
+        }
+      }
+      
+      await batch.commit();
+
+      toast({
+        title: data.status === 'Completato' ? `Transazione Aggiunta e Saldo Aggiornato` : `Transazione Aggiunta`,
+        description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)}. ${data.status === 'Completato' ? 'Il saldo bancario è stato aggiornato.' : 'Il saldo bancario non è stato modificato.'}`,
+      });
   
     } catch (error: any) {
       console.error("Errore aggiunta transazione o aggiornamento saldo:", error);
@@ -190,10 +251,18 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar side="left" variant="sidebar" collapsible="icon" className=""> 
-        <SidebarHeader className="items-center">
-          <BrandLogoIcon className="h-10 w-auto group-data-[collapsible=icon]:hidden" />
+      <Sidebar side="left" variant="sidebar" collapsible="icon" className="print-hidden"> 
+        <SidebarHeader className="flex items-center justify-between p-2 pr-1">
+          {/* Logo a sinistra */}
+          <div className="group-data-[collapsible=icon]:hidden flex-shrink-0">
+            <NewBrandLogoIcon className="h-14 w-auto" />
+          </div>
           <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
+          
+          {/* SidebarTrigger a destra (quando la sidebar è espansa) o unico elemento (quando collassata) */}
+          <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:mx-auto">
+            <SidebarToggleIcon />
+          </SidebarTrigger>
         </SidebarHeader>
         <SidebarContent>
           <MainSidebarNav items={siteConfig.navItems} />
@@ -203,20 +272,21 @@ export default function AppShell({ children }: AppShellProps) {
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset className=""> 
+      <SidebarInset className="print-hidden"> 
       <header className="sticky top-0 z-30 flex h-16 items-center gap-x-2 sm:gap-x-4 border-b bg-background/95 px-4 backdrop-blur-sm print-hidden">
-          <SidebarTrigger className="md:hidden" />
+          <SidebarTrigger className="md:hidden" >
+             <PanelLeftOpen />
+          </SidebarTrigger>
           
           <div className="flex flex-col items-start">
-            <span className="text-base font-bold text-foreground leading-tight md:text-2xl">Studio De Vecchi & Mapelli</span>
-            <span className="text-xs font-medium text-muted-foreground -mt-1 leading-tight md:text-base">{siteConfig.name}</span>
+            <span className="text-base font-bold text-foreground leading-tight md:text-xl">Studio De Vecchi & Mapelli</span>
+            <span className="text-xs font-medium text-muted-foreground -mt-1 leading-tight md:text-sm">{siteConfig.name}</span>
           </div>
           
           <div className="flex-1" /> 
 
           {user && (
             <>
-              {/* Desktop Buttons */}
               <Button
                 variant="default"
                 size="sm"
@@ -233,8 +303,6 @@ export default function AppShell({ children }: AppShellProps) {
               >
                 <MinusCircle className="mr-2 h-4 w-4" /> Nuova Uscita
               </Button>
-
-              {/* Mobile Icon Buttons */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -298,7 +366,7 @@ export default function AppShell({ children }: AppShellProps) {
           )}
         </header>
         
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6"> 
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 print:p-0 print:m-0"> 
           {user ? (
             children
           ) : (
@@ -327,7 +395,7 @@ export default function AppShell({ children }: AppShellProps) {
             isOpen={isTransactionModalOpen}
             onOpenChange={setIsTransactionModalOpen}
             transactionTypeInitial={transactionTypeForModal}
-            onSubmitSuccess={handleTransactionSubmit} // Passa la nuova funzione di submit
+            onSubmitSuccess={handleTransactionSubmit}
         />
       )}
     </SidebarProvider>
