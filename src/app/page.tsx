@@ -367,7 +367,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingInsight(false);
     }
-  }, [currentMonthSummary, toast, setIsLoadingInsight, setInsightError, setDashboardInsight, isLoadingTransactions]);
+  }, [currentMonthSummary, toast, isLoadingTransactions]);
   
   useEffect(() => {
     if (
@@ -531,6 +531,61 @@ export default function DashboardPage() {
             </Card>
           </div>
 
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center">
+                <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
+                Insight Finanziario AI (Mese Corrente)
+              </CardTitle>
+              <CardDescription>
+                Un breve commento generato dall'AI sulla salute finanziaria di questo mese.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button 
+                onClick={handleGenerateInsight} 
+                disabled={isLoadingInsight || isLoadingTransactions || (!isLoadingTransactions && currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)}
+              >
+                {isLoadingInsight ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="mr-2 h-4 w-4" />
+                )}
+                Rigenera Insight AI
+              </Button>
+              {isLoadingInsight && (
+                <div className="flex items-center justify-center p-4 text-muted-foreground">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Generazione insight in corso...
+                </div>
+              )}
+              {insightError && !isLoadingInsight && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Errore Generazione Insight AI</AlertTitle>
+                  <AlertDescription>{insightError}</AlertDescription>
+                </Alert>
+              )}
+              {dashboardInsight && !isLoadingInsight && !insightError && (
+                <Textarea
+                  value={dashboardInsight}
+                  readOnly
+                  className="min-h-[80px] bg-muted/30 border-dashed"
+                  rows={4}
+                />
+              )}
+              {!dashboardInsight && !isLoadingInsight && !insightError && (
+                 <p className="text-sm text-muted-foreground text-center py-4">
+                  {isLoadingTransactions 
+                      ? "Caricamento dati transazioni in corso..."
+                      : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)
+                          ? `Nessun dato finanziario per il mese corrente per generare un insight.`
+                          : `Insight AI non ancora disponibile. Prova a generarlo.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
@@ -603,61 +658,6 @@ export default function DashboardPage() {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="font-headline flex items-center">
-                <BotMessageSquare className="mr-2 h-5 w-5 text-primary" />
-                Insight Finanziario AI (Mese Corrente)
-              </CardTitle>
-              <CardDescription>
-                Un breve commento generato dall'AI sulla salute finanziaria di questo mese.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button 
-                onClick={handleGenerateInsight} 
-                disabled={isLoadingInsight || isLoadingTransactions || (!isLoadingTransactions && currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)}
-              >
-                {isLoadingInsight ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                Rigenera Insight AI
-              </Button>
-              {isLoadingInsight && (
-                <div className="flex items-center justify-center p-4 text-muted-foreground">
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generazione insight in corso...
-                </div>
-              )}
-              {insightError && !isLoadingInsight && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Errore Generazione Insight AI</AlertTitle>
-                  <AlertDescription>{insightError}</AlertDescription>
-                </Alert>
-              )}
-              {dashboardInsight && !isLoadingInsight && !insightError && (
-                <Textarea
-                  value={dashboardInsight}
-                  readOnly
-                  className="min-h-[80px] bg-muted/30 border-dashed"
-                  rows={4}
-                />
-              )}
-              {!dashboardInsight && !isLoadingInsight && !insightError && (
-                 <p className="text-sm text-muted-foreground text-center py-4">
-                  {isLoadingTransactions 
-                      ? "Caricamento dati transazioni in corso..."
-                      : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)
-                          ? `Nessun dato finanziario per il mese corrente per generare un insight.`
-                          : `Insight AI non ancora disponibile. Prova a generarlo.`}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="font-headline flex items-center">
                   <TargetIcon className="mr-2 h-5 w-5 text-primary" />
                   Obiettivi Finanziari Chiave
               </CardTitle>
@@ -712,3 +712,4 @@ export default function DashboardPage() {
     
 
     
+
