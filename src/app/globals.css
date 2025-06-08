@@ -132,7 +132,7 @@ body {
     padding: 0 !important;
     margin: 0 !important;
   }
-  #monthly-report-printable-area {
+  #monthly-report-printable-area, #annual-report-printable-area {
     width: 100%;
     margin: 0;
     padding: 1cm; /* Add some padding for print */
@@ -163,9 +163,17 @@ body {
   .recharts-line path[name="Entrate"] { stroke: var(--chart-1-print) !important; }
   .recharts-line path[name="Uscite"] { stroke: var(--chart-2-print) !important; }
   .recharts-line path[name="Saldo Mensile"] { stroke: var(--chart-3-print) !important; }
+  .recharts-line path[name="Profitto Netto Mensile"] { stroke: var(--chart-3-print) !important; }
+
+  .recharts-bar[name="Entrate Totali Annuali"] rect, .recharts-bar[name="Entrate Mensili"] rect { fill: var(--chart-1-print) !important; }
+  .recharts-bar[name="Uscite Totali Annuali"] rect, .recharts-bar[name="Uscite Mensili"] rect { fill: var(--chart-2-print) !important; }
+
   .recharts-legend-item-icon[fill="var(--color-income)"] { fill: var(--chart-1-print) !important; }
   .recharts-legend-item-icon[fill="var(--color-expenses)"] { fill: var(--chart-2-print) !important; }
   .recharts-legend-item-icon[fill="var(--color-balance)"] { fill: var(--chart-3-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-profit)"] { fill: var(--chart-3-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-totalIncome)"] { fill: var(--chart-1-print) !important; }
+  .recharts-legend-item-icon[fill="var(--color-totalExpenses)"] { fill: var(--chart-2-print) !important; }
   
   @page {
     size: A4 portrait;
