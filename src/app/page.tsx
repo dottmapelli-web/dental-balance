@@ -152,10 +152,9 @@ export default function DashboardPage() {
     setTransactionsError(null);
     try {
       const transactionsCollectionRef = collection(db, "transactions");
-      const oneYearAgo = subMonths(new Date(), 12);
+      // const oneYearAgo = subMonths(new Date(), 12); // Consider fetching all for more accurate cashflow if needed
       const q = query(
         transactionsCollectionRef,
-        // where("date", ">=", Timestamp.fromDate(oneYearAgo)), // Consider fetching all for more accurate cashflow if needed
         orderBy("date", "asc") // Order by date ascending for cash flow calculation
       );
       const querySnapshot = await getDocs(q);
@@ -295,23 +294,8 @@ export default function DashboardPage() {
     const firstDayOfMonth = startOfMonth(today);
     const lastDayOfMonth = endOfMonth(today);
     const daysInMonth = eachDayOfInterval({ start: firstDayOfMonth, end: lastDayOfMonth });
-    let cumulativeBalance = bankBalance; // Start with initial bank balance if available, or 0
-
-    // Sum up all transactions *before* the start of the current month to get starting balance
-    let openingBalanceForMonth = bankBalance; // Use current bank balance as a proxy if no historical calculation
-    transactions.forEach(t => {
-        const tDate = parseISO(t.date);
-        if (isValid(tDate) && isBefore(tDate, firstDayOfMonth) && t.status === 'Completato') {
-            // This part is tricky without full history. Assuming bankBalance is "current" and we build relative.
-            // For a true historical cashflow, we'd need *all* transactions ever.
-            // For simplicity, let's consider cashflow *within* the month relative to initial display.
-        }
-    });
-    // For this dashboard, let's make cashflow relative to the start of *displayed transactions*
-    // or simply track monthly change starting from 0 if bankBalance is separate.
-    // Let's restart balance daily for the chart starting at 0 for the month's activities
     
-    let dailyRunningBalance = 0; // This will be the balance change *within* the month
+    let dailyRunningBalance = 0; 
     const cashflowData = daysInMonth.map(day => {
         let dailyNet = 0;
         transactions.forEach(t => {
@@ -328,17 +312,15 @@ export default function DashboardPage() {
 
     // Calculate Top Expense Categories for Current Month (Table)
     setIsLoadingTopCategories(true);
-    // currentMonthExpensesByCategory is already calculated for pie chart
     setTopExpenseCategoriesCurrentMonth(
       Object.entries(currentMonthExpensesByCategory)
-        .sort(([, a], [, b]) => b - a) // Sort descending by amount
-        // .slice(0, 5) // Optionally limit to top N categories
+        .sort(([, a], [, b]) => b - a) 
         .map(([category, amount]) => ({ category, amount }))
     );
     setIsLoadingTopCategories(false);
 
 
-  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
+  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]); // Removed isClient from deps, not needed here
 
   const handleGenerateInsight = useCallback(async () => {
     if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions) {
@@ -357,7 +339,6 @@ export default function DashboardPage() {
       };
       const result = await generateDashboardInsight(input);
       setDashboardInsight(result.insightText);
-      // toast({ title: "Insight Generato", description: "L'insight AI per la dashboard è pronto." });
     } catch (e: any) {
       console.error("Error generating dashboard insight:", e);
       const errorMessage = e.message || "Errore sconosciuto durante la generazione dell'insight.";
@@ -367,11 +348,11 @@ export default function DashboardPage() {
     } finally {
       setIsLoadingInsight(false);
     }
-  }, [currentMonthSummary, toast, isLoadingTransactions]);
+  }, [currentMonthSummary, toast, isLoadingTransactions]); // Added isLoadingTransactions dependency
   
   useEffect(() => {
     if (
-      isClient &&
+      isClient && // Ensure we are on client-side
       !isLoadingTransactions &&
       !transactionsError &&
       (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
@@ -586,6 +567,22 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="font-headline">Andamento Entrate/Uscite (Ultimi 6 Mesi)</CardTitle>
+              <CardDescription>Confronto delle entrate e uscite mensili (transazioni completate).</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {lastSixMonthsChartData.length > 0 && lastSixMonthsChartData.some(d => d.income > 0 || d.expenses > 0) ? (
+                <DashboardBarChart data={lastSixMonthsChartData} config={dashboardChartConfig} />
+              ) : (
+                <p className="text-muted-foreground h-[300px] flex items-center justify-center">
+                  {isLoadingTransactions ? "Caricamento dati per il grafico..." : "Nessun dato sufficiente per il grafico degli ultimi 6 mesi."}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
@@ -688,22 +685,6 @@ export default function DashboardPage() {
               </Button>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline">Andamento Entrate/Uscite (Ultimi 6 Mesi)</CardTitle>
-              <CardDescription>Confronto delle entrate e uscite mensili (transazioni completate).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {lastSixMonthsChartData.length > 0 && lastSixMonthsChartData.some(d => d.income > 0 || d.expenses > 0) ? (
-                <DashboardBarChart data={lastSixMonthsChartData} config={dashboardChartConfig} />
-              ) : (
-                <p className="text-muted-foreground h-[300px] flex items-center justify-center">
-                  {isLoadingTransactions ? "Caricamento dati per il grafico..." : "Nessun dato sufficiente per il grafico degli ultimi 6 mesi."}
-                </p>
-              )}
-            </CardContent>
-          </Card>
         </>
       )}
     </>
@@ -712,4 +693,5 @@ export default function DashboardPage() {
     
 
     
+
 
