@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText, Landmark, Edit, PieChart as PieChartIcon, LineChart as LineChartIcon, ListChecks, Target as TargetIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, CircleDollarSign, BotMessageSquare, Loader2, AlertCircle, Wand2, FileText, Landmark, Edit, PieChart as PieChartIcon, LineChart as LineChartIcon, Target as TargetIcon } from "lucide-react";
 import type { ChartConfig } from "@/components/ui/chart";
 import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
 import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
@@ -19,8 +19,8 @@ import { generateDashboardInsight, type GenerateDashboardInsightInput, type Gene
 import { type Transaction } from '@/data/transactions-data';
 import type { ObjectiveListItem } from '@/app/budget-objectives/page';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc, limit } from 'firebase/firestore';
-import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, getDate, isEqual } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc, setDoc, limit, runTransaction } from 'firebase/firestore';
+import { format, parseISO, isValid, getMonth, getYear, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, isEqual, isSameMonth, isSameYear } from 'date-fns';
 import { it } from "date-fns/locale";
 import { useToast } from '@/hooks/use-toast';
 import { siteConfig } from '@/config/site';
@@ -40,6 +40,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
 import { allExpenseCategories } from '@/config/transaction-categories';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from '@/contexts/auth-context';
 
 
 const dashboardChartConfig = {
@@ -62,17 +64,65 @@ interface DetailCardData {
   colorClasses: { bg: string; text: string; border: string; textMuted?: string; bgAlt?: string };
 }
 
-// Updated pastel colors inspired by the image
 const categoryCardColors = [
-  { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', textMuted: 'text-purple-600' },
-  { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', textMuted: 'text-green-600' },
-  { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200', textMuted: 'text-pink-600' },
-  { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', textMuted: 'text-yellow-600' },
-  { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', textMuted: 'text-red-600' },
-  { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', textMuted: 'text-blue-600' },
-  { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', textMuted: 'text-orange-600' },
-  // Add more if there are more categories than colors
+  { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-700', textMuted: 'text-purple-600 dark:text-purple-400' },
+  { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700', textMuted: 'text-green-600 dark:text-green-400' },
+  { bg: 'bg-pink-50 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-200 dark:border-pink-700', textMuted: 'text-pink-600 dark:text-pink-400' },
+  { bg: 'bg-yellow-50 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700', textMuted: 'text-yellow-600 dark:text-yellow-400' },
+  { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-700', textMuted: 'text-red-600 dark:text-red-400' },
+  { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700', textMuted: 'text-blue-600 dark:text-blue-400' },
+  { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700', textMuted: 'text-orange-600 dark:text-orange-400' },
 ];
+
+// Helper function to generate available periods (similar to monthly-summary)
+const generateAvailablePeriodsForCategories = (transactions: Transaction[]) => {
+  const periods = new Set<string>();
+  if (transactions.length === 0) {
+    periods.add(format(new Date(), "yyyy-MM"));
+  } else {
+    transactions.forEach(t => {
+      const date = parseISO(t.date);
+      if (isValid(date)) {
+        periods.add(format(date, "yyyy-MM"));
+      }
+    });
+  }
+  
+  const sortedPeriods = Array.from(periods).sort().reverse();
+  
+  const years = new Set<string>();
+  const monthsByYear: Record<string, { value: string; label: string }[]> = {};
+
+  sortedPeriods.forEach(period => {
+    const [yearStr, monthStr] = period.split('-');
+    years.add(yearStr);
+    if (!monthsByYear[yearStr]) {
+      monthsByYear[yearStr] = [];
+    }
+    const monthIndex = parseInt(monthStr, 10) - 1;
+    monthsByYear[yearStr].push({
+      value: monthIndex.toString(),
+      label: format(new Date(parseInt(yearStr), monthIndex), "MMMM", { locale: it }),
+    });
+  });
+   for (const year in monthsByYear) {
+    monthsByYear[year] = Array.from(new Set(monthsByYear[year].map(m => m.value)))
+      .map(value => monthsByYear[year].find(m => m.value === value)!)
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value));
+  }
+
+  const sortedYearsArray = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  if (sortedYearsArray.length === 0 && years.size === 0) { 
+    const currentYr = getYear(new Date()).toString();
+    sortedYearsArray.push(currentYr);
+    monthsByYear[currentYr] = [{value: getMonth(new Date()).toString(), label: format(new Date(), "MMMM", { locale: it})}];
+  }
+
+  return {
+    years: sortedYearsArray,
+    monthsByYear,
+  };
+};
 
 
 export default function DashboardPage() {
@@ -82,6 +132,7 @@ export default function DashboardPage() {
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const { transactionsVersion } = useAuth(); // For re-fetching
 
   const [currentMonthSummary, setCurrentMonthSummary] = useState<{ income: number; expenses: number; balance: number }>({ income: 0, expenses: 0, balance: 0 });
   const [lastSixMonthsChartData, setLastSixMonthsChartData] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
@@ -107,6 +158,15 @@ export default function DashboardPage() {
   const [keyFinancialObjectives, setKeyFinancialObjectives] = useState<ObjectiveListItem[]>([]);
   const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
 
+  const { years: availableYearsForCategories, monthsByYear: monthsByYearForCategories } = useMemo(() => generateAvailablePeriodsForCategories(transactions), [transactions]);
+  const [categoriesSelectedYear, setCategoriesSelectedYear] = useState<string>(() => availableYearsForCategories[0] || getYear(new Date()).toString());
+  const [categoriesSelectedMonth, setCategoriesSelectedMonth] = useState<string>(() => {
+      const initialYear = availableYearsForCategories[0] || getYear(new Date()).toString();
+      const yearMonths = monthsByYearForCategories[initialYear] || [];
+      const currentMonthActual = getMonth(new Date()).toString();
+      return yearMonths.find(m => m.value === currentMonthActual)?.value || yearMonths[0]?.value || getMonth(new Date()).toString();
+  });
+  const [availableMonthsForCategoriesCard, setAvailableMonthsForCategoriesCard] = useState(monthsByYearForCategories[categoriesSelectedYear] || []);
 
   useEffect(() => {
     setIsClient(true);
@@ -140,7 +200,7 @@ export default function DashboardPage() {
 
   const handleUpdateBankBalance = async () => {
     const newBalance = parseFloat(newBankBalanceValue);
-    if (isNaN(newBalance) || newBalance < 0) {
+    if (isNaN(newBalance)) { // Check for NaN, allow negative balance if needed by business logic
       toast({
         title: "Valore Non Valido",
         description: "Inserisci un importo valido per la giacenza bancaria.",
@@ -151,11 +211,15 @@ export default function DashboardPage() {
     setIsLoadingBankBalance(true);
     try {
       const balanceDocRef = doc(db, BANK_BALANCE_DOC_PATH);
-      await setDoc(balanceDocRef, { balance: newBalance }, { merge: true });
+      // Using a Firestore transaction to safely update the balance
+      await runTransaction(db, async (transaction) => {
+        // No need to read if we are just setting it to a new manual value
+        transaction.set(balanceDocRef, { balance: newBalance }, { merge: true });
+      });
       setBankBalance(newBalance);
       toast({
         title: "Giacenza Aggiornata",
-        description: `La giacenza bancaria è stata aggiornata a €${newBalance.toFixed(2)}.`,
+        description: `La giacenza bancaria è stata aggiornata a €${newBalance.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
       });
       setIsEditingBankBalance(false);
     } catch (error) {
@@ -202,6 +266,19 @@ export default function DashboardPage() {
         });
       });
       setTransactions(fetchedTransactions);
+
+       const { years: yearsFromDataCat, monthsByYear: monthsFromDataCat } = generateAvailablePeriodsForCategories(fetchedTransactions);
+        if (yearsFromDataCat.length > 0) {
+            const initialCatYear = yearsFromDataCat.includes(getYear(new Date()).toString()) ? getYear(new Date()).toString() : yearsFromDataCat[0];
+            setCategoriesSelectedYear(initialCatYear);
+            
+            const initialCatMonths = monthsFromDataCat[initialCatYear] || [];
+            const currentActualCatMonth = getMonth(new Date()).toString();
+            const defaultCatMonth = initialCatMonths.find(m => m.value === currentActualCatMonth)?.value || initialCatMonths[0]?.value || getMonth(new Date()).toString();
+            setCategoriesSelectedMonth(defaultCatMonth);
+        }
+
+
     } catch (error: any) {
       console.error("Errore caricamento transazioni da Firestore (Dashboard):", error);
       let detailedError = "Impossibile caricare le transazioni da Firestore per la dashboard.";
@@ -231,18 +308,29 @@ export default function DashboardPage() {
       setKeyFinancialObjectives(fetchedObjectives);
     } catch (error) {
       console.error("Errore caricamento obiettivi chiave:", error);
-      toast({ title: "Errore Obiettivi", description: "Impossibile caricare gli obiettivi finanziari.", variant: "destructive" });
+      // Non mostriamo un toast per questo, potrebbe essere meno critico per la dashboard principale
     } finally {
       setIsLoadingObjectives(false);
     }
-  }, [toast]);
+  }, []);
 
 
   useEffect(() => {
     fetchFirestoreTransactions();
     fetchBankBalance();
     fetchKeyObjectives();
-  }, [fetchFirestoreTransactions, fetchBankBalance, fetchKeyObjectives]);
+  }, [fetchFirestoreTransactions, fetchBankBalance, fetchKeyObjectives, transactionsVersion]);
+
+  // Effect for Category Card period selection
+  useEffect(() => {
+    const newAvailableMonths = monthsByYearForCategories[categoriesSelectedYear] || [];
+    setAvailableMonthsForCategoriesCard(newAvailableMonths);
+    if (!newAvailableMonths.find(m => m.value === categoriesSelectedMonth)) {
+        const newDefaultMonth = newAvailableMonths[0]?.value || getMonth(new Date()).toString();
+        setCategoriesSelectedMonth(newDefaultMonth);
+    }
+  }, [categoriesSelectedYear, monthsByYearForCategories, categoriesSelectedMonth]);
+
 
   useEffect(() => {
     if (isLoadingTransactions || transactionsError) {
@@ -250,10 +338,9 @@ export default function DashboardPage() {
       setLastSixMonthsChartData([]);
       setExpenseBreakdownCurrentMonth([]);
       setCashflowCurrentMonth([]);
-      setDetailedExpenseCategoryCards([]);
+      // Do not reset detailedExpenseCategoryCards here, it's handled by its own effect
       setIsLoadingExpenseBreakdown(false);
       setIsLoadingCashflow(false);
-      setIsLoadingDetailedCategories(false);
       return;
     }
 
@@ -316,22 +403,48 @@ export default function DashboardPage() {
         let dailyNet = 0;
         transactions.forEach(t => {
             const transactionDate = parseISO(t.date);
-            if (isValid(transactionDate) && isEqual(transactionDate, day) && t.status === 'Completato') {
+            // Check if transaction date is the same as the current day in the loop
+            if (isValid(transactionDate) && 
+                isSameYear(transactionDate, day) && 
+                isSameMonth(transactionDate, day) && 
+                transactionDate.getDate() === day.getDate() && 
+                t.status === 'Completato') {
                 dailyNet += t.amount; 
             }
         });
         dailyRunningBalance += dailyNet;
-        return { date: format(day, "dd"), cashflow: dailyRunningBalance }; // Changed to "dd" for simpler X-axis
+        return { date: format(day, "dd"), cashflow: dailyRunningBalance };
     });
     setCashflowCurrentMonth(cashflowData);
     setIsLoadingCashflow(false);
 
+  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
+
+  // useEffect for detailedExpenseCategoryCards based on selected period
+  useEffect(() => {
+    if (isLoadingTransactions || transactionsError) {
+      setDetailedExpenseCategoryCards([]);
+      setIsLoadingDetailedCategories(false);
+      return;
+    }
     setIsLoadingDetailedCategories(true);
+
+    const year = parseInt(categoriesSelectedYear);
+    const month = parseInt(categoriesSelectedMonth);
+
+    const transactionsForSelectedPeriod = transactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      return isValid(transactionDate) && 
+             getYear(transactionDate) === year && 
+             getMonth(transactionDate) === month && 
+             t.status === 'Completato';
+    });
+
     const mainCategoriesForCards = allExpenseCategories; 
     const cardDataArray: DetailCardData[] = [];
 
     mainCategoriesForCards.forEach((category, index) => {
-      const categoryTrans = currentMonthTransactions.filter(t => t.category === category && t.type === 'Uscita');
+      const categoryTrans = transactionsForSelectedPeriod.filter(t => t.category === category && t.type === 'Uscita');
       
       if (categoryTrans.length === 0) return; 
 
@@ -360,7 +473,8 @@ export default function DashboardPage() {
     setDetailedExpenseCategoryCards(cardDataArray);
     setIsLoadingDetailedCategories(false);
 
-  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
+  }, [transactions, isLoadingTransactions, transactionsError, categoriesSelectedYear, categoriesSelectedMonth]);
+
 
   const handleGenerateInsight = useCallback(async () => {
     if (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0 && !isLoadingTransactions) {
@@ -414,6 +528,15 @@ export default function DashboardPage() {
   ]);
   
   const mainContentLoading = isLoadingTransactions || isLoadingBankBalance;
+
+  const selectedPeriodForCategoriesTitle = useMemo(() => {
+    if (isLoadingTransactions || availableYearsForCategories.length === 0 || availableMonthsForCategoriesCard.length === 0) {
+      return format(new Date(), "MMMM yyyy", { locale: it });
+    }
+    const monthLabel = availableMonthsForCategoriesCard.find(m => m.value === categoriesSelectedMonth)?.label || format(new Date(parseInt(categoriesSelectedYear), parseInt(categoriesSelectedMonth)), "MMMM", { locale: it });
+    return `${monthLabel} ${categoriesSelectedYear}`;
+  }, [categoriesSelectedYear, categoriesSelectedMonth, availableYearsForCategories, availableMonthsForCategoriesCard, isLoadingTransactions]);
+
 
   if (mainContentLoading && isClient) {
     return (
@@ -659,10 +782,58 @@ export default function DashboardPage() {
           
           <Card className="mb-6">
             <CardHeader>
-                <CardTitle className="font-headline">
-                    <span className="bg-sky-100 text-sky-700 px-2 py-1 rounded-md">Categorie di Uscite (Mese Corrente)</span>
-                </CardTitle>
-                <CardDescription>Riepilogo delle principali categorie di spesa del mese.</CardDescription>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div className="flex-grow">
+                        <CardTitle className="font-headline">
+                            <span className="bg-sky-100 dark:bg-sky-800/30 text-sky-700 dark:text-sky-300 px-2 py-1 rounded-md">
+                                Categorie di Uscite ({selectedPeriodForCategoriesTitle})
+                            </span>
+                        </CardTitle>
+                        <CardDescription className="mt-1">Riepilogo delle principali categorie di spesa del periodo selezionato.</CardDescription>
+                    </div>
+                    <div className="flex gap-2 items-center flex-shrink-0 mt-2 sm:mt-0">
+                        <Select 
+                            value={categoriesSelectedMonth} 
+                            onValueChange={setCategoriesSelectedMonth}
+                            disabled={availableMonthsForCategoriesCard.length === 0 || isLoadingTransactions || !!transactionsError}
+                        >
+                            <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
+                            <SelectValue placeholder="Mese" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {availableMonthsForCategoriesCard.length > 0 ? 
+                                availableMonthsForCategoriesCard.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>) :
+                                <SelectItem value={getMonth(new Date()).toString()} disabled>{format(new Date(), "MMMM", {locale:it})}</SelectItem>
+                            }
+                            </SelectContent>
+                        </Select>
+                        <Select 
+                            value={categoriesSelectedYear} 
+                            onValueChange={(value) => {
+                                setCategoriesSelectedYear(value);
+                                const newYearMonths = monthsByYearForCategories[value] || [];
+                                const currentActualMonth = getMonth(new Date()).toString();
+                                // Check if current month exists in new year's months, else default
+                                const newDefaultMonth = newYearMonths.find(m=>m.value === categoriesSelectedMonth)?.value || 
+                                                      newYearMonths.find(m=>m.value === currentActualMonth)?.value || 
+                                                      newYearMonths[0]?.value || 
+                                                      getMonth(new Date()).toString();
+                                setCategoriesSelectedMonth(newDefaultMonth);
+                            }}
+                            disabled={availableYearsForCategories.length === 0 || isLoadingTransactions || !!transactionsError}
+                        >
+                            <SelectTrigger className="w-full sm:w-[100px] h-9 text-xs">
+                            <SelectValue placeholder="Anno" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableYearsForCategories.length > 0 ?
+                                    availableYearsForCategories.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>) :
+                                    <SelectItem value={getYear(new Date()).toString()} disabled>{getYear(new Date()).toString()}</SelectItem>
+                                }
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 {isLoadingDetailedCategories ? <div className="flex justify-center p-4"><Loader2 className="h-8 w-8 animate-spin" /></div> : 
@@ -701,7 +872,7 @@ export default function DashboardPage() {
                     ))}
                     </div>
                 ) : (
-                    <p className="text-muted-foreground text-center py-4">Nessuna uscita registrata per il mese corrente da categorizzare.</p>
+                    <p className="text-muted-foreground text-center py-4">Nessuna uscita registrata per il periodo selezionato ({selectedPeriodForCategoriesTitle}) da categorizzare.</p>
                 )}
             </CardContent>
           </Card>
