@@ -19,6 +19,7 @@ import { it } from 'date-fns/locale';
 import { type Transaction } from '@/data/transactions-data';
 import { forecastStructure, type ForecastRow, type ForecastItem } from '@/data/forecast-items';
 import debounce from 'lodash.debounce';
+import { cn } from '@/lib/utils';
 
 const generateYears = () => {
   const currentYr = getYear(new Date());
@@ -50,20 +51,37 @@ export default function ForecastPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch Transactions
+      // Fetch Transactions for the selected year
       const transactionsCollectionRef = collection(db, "transactions");
+      const startDate = `${selectedYear}-01-01`;
+      const endDate = `${selectedYear}-12-31`;
+      
       const transQuery = query(transactionsCollectionRef, 
-        where('date', '>=', `${selectedYear}-01-01`),
-        where('date', '<=', `${selectedYear}-12-31`)
+        where('date', '>=', startDate),
+        where('date', '<=', endDate)
       );
+
       const transSnapshot = await getDocs(transQuery);
       const fetchedTransactions: Transaction[] = [];
       transSnapshot.forEach((doc) => {
-        fetchedTransactions.push({ id: doc.id, ...doc.data() } as Transaction);
+        const data = doc.data();
+        fetchedTransactions.push({ 
+          id: doc.id,
+          date: data.date instanceof Timestamp ? format(data.date.toDate(), "yyyy-MM-dd") : data.date,
+          description: data.description,
+          category: data.category,
+          subcategory: data.subcategory,
+          type: data.type,
+          amount: data.amount,
+          status: data.status,
+          isRecurring: data.isRecurring,
+          recurrenceDetails: data.recurrenceDetails,
+          originalRecurringId: data.originalRecurringId,
+        });
       });
       setTransactions(fetchedTransactions);
 
-      // Fetch Budgets
+      // Fetch Budgets for the selected year
       const budgetsCollectionRef = collection(db, "budgets_forecast");
       const budgetQuery = query(budgetsCollectionRef, where('year', '==', parseInt(selectedYear)));
       const budgetSnapshot = await getDocs(budgetQuery);
@@ -113,7 +131,7 @@ export default function ForecastPage() {
     
     const monthlyResults: MonthlyData[] = Array(12).fill(0).map(() => ({}));
 
-    // 1. Inizializza tutte le righe di dati per ogni mese
+    // 1. Initialize all data rows for each month
     forecastStructure.forEach(row => {
       if (row.type === 'row') {
         for (let i = 0; i < 12; i++) {
@@ -128,7 +146,7 @@ export default function ForecastPage() {
       }
     });
 
-    // 2. Aggrega i dati 'Actual' dalle transazioni
+    // 2. Aggregate 'Actual' data from transactions
     transactions.forEach(t => {
       const transactionDate = parseISO(t.date);
       if (!isValid(transactionDate)) return;
@@ -145,16 +163,17 @@ export default function ForecastPage() {
           ? row.transactionSubCategory.includes(t.subcategory)
           : row.transactionSubCategory === t.subcategory);
         
-        return categoryMatch || subCategoryMatch;
+        return (row.transactionCategory && categoryMatch) || (row.transactionSubCategory && subCategoryMatch);
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        const amount = t.type === 'Entrata' ? t.amount : Math.abs(t.amount);
-        monthlyResults[month][rowToUpdate.key].actual += amount;
+        // Use the sign of the amount as stored in Firestore
+        const amount = t.amount;
+        monthlyResults[month][rowToUpdate.key].actual += (rowToUpdate.key === 'pazienti' ? amount : Math.abs(amount));
       }
     });
 
-    // 3. Calcola totali, margini e scostamenti per ogni mese
+    // 3. Calculate totals, margins, and deviations for each month
     for (let i = 0; i < 12; i++) {
       const monthData = monthlyResults[i];
       forecastStructure.forEach(row => {
@@ -199,10 +218,10 @@ export default function ForecastPage() {
               };
           }
       });
-      // Calcola scostamenti dopo aver calcolato tutti i totali
+      // Calculate deviations after calculating all totals
       Object.values(monthData).forEach(values => {
           values.scostamento = values.actual - values.budget;
-          values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : 0;
+          values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : (values.actual > 0 ? 100 : 0);
       });
     }
 
@@ -233,7 +252,7 @@ export default function ForecastPage() {
 
     for(const key in totals) {
         totals[key].scostamento = totals[key].actual - totals[key].budget;
-        totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / totals[key].budget) * 100 : 0;
+        totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / totals[key].budget) * 100 : (totals[key].actual > 0 ? 100 : 0);
     }
     
     return totals;
@@ -251,8 +270,8 @@ export default function ForecastPage() {
         default: return "";
     }
   };
-
-  const isTotalRow = (row: ForecastRow) => row.label === 'TOTALE COSTI';
+  
+  const isTotalRow = (row: ForecastRow) => row.type === 'total';
   const isEbitdaRow = (row: ForecastRow) => row.label === 'EBITDA';
 
   const renderMonthTab = (monthIndex: number, data: MonthlyData) => (
@@ -279,7 +298,7 @@ export default function ForecastPage() {
                   const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
                   
                   return (
-                      <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'bg-red-200 dark:bg-red-900/60 font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                      <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
                           <TableCell className="font-medium">{row.label}</TableCell>
                           <TableCell>
                               {row.type === 'row' ? (
@@ -376,7 +395,7 @@ export default function ForecastPage() {
                           }
                           const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
                           return (
-                              <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'bg-red-200 dark:bg-red-900/60 font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                              <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
                                   <TableCell className="font-medium">{row.label}</TableCell>
                                   <TableCell>{renderValue(values?.budget || 0)}</TableCell>
                                   <TableCell>{renderValue(values?.actual || 0)}</TableCell>
@@ -394,3 +413,5 @@ export default function ForecastPage() {
     </>
   );
 }
+
+    
