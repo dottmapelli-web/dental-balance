@@ -540,7 +540,7 @@ const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
 
     const element = (
       <Comp
-        ref={ref}
+        ref={ref as React.Ref<HTMLButtonElement>}
         data-sidebar="menu-button"
         data-size={size || "default"} 
         data-active={isActive}
@@ -740,3 +740,4 @@ export {
   useSidebar,
 }
 
+    
