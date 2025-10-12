@@ -1,6 +1,5 @@
-
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ArrowRightLeft, CalendarDays, BarChart3, Goal, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, CalendarDays, BarChart3, Goal, Sheet } from 'lucide-react';
 
 export type NavItem = {
   title: string;
@@ -30,6 +29,11 @@ export const siteConfig: SiteConfig = {
       title: "Transazioni",
       href: "/transactions",
       icon: ArrowRightLeft,
+    },
+    {
+        title: "Previsioni",
+        href: "/forecast",
+        icon: Sheet,
     },
     {
       title: "Report Mensile",
