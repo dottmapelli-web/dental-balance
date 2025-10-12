@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { type Transaction } from '@/data/transactions-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from '@/contexts/auth-context';
 
 import { db } from '@/lib/firebase';
 import {
@@ -79,6 +80,7 @@ export default function TransactionsPage() {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' });
   const { toast } = useToast();
+  const { transactionsVersion, incrementTransactionsVersion } = useAuth();
 
   const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
 
@@ -134,7 +136,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+  }, [fetchTransactions, transactionsVersion]);
 
 
   const handleSort = (key: keyof Transaction) => {
@@ -214,47 +216,39 @@ export default function TransactionsPage() {
       }
     } else {
       transactionDataToSave.recurrenceDetails = null;
-      // Se non è ricorrente (o è un'entrata), non dovrebbe avere dettagli di ricorrenza.
-      // Se era una definizione ricorrente e ora non lo è più, cancelliamo le istanze future?
-      // Per ora, la modifichiamo e basta, le istanze rimangono orfane o devono essere gestite a parte.
-      // Se è un'istanza e la modifichiamo, rimane un'istanza.
     }
     
     console.log("Attempting to save transaction. ID:", id, "Data to save:", JSON.stringify(transactionDataToSave, null, 2));
 
     try {
-      if (id) { // Modifica transazione esistente
+      if (id) {
         const transactionRef = doc(db, "transactions", id);
         await updateDoc(transactionRef, transactionDataToSave);
         toast({ title: "Transazione Modificata", description: "La transazione è stata aggiornata con successo." });
         console.log("Transaction updated successfully. ID:", id);
-        // Se una definizione ricorrente viene modificata, potremmo dover aggiornare/ricreare le istanze future.
-        // Questa logica può diventare complessa e per ora non la implementiamo.
-      } else { // Nuova transazione
+      } else {
         console.log("Adding new transaction (principal doc):", JSON.stringify(transactionDataToSave, null, 2));
         const newDocRef = await addDoc(collection(db, "transactions"), transactionDataToSave);
         toast({ title: "Transazione Principale Aggiunta", description: `La transazione principale (${transactionDataToSave.description || 'N/A'}) è stata creata.` });
         console.log("Principal transaction added successfully. New ID:", newDocRef.id);
 
-        // Se la nuova transazione è una definizione ricorrente (e quindi non ha un id originale)
         if (transactionDataToSave.isRecurring && transactionDataToSave.recurrenceDetails && !transactionDataToSave.originalRecurringId) {
           console.log("Preparing batch for recurring instances. Original Definition ID:", newDocRef.id);
           const batch = writeBatch(db);
-          const definitionDate = data.date; // Data della prima occorrenza (la definizione stessa)
+          const definitionDate = data.date;
           const recurrenceEndDate = data.recurrenceEndDate; 
           let instancesCreatedCount = 0;
-          const MAX_RECURRING_INSTANCES = 120; // Es: 10 anni di istanze mensili
+          const MAX_RECURRING_INSTANCES = 120;
 
           for (let i = 0; i < MAX_RECURRING_INSTANCES; i++) { 
             let nextInstanceDate: Date;
-            // Calcola la data dell'istanza (i+1)-esima *dopo* la definizione
             switch(transactionDataToSave.recurrenceDetails.frequency) {
                 case 'Mensile': nextInstanceDate = addMonths(definitionDate, i + 1); break;
                 case 'Bimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 2); break;
                 case 'Trimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 3); break;
                 case 'Semestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 6); break;
                 case 'Annuale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 12); break;
-                default: nextInstanceDate = addMonths(definitionDate, i + 1); break; // Fallback a mensile
+                default: nextInstanceDate = addMonths(definitionDate, i + 1); break;
             }
 
             if (recurrenceEndDate && nextInstanceDate > recurrenceEndDate) {
@@ -265,14 +259,14 @@ export default function TransactionsPage() {
             console.log(`Generating instance ${i+1} (after definition) for date: ${format(nextInstanceDate, "yyyy-MM-dd")}`);
 
             const instanceData = {
-              ...transactionDataToSave, // Copia i dati della definizione
+              ...transactionDataToSave,
               date: Timestamp.fromDate(nextInstanceDate), 
-              isRecurring: false, // Le istanze non sono esse stesse definizioni
+              isRecurring: false,
               recurrenceDetails: null, 
-              originalRecurringId: newDocRef.id, // Link alla definizione originale
+              originalRecurringId: newDocRef.id,
               status: 'Pianificato' as TransactionStatus, 
             };
-            const newInstanceRef = doc(collection(db, "transactions")); // Crea un nuovo ID per l'istanza
+            const newInstanceRef = doc(collection(db, "transactions"));
             batch.set(newInstanceRef, instanceData);
             instancesCreatedCount++;
           }
@@ -288,7 +282,7 @@ export default function TransactionsPage() {
         }
       }
       console.log("Requesting fetchTransactions after save operation.");
-      fetchTransactions(); 
+      incrementTransactionsVersion();
     } catch (error: any) {
       console.error("!!! ERROR saving/batching transaction:", error);
       console.error("Error object (raw):", error);
@@ -339,13 +333,12 @@ export default function TransactionsPage() {
       console.log(`Marked transaction ${id} for deletion.`);
 
       const deletedTransaction = transactions.find(t => t.id === id);
-      // Se è una definizione ricorrente, elimina le istanze future pianificate
       if (deletedTransaction?.isRecurring && !deletedTransaction.originalRecurringId) {
         console.log(`Transaction ${id} is a recurring definition. Looking for future instances to delete.`);
         const instancesQuery = query(
             collection(db, "transactions"), 
             where("originalRecurringId", "==", id),
-            where("status", "in", ["Pianificato", "In Attesa"]) // Solo quelle non completate
+            where("status", "in", ["Pianificato", "In Attesa"])
         );
         const instancesSnapshot = await getDocs(instancesQuery);
         if (instancesSnapshot.empty) {
@@ -361,7 +354,7 @@ export default function TransactionsPage() {
       await batch.commit();
       console.log(`Batch delete for transaction ${id} (and instances, if any) committed.`);
       toast({ title: "Transazione Eliminata", description: "La transazione e le istanze future pianificate sono state rimosse." });
-      fetchTransactions(); 
+      incrementTransactionsVersion();
       setSelectedRows(prev => {
         const newSet = new Set(prev);
         newSet.delete(id);
@@ -409,7 +402,7 @@ export default function TransactionsPage() {
       await batch.commit();
       console.log(`Bulk delete batch committed for ${idsToDelete.length} transactions.`);
       toast({ title: "Transazioni Eliminate", description: `${idsToDelete.length} transazioni selezionate e le loro istanze future pianificate sono state rimosse.` });
-      fetchTransactions(); 
+      incrementTransactionsVersion(); 
       setSelectedRows(new Set());
     } catch (error: any) {
       console.error("!!! ERROR bulk deleting transactions:", error);
@@ -435,7 +428,7 @@ export default function TransactionsPage() {
       await batch.commit();
       console.log(`Bulk status update batch to "${newStatus}" committed.`);
       toast({ title: "Stato Aggiornato", description: `Lo stato di ${selectedRows.size} transazioni è stato aggiornato a "${newStatus}".` });
-      fetchTransactions(); 
+      incrementTransactionsVersion();
       setSelectedRows(new Set());
       setIsBulkStatusModalOpen(false);
     } catch (error: any) {
@@ -477,7 +470,7 @@ export default function TransactionsPage() {
   };
 
 
-  if (isLoading && transactions.length === 0) { // Mostra solo al caricamento iniziale se non ci sono dati vecchi
+  if (isLoading && transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />

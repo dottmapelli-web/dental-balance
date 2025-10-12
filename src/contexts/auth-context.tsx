@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, type ReactNode, useCallback } from 'react';
 import { 
   getAuth, 
   onAuthStateChanged, 
@@ -26,6 +26,8 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   error: string | null;
+  transactionsVersion: number;
+  incrementTransactionsVersion: () => void;
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -38,7 +40,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [transactionsVersion, setTransactionsVersion] = useState(0);
   const auth = getAuth(firebaseApp);
+
+  const incrementTransactionsVersion = useCallback(() => {
+    setTransactionsVersion(v => v + 1);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
@@ -46,7 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          // Potresti voler mappare altri campi qui, es. displayName
         });
       } else {
         setUser(null);
@@ -54,7 +60,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, [auth]);
 
@@ -65,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // Lo stato utente verrà aggiornato da onAuthStateChanged
     } catch (e) {
       const authError = e as AuthError;
       console.error("AuthContext signIn error:", authError.code, authError.message);
@@ -80,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       await createUserWithEmailAndPassword(auth, email, pass);
-      // Lo stato utente verrà aggiornato da onAuthStateChanged
     } catch (e) {
       const authError = e as AuthError;
       console.error("AuthContext signUp error:", authError.code, authError.message);
@@ -94,15 +97,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      await firebaseSignOut(auth); // Usa l'alias
-      // Lo stato utente verrà aggiornato da onAuthStateChanged
+      await firebaseSignOut(auth);
     } catch (e) {
       const authError = e as AuthError;
       console.error("AuthContext signOut error:", authError.code, authError.message);
       setError(authError.message || "Errore durante il logout.");
-    } finally {
-      // Non impostare setLoading(false) qui, onAuthStateChanged lo farà
-      // setLoading(false); // Rimosso per attendere onAuthStateChanged
     }
   };
 
@@ -110,6 +109,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     loading,
     error,
+    transactionsVersion,
+    incrementTransactionsVersion,
     signIn,
     signUp,
     signOut,

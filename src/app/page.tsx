@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -132,7 +131,7 @@ export default function DashboardPage() {
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { transactionsVersion } = useAuth(); // For re-fetching
+  const { transactionsVersion, incrementTransactionsVersion } = useAuth(); // Per aggiornare i dati
 
   const [currentMonthSummary, setCurrentMonthSummary] = useState<{ income: number; expenses: number; balance: number }>({ income: 0, expenses: 0, balance: 0 });
   const [lastSixMonthsChartData, setLastSixMonthsChartData] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
@@ -916,4 +915,3 @@ export default function DashboardPage() {
     </>
   );
 }
-    

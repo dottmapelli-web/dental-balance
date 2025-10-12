@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/auth-context';
 
 const formSchema = z.object({
   summaryText: z.string().min(10, { message: "Il riepilogo testuale è troppo corto (min 10 caratteri)." }).optional(),
@@ -105,6 +106,7 @@ export default function MonthlySummaryPage() {
   const [isLoadingSummaryGeneration, setIsLoadingSummaryGeneration] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { transactionsVersion } = useAuth();
 
   const { years: availableYearsForForm, monthsByYear } = useMemo(() => generateAvailablePeriodsFromTransactions(transactions), [transactions]);
   const availableYearsForChart = availableYearsForForm; 
@@ -179,7 +181,7 @@ export default function MonthlySummaryPage() {
 
   useEffect(() => {
     fetchFirestoreTransactions();
-  }, [fetchFirestoreTransactions]);
+  }, [fetchFirestoreTransactions, transactionsVersion]);
 
 
   useEffect(() => {

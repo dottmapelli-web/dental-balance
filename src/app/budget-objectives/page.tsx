@@ -17,6 +17,7 @@ import { type Transaction } from '@/data/transactions-data';
 import { getMonth, getYear, parseISO, isValid, format } from 'date-fns';
 import { db } from '@/lib/firebase';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuth } from '@/contexts/auth-context';
 import {
   collection,
   getDocs,
@@ -78,6 +79,7 @@ export default function BudgetObjectivesPage() {
   const [modalType, setModalType] = useState<'budget' | 'objective' | null>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const { transactionsVersion, incrementTransactionsVersion } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
@@ -194,7 +196,7 @@ export default function BudgetObjectivesPage() {
     fetchFirestoreTransactions();
     fetchDefinedBudgets();
     fetchObjectives();
-  }, [fetchFirestoreTransactions, fetchDefinedBudgets, fetchObjectives]);
+  }, [fetchFirestoreTransactions, fetchDefinedBudgets, fetchObjectives, transactionsVersion]);
 
   const displayedBudgets: BudgetListItem[] = useMemo(() => {
     if (isLoadingBudgets) return [];

@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
 
 const annualBarChartConfig = {
   totalIncome: { label: "Entrate Totali Annuali", color: "hsl(var(--chart-1))" },
@@ -59,6 +60,7 @@ export default function AnnualSummaryPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
   const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { transactionsVersion } = useAuth();
   const reportPrintRef = useRef<HTMLDivElement>(null);
 
   const availableYears = useMemo(() => generateAvailableYearsFromTransactions(transactions), [transactions]);
@@ -129,7 +131,7 @@ export default function AnnualSummaryPage() {
 
   useEffect(() => {
     fetchFirestoreTransactions();
-  }, [fetchFirestoreTransactions]);
+  }, [fetchFirestoreTransactions, transactionsVersion]);
 
   useEffect(() => {
     if (isLoadingTransactions || transactionsError || transactions.length === 0) {

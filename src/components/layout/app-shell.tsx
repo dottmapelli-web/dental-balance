@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/contexts/auth-context';
 import FullScreenLoader from '@/components/ui/full-screen-loader';
-import { LogIn, LogOut as LogOutIcon, Menu, Moon, Sun, Settings, LayoutDashboard, PlusCircle, MinusCircle, PanelLeftOpen, PanelLeftClose } from 'lucide-react'; // Added PanelLeftOpen/Close
+import { LogIn, LogOut as LogOutIcon, Moon, Sun, Settings, LayoutDashboard, PlusCircle, MinusCircle, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { useTheme } from "next-themes";
 import { siteConfig } from '@/config/site';
 import {
@@ -17,7 +17,7 @@ import {
   SidebarFooter,
   SidebarInset,
   SidebarTrigger,
-  useSidebar, // Import useSidebar
+  useSidebar,
 } from '@/components/ui/sidebar';
 import MainSidebarNav from '@/components/layout/main-sidebar-nav';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -27,7 +27,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, Timestamp, writeBatch, getDoc } from 'firebase/firestore'; // Rimossa query e where non usate qui
+import { collection, doc, runTransaction, Timestamp, writeBatch, getDoc } from 'firebase/firestore';
 import type { RecurrenceFrequency, TransactionStatus } from '@/config/transaction-categories';
 import { addMonths, format } from 'date-fns';
 
@@ -119,7 +119,7 @@ interface AppShellProps {
 
 export default function AppShell({ children }: AppShellProps) {
   const [mounted, setMounted] = useState(false);
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, incrementTransactionsVersion } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { setTheme, theme } = useTheme();
   const { toast } = useToast();
@@ -159,7 +159,7 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   const handleTransactionSubmit = async (data: TransactionFormData, id?: string) => {
-    setIsTransactionModalOpen(false); // Chiudi il modale subito
+    setIsTransactionModalOpen(false);
     console.log("AppShell: handleTransactionSubmit called with data:", JSON.stringify(data, null, 2), "and ID:", id);
 
     const transactionDataForFirestore = {
@@ -170,100 +170,90 @@ export default function AppShell({ children }: AppShellProps) {
       type: data.type,
       amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
       status: data.status as TransactionStatus,
-      isRecurring: data.type === 'Uscita' ? data.isRecurring : false, // La ricorrenza è solo per le uscite nel modale
+      isRecurring: data.type === 'Uscita' ? data.isRecurring : false,
       recurrenceDetails: data.type === 'Uscita' && data.isRecurring && data.recurrenceFrequency ? {
         frequency: data.recurrenceFrequency as RecurrenceFrequency,
-        startDate: Timestamp.fromDate(data.date), // Usa la data della transazione come startDate per la ricorrenza
+        startDate: Timestamp.fromDate(data.date),
         endDate: data.recurrenceEndDate ? Timestamp.fromDate(data.recurrenceEndDate) : null,
       } : null,
-      originalRecurringId: null, // Le transazioni aggiunte da AppShell sono sempre nuove definizioni
+      originalRecurringId: null,
     };
   
     console.log("AppShell: transactionDataForFirestore prepared:", JSON.stringify(transactionDataForFirestore, null, 2));
 
     try {
-      const newTransactionRef = doc(collection(db, "transactions")); // Genera ID per la nuova transazione
+      const newTransactionRef = doc(collection(db, "transactions"));
       const bankBalanceDocRef = doc(db, "studioInfo/mainBalance");
       const batch = writeBatch(db);
 
       console.log("AppShell: Adding main transaction to batch. New ID will be:", newTransactionRef.id);
       batch.set(newTransactionRef, transactionDataForFirestore);
 
+      // We only update the bank balance in a separate transaction if the new entry is "Completato"
       if (data.status === 'Completato') {
-        console.log("AppShell: Transaction is 'Completato'. Preparing to update bank balance.");
-        // È meglio usare una transazione Firestore per leggere e aggiornare il saldo atomicamente
-        // Ma per ora, per coerenza con il comportamento precedente e per semplicità di questo fix:
-        const balanceDocSnap = await getDoc(bankBalanceDocRef);
-        let currentBalance = 0;
-        if (balanceDocSnap.exists()) {
-          currentBalance = balanceDocSnap.data()?.balance || 0;
-        }
-        const newBalance = currentBalance + transactionDataForFirestore.amount; // amount è già negativo per le uscite
-        console.log(`AppShell: Current bank balance: ${currentBalance}, Amount: ${transactionDataForFirestore.amount}, New bank balance: ${newBalance}`);
-        batch.set(bankBalanceDocRef, { balance: newBalance }, { merge: true });
+        console.log("AppShell: Transaction is 'Completato'. Preparing to update bank balance via Firestore Transaction.");
+        await runTransaction(db, async (firestoreTransaction) => {
+            const balanceDocSnap = await firestoreTransaction.get(bankBalanceDocRef);
+            let currentBalance = 0;
+            if (balanceDocSnap.exists()) {
+                currentBalance = balanceDocSnap.data()?.balance || 0;
+            }
+            const newBalance = currentBalance + transactionDataForFirestore.amount; // amount is already negative for expenses
+            console.log(`AppShell (in transaction): Current balance: ${currentBalance}, Amount: ${transactionDataForFirestore.amount}, New balance: ${newBalance}`);
+            firestoreTransaction.set(bankBalanceDocRef, { balance: newBalance }, { merge: true });
+        });
+        console.log("AppShell: Firestore Transaction for balance update completed.");
       } else {
         console.log("AppShell: Transaction status is not 'Completato'. Bank balance will not be updated by this operation.");
       }
 
-      // Gestione istanze ricorrenti SE la nuova transazione è una DEFINIZIONE ricorrente
-      if (transactionDataForFirestore.isRecurring && transactionDataForFirestore.recurrenceDetails && !transactionDataForFirestore.originalRecurringId) {
+      if (transactionDataForFirestore.isRecurring && transactionDataForFirestore.recurrenceDetails) {
         console.log(`AppShell: Transaction is a recurring definition (ID: ${newTransactionRef.id}). Preparing instances.`);
-        const definitionDate = data.date; // Data della prima occorrenza (la definizione stessa)
-        const recurrenceEndDate = data.recurrenceEndDate; 
+        const definitionDate = data.date;
+        const recurrenceEndDate = data.recurrenceEndDate;
         let instancesCreatedCount = 0;
-        const MAX_RECURRING_INSTANCES = 120; // Es: 10 anni di istanze mensili
+        const MAX_RECURRING_INSTANCES = 120;
 
-        for (let i = 0; i < MAX_RECURRING_INSTANCES; i++) { 
+        for (let i = 0; i < MAX_RECURRING_INSTANCES; i++) {
           let nextInstanceDate: Date;
-          // Calcola la data dell'istanza (i+1)-esima *dopo* la definizione
           switch(transactionDataForFirestore.recurrenceDetails.frequency) {
               case 'Mensile': nextInstanceDate = addMonths(definitionDate, i + 1); break;
               case 'Bimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 2); break;
               case 'Trimestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 3); break;
               case 'Semestrale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 6); break;
               case 'Annuale': nextInstanceDate = addMonths(definitionDate, (i + 1) * 12); break;
-              default: 
-                console.warn(`AppShell: Unknown recurrence frequency: ${transactionDataForFirestore.recurrenceDetails.frequency}. Defaulting to Mensile.`);
-                nextInstanceDate = addMonths(definitionDate, i + 1); break;
+              default: nextInstanceDate = addMonths(definitionDate, i + 1); break;
           }
 
           if (recurrenceEndDate && nextInstanceDate > recurrenceEndDate) {
-            console.log(`AppShell: Instance date ${format(nextInstanceDate, "yyyy-MM-dd")} is after end date ${format(recurrenceEndDate, "yyyy-MM-dd")}. Stopping instance generation.`);
-            break; 
+            console.log(`AppShell: Instance date ${format(nextInstanceDate, "yyyy-MM-dd")} is after end date. Stopping instance generation.`);
+            break;
           }
           
-          const instanceData = {
-            ...transactionDataForFirestore, // Copia i dati della definizione
-            date: Timestamp.fromDate(nextInstanceDate), 
-            isRecurring: false, // Le istanze non sono esse stesse definizioni
-            recurrenceDetails: null, 
-            originalRecurringId: newTransactionRef.id, // Link alla definizione originale
-            status: 'Pianificato' as TransactionStatus, // Le istanze future sono 'Pianificato'
-          };
-          const newInstanceRef = doc(collection(db, "transactions")); // Crea un nuovo ID per l'istanza
+          const instanceData = { ...transactionDataForFirestore, date: Timestamp.fromDate(nextInstanceDate), isRecurring: false, recurrenceDetails: null, originalRecurringId: newTransactionRef.id, status: 'Pianificato' as TransactionStatus };
+          const newInstanceRef = doc(collection(db, "transactions"));
           batch.set(newInstanceRef, instanceData);
-          console.log(`AppShell: Added instance ${instancesCreatedCount + 1} to batch for date ${format(nextInstanceDate, "yyyy-MM-dd")}. Instance ID will be: ${newInstanceRef.id}`);
+          console.log(`AppShell: Added instance ${instancesCreatedCount + 1} to batch for date ${format(nextInstanceDate, "yyyy-MM-dd")}.`);
           instancesCreatedCount++;
         }
         if (instancesCreatedCount > 0) {
           console.log(`AppShell: ${instancesCreatedCount} recurring instances prepared for batch.`);
-        } else {
-          console.log("AppShell: No recurring instances generated for this definition.");
         }
       }
       
-      console.log("AppShell: Attempting to commit batch to Firestore...");
+      console.log("AppShell: Attempting to commit main transaction (and instances if any) batch...");
       await batch.commit();
       console.log("AppShell: Batch commit successful. Main transaction ID:", newTransactionRef.id);
 
-      // Toast di successo SOLO se il commit è andato a buon fine
       toast({
-        title: `Transazione Aggiunta${data.status === 'Completato' ? ' e Saldo Aggiornato' : ''}`,
-        description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)}. ${data.status === 'Completato' ? 'Il saldo bancario è stato aggiornato.' : 'Il saldo bancario non è stato modificato.'}`,
+        title: `Transazione Aggiunta`,
+        description: `${data.description || data.category} - €${Math.abs(data.amount).toFixed(2)}. ${data.status === 'Completato' ? 'Il saldo bancario è stato aggiornato.' : ''}`,
       });
-  
+      
+      incrementTransactionsVersion(); // Force a re-fetch on relevant pages
+
     } catch (error: any) {
-      console.error("!!! AppShell: ERRORE durante l'aggiunta della transazione, l'aggiornamento del saldo o il commit del batch:", error);
+      console.error("!!! AppShell: ERRORE durante l'operazione di salvataggio:", error);
       let errorMessage = "Impossibile completare l'operazione.";
       if (error.message) errorMessage += ` Dettaglio: ${error.message}`;
       if (error.code) errorMessage += ` (Codice Firestore: ${error.code})`;
@@ -281,13 +271,11 @@ export default function AppShell({ children }: AppShellProps) {
     <SidebarProvider defaultOpen>
       <Sidebar side="left" variant="sidebar" collapsible="icon" className="print-hidden"> 
         <SidebarHeader className="flex items-center justify-between p-2 pr-1">
-          {/* Logo a sinistra */}
           <div className="group-data-[collapsible=icon]:hidden flex-shrink-0">
             <NewBrandLogoIcon className="h-14 w-auto" />
           </div>
           <LayoutDashboard className="h-8 w-8 text-primary group-data-[collapsible=icon]:block hidden" />
           
-          {/* SidebarTrigger a destra (quando la sidebar è espansa) o unico elemento (quando collassata) */}
           <SidebarTrigger className="ml-auto group-data-[collapsible=icon]:mx-auto">
             <SidebarToggleIcon />
           </SidebarTrigger>
@@ -423,10 +411,9 @@ export default function AppShell({ children }: AppShellProps) {
             isOpen={isTransactionModalOpen}
             onOpenChange={setIsTransactionModalOpen}
             transactionTypeInitial={transactionTypeForModal}
-            onSubmitSuccess={handleTransactionSubmit} // Passa la funzione di AppShell
+            onSubmitSuccess={handleTransactionSubmit}
         />
       )}
     </SidebarProvider>
   );
 }
-
