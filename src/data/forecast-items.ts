@@ -3,25 +3,37 @@ export type ForecastItemKey =
   // Ricavi
   | 'pazienti'
   // Costi di Produzione
-  | 'compensi_collaboratori'
-  | 'spese_materiali'
-  | 'spese_riparazioni'
-  | 'marketing'
-  // Costi Produttivi
-  | 'stipendio_personale'
-  | 'tfr_personale'
-  | 'affitto'
-  | 'marketing_fisso'
-  | 'auto'
-  | 'commercialista'
-  | 'bollette'
-  | 'compenso_amministratore'
-  | 'bolli_diritti'
+  | 'materiali_uso'
+  | 'compensi_medici'
   | 'laboratorio'
-  | 'oneri_bancari'
-  | 'internet'
+  | 'regali'
+  | 'corsi_congressi'
+  | 'campagne_web'
+  // Costi Produttivi
+  | 'affitto_sede'
+  | 'spese_condominiali'
+  | 'utenze'
+  | 'stipendi_lordi'
+  | 'tfr'
+  | 'emolumento_amministratori'
+  | 'manutenzione'
   | 'assicurazione'
-  | 'altro_produttivo'; // Voce generica per categorie non mappate direttamente
+  | 'software_gestionale'
+  | 'licenze_uso'
+  | 'forniture_ufficio'
+  | 'marketing'
+  | 'apm_dvr'
+  | 'web_agency'
+  | 'consulenti_lavoro'
+  | 'finanziamenti'
+  | 'prestiti'
+  | 'leasing'
+  | 'marche_da_bollo'
+  | 'servizi_finanziari'
+  | 'obblighi_legge'
+  | 'andi'
+  | 'banca_oneri'
+  | 'rimborso_trasferte';
 
 export interface ForecastItem {
   key: ForecastItemKey;
@@ -65,32 +77,50 @@ export const forecastStructure: ForecastRow[] = [
   
   // --- COSTI DI PRODUZIONE ---
   { label: 'COSTI DI PRODUZIONE', type: 'header' },
-  { key: 'compensi_collaboratori', label: 'Compensi collaboratori', type: 'row', mappable: true, transactionSubCategory: ['Compenso Chiara', 'Compenso Dr. Mapelli', 'Compenso Dr. Manfredi', 'Compenso Dr. Rinaldi', 'Compenso Dr. Crottini', 'Compenso Dr. Beretta', 'Compenso Dr. De Vecchi', 'Compenso Dr. Gjoni'] },
-  { key: 'spese_materiali', label: 'Spese materiali', type: 'row', mappable: true, transactionCategory: 'Materiali' },
-  { key: 'spese_riparazioni', label: 'Spese di riparazioni', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
-  { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' }, // Questo potrebbe sovrapporsi con 'marketing_fisso'
-  { label: 'TOTALI COSTI DI PRODUZIONE', type: 'total', calculate: ['compensi_collaboratori', 'spese_materiali', 'spese_riparazioni', 'marketing'] },
+  { key: 'materiali_uso', label: "Materiali d'uso", type: 'row', mappable: true, transactionCategory: 'Materiali' },
+  { key: 'compensi_medici', label: 'Compensi Medici', type: 'row', mappable: true, transactionSubCategory: ['Compenso Dr. Mapelli', 'Compenso Dr. Manfredi', 'Compenso Dr. Rinaldi', 'Compenso Dr. Crottini', 'Compenso Dr. Beretta', 'Compenso Dr. De Vecchi', 'Compenso Dr. Gjoni'] },
+  { key: 'laboratorio', label: 'Laboratorio', type: 'row', mappable: true, transactionSubCategory: ['Lab. Baisotti', 'Lab. Ennevi (Orto)'] },
+  { key: 'regali', label: 'Regali', type: 'row', mappable: true, transactionSubCategory: 'Regali' },
+  { key: 'corsi_congressi', label: 'Corsi e Congressi', type: 'row', mappable: true, transactionSubCategory: 'Corsi e Congressi' },
+  { key: 'campagne_web', label: 'Campagne Web', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' }, // Assumendo che le campagne web siano gestite dalla web agency
+  { label: 'TOTALI COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'compensi_medici', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
 
   // --- MARGINE DI CONTRIBUZIONE ---
   { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totali_costi_di_produzione'] } },
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
-  { key: 'stipendio_personale', label: 'Stipendio personale', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela'] },
-  { key: 'tfr_personale', label: 'Tfr personale', type: 'row', mappable: false }, // Non mappabile da transazioni
-  { key: 'affitto', label: 'Affitto', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
-  { key: 'marketing_fisso', label: 'Marketing fisso', type: 'row', mappable: true, transactionCategory: 'Marketing' }, // Usa la categoria generale
-  { key: 'auto', label: 'Auto', type: 'row', mappable: true, transactionCategory: 'Altre spese' }, // Mappatura ipotetica
-  { key: 'commercialista', label: 'Commercialista/altri professionisti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
-  { key: 'bollette', label: 'Bollette', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Spese condominiali'] },
-  { key: 'compenso_amministratore', label: 'Compenso Amministratore', type: 'row', mappable: false }, // Non mappabile
-  { key: 'bolli_diritti', label: 'Bolli e diritti', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
-  { key: 'laboratorio', label: 'Laboratorio', type: 'row', mappable: true, transactionSubCategory: ['Lab. Baisotti', 'Lab. Ennevi (Orto)'] },
-  { key: 'oneri_bancari', label: 'Oneri Bancari', type: 'row', mappable: true, transactionSubCategory: 'Banca' },
-  { key: 'internet', label: 'Internet', type: 'row', mappable: true, transactionSubCategory: 'Internet/Telefono' },
+  { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
+  { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
+  { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Internet/Telefono'] },
+  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela', 'Compenso Chiara'] },
+  { key: 'tfr', label: 'TFR', type: 'row', mappable: false },
+  { key: 'emolumento_amministratori', label: 'Emolumento Amministratori', type: 'row', mappable: false },
+  { key: 'manutenzione', label: 'Manutenzione', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
   { key: 'assicurazione', label: 'Assicurazione', type: 'row', mappable: true, transactionSubCategory: 'Assicurazione' },
-  { key: 'altro_produttivo', label: 'Altro Produttivo', type: 'row', mappable: false }, // Non mappabile
-  { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: ['stipendio_personale', 'tfr_personale', 'affitto', 'marketing_fisso', 'auto', 'commercialista', 'bollette', 'compenso_amministratore', 'bolli_diritti', 'laboratorio', 'oneri_bancari', 'internet', 'assicurazione', 'altro_produttivo'] },
+  { key: 'software_gestionale', label: 'Software Gestionale', type: 'row', mappable: true, transactionSubCategory: 'Software Gestionale' },
+  { key: 'licenze_uso', label: "Licenze d'uso", type: 'row', mappable: true, transactionSubCategory: "Licenze d’uso" },
+  { key: 'forniture_ufficio', label: 'Forniture ufficio', type: 'row', mappable: true, transactionSubCategory: 'Forniture D’Ufficio' },
+  { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' },
+  { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
+  { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
+  { key: 'consulenti_lavoro', label: 'Consulenti del Lavoro', type: 'row', mappable: true, transactionSubCategory: 'Consulente del Lavoro' },
+  { key: 'finanziamenti', label: 'Finanziamenti', type: 'row', mappable: true, transactionSubCategory: 'Finanziamenti' },
+  { key: 'prestiti', label: 'Prestiti', type: 'row', mappable: true, transactionSubCategory: 'Prestiti' },
+  { key: 'leasing', label: 'Leasing', type: 'row', mappable: true, transactionSubCategory: 'Leasing' },
+  { key: 'marche_da_bollo', label: 'Marche da bollo', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
+  { key: 'servizi_finanziari', label: 'Servizi Finanziari (Pagodil)', type: 'row', mappable: true, transactionSubCategory: 'Servizi Finanziari (Pagodil)' },
+  { key: 'obblighi_legge', label: 'Obblighi di Legge', type: 'row', mappable: true, transactionSubCategory: 'Obbligo di legge' },
+  { key: 'andi', label: 'ANDI', type: 'row', mappable: true, transactionSubCategory: 'ANDI' },
+  { key: 'banca_oneri', label: 'Banca e Oneri', type: 'row', mappable: true, transactionSubCategory: 'Banca' },
+  { key: 'rimborso_trasferte', label: 'Rimborso Trasferte', type: 'row', mappable: false },
+  { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
+    'affitto_sede', 'spese_condominiali', 'utenze', 'stipendi_lordi', 'tfr', 
+    'emolumento_amministratori', 'manutenzione', 'assicurazione', 'software_gestionale', 
+    'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
+    'consulenti_lavoro', 'finanziamenti', 'prestiti', 'leasing', 'marche_da_bollo', 
+    'servizi_finanziari', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte'
+  ] },
 
   // --- TOTALI FINALI ---
   { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totali_costi_di_produzione', 'total_totale_costi_produttivi'] },
