@@ -1,12 +1,13 @@
 
 export const expenseCategories = {
-  "Spese Fisse": ["Affitto", "Elettricità", "Spese condominiali", "Internet/Telefono"],
-  "Spesa Studio": ["Farmacia", "Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
+  "Spese Fisse": ["Affitto", "Spese condominiali", "Elettricità", "Rifiuti", "Internet/Telefono"],
+  "Spesa Studio": ["Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
   "Materiali": ["Materiali di Consumo Odontoiatrico", "Materiale Conservativa", "Materiale Chirurgia", "Materiale Impianti", "Materiali Endo", "Materiale Protesi", "Materiale Ortodonzia", "Materiale Igiene", "Materiale Estetica"],
-  "Personale": ["Stipendio Ilaria", "Stipendio Daniela", "Compenso Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni"],
-  "Servizi esterni": ["Lab. Baisotti", "Lab. Ennevi (Orto)", "Commercialista", "Consulente del Lavoro", "APM (DVR + aggiornamente)", "Web Agency", "Altri"],
-  "Spese Finanziarie": ["Tasse", "Finanziamenti", "Prestiti", "Leasing", "Servizi Finanziari (Pagodil)", "Marche da Bollo", "Banca", "Obbligo di legge", "ANDI"],
-  "Altre spese": ["Regali", "Marketing", "Corsi e Congressi", "Varie ed Eventuali"],
+  "Personale": ["Stipendio Ilaria", "Stipendio Daniela", "Compenso Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni", "TFR", "Emolumento Amministratori", "Rimborso Trasferte"],
+  "Servizi esterni": ["Lab. Baisotti", "Lab. Ennevi (Orto)", "Commercialista", "Consulente del Lavoro", "APM (DVR + aggiornamente)"],
+  "Marketing e Sviluppo": ["Marketing", "Campagne Web", "Web Agency", "Regali", "Corsi e Congressi"],
+  "Spese Finanziarie e Legali": ["Tasse", "Finanziamenti", "Prestiti", "Leasing", "Servizi Finanziari (Pagodil)", "Marche da Bollo", "Banca", "Obbligo di legge", "ANDI"],
+  "Altre spese": ["Varie ed Eventuali"],
 };
 
 export const incomeCategories = {
