@@ -44,6 +44,9 @@ const getRowClass = (row: ForecastRow) => {
     }
 };
 
+const renderValue = (value: number) => `€${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const renderPercentage = (value: number) => `${value.toFixed(2)}%`;
+
 export default function ForecastPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -60,17 +63,9 @@ export default function ForecastPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch Transactions for the selected year
+      // Fetch ALL Transactions for historical budget calculation
       const transactionsCollectionRef = collection(db, "transactions");
-      const startDate = `${selectedYear}-01-01`;
-      const endDate = `${selectedYear}-12-31`;
-      
-      const transQuery = query(transactionsCollectionRef, 
-        where('date', '>=', startDate),
-        where('date', '<=', endDate)
-      );
-
-      const transSnapshot = await getDocs(transQuery);
+      const transSnapshot = await getDocs(transactionsCollectionRef);
       const fetchedTransactions: Transaction[] = [];
       transSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -99,7 +94,47 @@ export default function ForecastPage() {
         const data = doc.data();
         fetchedBudgets[`${data.month}_${data.itemKey}`] = data.amount;
       });
-      setBudgetData(fetchedBudgets);
+
+      // Calculate and set automatic budget for items that don't have one
+      const newBudgetsToSet = { ...fetchedBudgets };
+      let budgetNeedsUpdate = false;
+      for (let month = 0; month < 12; month++) {
+        for (const row of forecastStructure) {
+          if (row.type === 'row' && row.mappable) {
+            const budgetKey = `${month}_${row.key}`;
+            if (fetchedBudgets[budgetKey] === undefined) {
+              const historicalTransactions = fetchedTransactions.filter(t => {
+                const transDate = parseISO(t.date);
+                if (!isValid(transDate)) return false;
+                
+                const matchesCategory = Array.isArray(row.transactionCategory)
+                  ? row.transactionCategory.includes(t.category)
+                  : row.transactionCategory === t.category;
+
+                const matchesSubCategory = t.subcategory && (Array.isArray(row.transactionSubCategory)
+                  ? row.transactionSubCategory.includes(t.subcategory)
+                  : row.transactionSubCategory === t.subcategory);
+
+                const isTargetItem = (row.transactionCategory && matchesCategory) || (row.transactionSubCategory && matchesSubCategory);
+
+                return getMonth(transDate) === month && getYear(transDate) < parseInt(selectedYear) && isTargetItem;
+              });
+
+              if (historicalTransactions.length > 0) {
+                const uniqueYears = new Set(historicalTransactions.map(t => getYear(parseISO(t.date))));
+                const totalAmount = historicalTransactions.reduce((acc, t) => acc + Math.abs(t.amount), 0);
+                const avgAmount = totalAmount / Math.max(1, uniqueYears.size);
+                newBudgetsToSet[budgetKey] = avgAmount;
+                budgetNeedsUpdate = true;
+              } else {
+                 newBudgetsToSet[budgetKey] = 0;
+              }
+            }
+          }
+        }
+      }
+
+      setBudgetData(newBudgetsToSet);
 
     } catch (e: any) {
       console.error("Errore caricamento dati forecast:", e);
@@ -139,6 +174,10 @@ export default function ForecastPage() {
     if (isLoading) return [];
     
     const monthlyResults: MonthlyData[] = Array(12).fill(0).map(() => ({}));
+    const currentYearTransactions = transactions.filter(t => {
+      const d = parseISO(t.date);
+      return isValid(d) && getYear(d).toString() === selectedYear;
+    });
 
     // 1. Initialize all data rows for each month
     forecastStructure.forEach(row => {
@@ -155,8 +194,8 @@ export default function ForecastPage() {
       }
     });
 
-    // 2. Aggregate 'Actual' data from transactions
-    transactions.forEach(t => {
+    // 2. Aggregate 'Actual' data from transactions of the selected year
+    currentYearTransactions.forEach(t => {
       const transactionDate = parseISO(t.date);
       if (!isValid(transactionDate)) return;
       
@@ -176,13 +215,10 @@ export default function ForecastPage() {
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        const amount = t.amount;
-        // Se è un'entrata (amount > 0), sommala.
-        // Se è un'uscita (amount < 0), somma il suo valore assoluto.
-        if (t.type === 'Entrata' && rowToUpdate.key === 'pazienti') {
-             monthlyResults[month][rowToUpdate.key].actual += amount;
+        if (t.type === 'Entrata') {
+             monthlyResults[month][rowToUpdate.key].actual += t.amount;
         } else if (t.type === 'Uscita') {
-            monthlyResults[month][rowToUpdate.key].actual += Math.abs(amount);
+            monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
         }
       }
     });
@@ -192,7 +228,7 @@ export default function ForecastPage() {
       const monthData = monthlyResults[i];
       forecastStructure.forEach(row => {
           if (row.type === 'total' || row.type === 'margin') {
-              const key = row.label.toLowerCase().replace(/ /g, '_');
+              const key = row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
               let budgetValue = 0;
               let actualValue = 0;
 
@@ -240,7 +276,7 @@ export default function ForecastPage() {
     }
 
     return monthlyResults;
-  }, [transactions, budgetData, isLoading]);
+  }, [transactions, budgetData, isLoading, selectedYear]);
 
   const annualTotals = useMemo(() => {
     const totals: Record<string, CalculatedValues> = {};
@@ -249,7 +285,7 @@ export default function ForecastPage() {
     forecastStructure.forEach(row => {
         let key: string;
         if(row.type === 'row') key = row.key;
-        else if (row.type === 'total' || row.type === 'margin') key = row.label.toLowerCase().replace(/ /g, '_');
+        else if (row.type === 'total' || row.type === 'margin') key = row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
         else return;
 
         totals[key] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0 };
@@ -272,14 +308,6 @@ export default function ForecastPage() {
     return totals;
   }, [calculatedMonthlyData]);
 
-
-  const renderValue = (value: number) => isClient ? `€${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `€${value.toFixed(2)}`;
-  const renderPercentage = (value: number) => `${value.toFixed(2)}%`;
-
-  
-  const isTotalRow = (row: ForecastRow) => row.type === 'total';
-  const isEbitdaRow = (row: ForecastRow) => row.label === 'EBITDA';
-
   const renderMonthTab = (monthIndex: number, data: MonthlyData) => (
       <Table>
           <TableHeader>
@@ -293,7 +321,7 @@ export default function ForecastPage() {
           </TableHeader>
           <TableBody>
               {forecastStructure.map((row, rowIndex) => {
-                  const key = row.type === 'row' ? row.key : row.label.toLowerCase().replace(/ /g, '_');
+                  const key = row.type === 'row' ? row.key : row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
                   const values = data[key];
                   const rowClass = getRowClass(row);
                   
@@ -304,20 +332,20 @@ export default function ForecastPage() {
                   const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
                   
                   return (
-                      <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                      <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
                           <TableCell className="font-medium">{row.label}</TableCell>
                           <TableCell>
-                              {row.type === 'row' ? (
+                              {row.type === 'row' && row.mappable ? (
                                   <Input type="number" step="0.01"
                                       defaultValue={values?.budget.toFixed(2)}
                                       onChange={(e) => handleBudgetChange(monthIndex, row.key, e.target.value)}
                                       className="h-8"
                                       />
-                              ) : renderValue(values?.budget || 0)}
+                              ) : isClient ? renderValue(values?.budget || 0) : '€0.00' }
                           </TableCell>
-                          <TableCell>{renderValue(values?.actual || 0)}</TableCell>
-                          <TableCell className={scostamentoClass}>{renderValue(values?.scostamento || 0)}</TableCell>
-                          <TableCell className={scostamentoClass}>{renderPercentage(values?.percScostamento || 0)}</TableCell>
+                          <TableCell>{isClient ? renderValue(values?.actual || 0) : '€0.00'}</TableCell>
+                          <TableCell className={scostamentoClass}>{isClient ? renderValue(values?.scostamento || 0) : '€0.00'}</TableCell>
+                          <TableCell className={scostamentoClass}>{isClient ? renderPercentage(values?.percScostamento || 0) : '0.00%'}</TableCell>
                       </TableRow>
                   );
               })}
@@ -393,7 +421,7 @@ export default function ForecastPage() {
                   </TableHeader>
                   <TableBody>
                       {forecastStructure.map((row, rowIndex) => {
-                          const key = row.type === 'row' ? row.key : row.label.toLowerCase().replace(/ /g, '_');
+                          const key = row.type === 'row' ? row.key : row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
                           const values = annualTotals[key];
                           const rowClass = getRowClass(row);
                           if (row.type === 'header') {
@@ -401,12 +429,12 @@ export default function ForecastPage() {
                           }
                           const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
                           return (
-                              <TableRow key={rowIndex} className={cn(rowClass, isTotalRow(row) && 'font-extrabold', isEbitdaRow(row) && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                              <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
                                   <TableCell className="font-medium">{row.label}</TableCell>
-                                  <TableCell>{renderValue(values?.budget || 0)}</TableCell>
-                                  <TableCell>{renderValue(values?.actual || 0)}</TableCell>
-                                  <TableCell className={scostamentoClass}>{renderValue(values?.scostamento || 0)}</TableCell>
-                                  <TableCell className={scostamentoClass}>{renderPercentage(values?.percScostamento || 0)}</TableCell>
+                                  <TableCell>{isClient ? renderValue(values?.budget || 0) : '€0.00'}</TableCell>
+                                  <TableCell>{isClient ? renderValue(values?.actual || 0) : '€0.00'}</TableCell>
+                                  <TableCell className={scostamentoClass}>{isClient ? renderValue(values?.scostamento || 0) : '€0.00'}</TableCell>
+                                  <TableCell className={scostamentoClass}>{isClient ? renderPercentage(values?.percScostamento || 0) : '0.00%'}</TableCell>
                               </TableRow>
                           );
                       })}

@@ -72,7 +72,7 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALI COSTI DI PRODUZIONE', type: 'total', calculate: ['compensi_collaboratori', 'spese_materiali', 'spese_riparazioni', 'marketing'] },
 
   // --- MARGINE DI CONTRIBUZIONE ---
-  { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_ricavi'], subtract: ['total_costi_di_produzione'] } },
+  { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totali_costi_di_produzione'] } },
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
@@ -82,7 +82,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'marketing_fisso', label: 'Marketing fisso', type: 'row', mappable: true, transactionCategory: 'Marketing' }, // Usa la categoria generale
   { key: 'auto', label: 'Auto', type: 'row', mappable: true, transactionCategory: 'Altre spese' }, // Mappatura ipotetica
   { key: 'commercialista', label: 'Commercialista/altri professionisti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
-  { key: 'bollette', label: 'Bollette', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Spese condominiali', 'Internet/Telefono'] },
+  { key: 'bollette', label: 'Bollette', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Spese condominiali'] },
   { key: 'compenso_amministratore', label: 'Compenso Amministratore', type: 'row', mappable: false }, // Non mappabile
   { key: 'bolli_diritti', label: 'Bolli e diritti', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
   { key: 'laboratorio', label: 'Laboratorio', type: 'row', mappable: true, transactionSubCategory: ['Lab. Baisotti', 'Lab. Ennevi (Orto)'] },
@@ -93,6 +93,6 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: ['stipendio_personale', 'tfr_personale', 'affitto', 'marketing_fisso', 'auto', 'commercialista', 'bollette', 'compenso_amministratore', 'bolli_diritti', 'laboratorio', 'oneri_bancari', 'internet', 'assicurazione', 'altro_produttivo'] },
 
   // --- TOTALI FINALI ---
-  { label: 'TOTALE COSTI', type: 'total', calculate: ['total_costi_di_produzione', 'total_costi_produttivi'] },
-  { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_costi_produttivi'] } },
+  { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totali_costi_di_produzione', 'total_totale_costi_produttivi'] },
+  { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];
