@@ -116,7 +116,7 @@ export default function ForecastPage() {
                         : row.transactionSubCategory === t.subcategory)
                     : false;
                   
-                  return matchesCategory || matchesSubCategory;
+                  return (row.transactionCategory ? matchesCategory : false) || (row.transactionSubCategory ? matchesSubCategory : false);
               });
 
               // --- NUOVA LOGICA DI CALCOLO BUDGET ---
@@ -241,13 +241,17 @@ export default function ForecastPage() {
           ? row.transactionSubCategory.includes(t.subcategory ?? '')
           : row.transactionSubCategory === t.subcategory);
         
-        return categoryMatch || subCategoryMatch;
+        return (row.transactionCategory ? categoryMatch : false) || (row.transactionSubCategory ? subCategoryMatch : false);
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
         // Le uscite sono negative in Firestore, le entrate positive.
         // Per 'actual' sommiamo i valori assoluti delle uscite e i valori positivi delle entrate.
-        monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
+        if (t.type === 'Entrata') {
+          monthlyResults[month][rowToUpdate.key].actual += t.amount;
+        } else { // Uscita
+          monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
+        }
       }
     });
 
