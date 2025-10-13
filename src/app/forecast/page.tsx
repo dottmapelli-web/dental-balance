@@ -103,31 +103,50 @@ export default function ForecastPage() {
             const budgetKey = `${month}_${row.key}`;
             if (newBudgetsToSet[budgetKey] === undefined) {
               const historicalTransactions = fetchedTransactions.filter(t => {
-                const transDate = parseISO(t.date);
-                if (!isValid(transDate)) return false;
-                
-                const matchesCategory = Array.isArray(row.transactionCategory)
-                  ? row.transactionCategory.includes(t.category)
-                  : row.transactionCategory === t.category;
-                
-                let matchesSubCategory = false;
-                if (row.transactionSubCategory) {
-                    matchesSubCategory = Array.isArray(row.transactionSubCategory)
-                    ? row.transactionSubCategory.includes(t.subcategory ?? '')
-                    : row.transactionSubCategory === t.subcategory;
-                }
+                  const transDate = parseISO(t.date);
+                  if (!isValid(transDate) || getYear(transDate) >= parseInt(selectedYear)) return false;
 
-                const isTargetItem = (row.transactionCategory && matchesCategory) || (row.transactionSubCategory && matchesSubCategory);
+                  const matchesCategory = Array.isArray(row.transactionCategory)
+                    ? row.transactionCategory.includes(t.category)
+                    : row.transactionCategory === t.category;
 
-                return getMonth(transDate) === month && getYear(transDate) < parseInt(selectedYear) && isTargetItem;
+                  const matchesSubCategory = row.transactionSubCategory
+                    ? (Array.isArray(row.transactionSubCategory)
+                        ? row.transactionSubCategory.includes(t.subcategory ?? '')
+                        : row.transactionSubCategory === t.subcategory)
+                    : false;
+                  
+                  return matchesCategory || matchesSubCategory;
               });
 
-              if (historicalTransactions.length > 0) {
-                const uniqueYears = new Set(historicalTransactions.map(t => getYear(parseISO(t.date))));
-                const totalAmount = historicalTransactions.reduce((acc, t) => acc + Math.abs(t.amount), 0);
-                const avgAmount = totalAmount / Math.max(1, uniqueYears.size);
+              // --- NUOVA LOGICA DI CALCOLO BUDGET ---
+
+              // Metodo 1: Media dello stesso mese negli anni precedenti
+              const sameMonthTransactions = historicalTransactions.filter(t => getMonth(parseISO(t.date)) === month);
+              let avgAmount = 0;
+              if (sameMonthTransactions.length > 0) {
+                  const uniqueYears = new Set(sameMonthTransactions.map(t => getYear(parseISO(t.date))));
+                  const totalAmount = sameMonthTransactions.reduce((acc, t) => acc + Math.abs(t.amount), 0);
+                  avgAmount = totalAmount / Math.max(1, uniqueYears.size);
+              }
+
+              // Metodo 2 (Fallback): Media mensile basata sulla media annuale, se il Metodo 1 non ha dato risultati.
+              if (avgAmount === 0 && historicalTransactions.length > 0) {
+                  const yearlyTotals: Record<number, number> = {};
+                  historicalTransactions.forEach(t => {
+                      const year = getYear(parseISO(t.date));
+                      yearlyTotals[year] = (yearlyTotals[year] || 0) + Math.abs(t.amount);
+                  });
+                  const yearsWithData = Object.keys(yearlyTotals);
+                  if (yearsWithData.length > 0) {
+                      const totalAcrossAllYears = yearsWithData.reduce((acc, year) => acc + yearlyTotals[parseInt(year)], 0);
+                      const averageAnnualExpense = totalAcrossAllYears / yearsWithData.length;
+                      avgAmount = averageAnnualExpense / 12;
+                  }
+              }
+              
+              if (avgAmount > 0) {
                 newBudgetsToSet[budgetKey] = avgAmount;
-                
                 const docId = `${selectedYear}-${month}-${row.key}`;
                 const budgetRef = doc(db, "budgets_forecast", docId);
                 batch.set(budgetRef, { year: parseInt(selectedYear), month, itemKey: row.key, amount: avgAmount });
@@ -226,7 +245,9 @@ export default function ForecastPage() {
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        monthlyResults[month][rowToUpdate.key].actual += t.type === 'Entrata' ? t.amount : Math.abs(t.amount);
+        // Le uscite sono negative in Firestore, le entrate positive.
+        // Per 'actual' sommiamo i valori assoluti delle uscite e i valori positivi delle entrate.
+        monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
       }
     });
 
