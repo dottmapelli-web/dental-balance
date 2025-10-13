@@ -257,54 +257,58 @@ export default function ForecastPage() {
 
     // 3. Calculate totals, margins, and deviations for each month
     for (let i = 0; i < 12; i++) {
-      const monthData = monthlyResults[i];
-      forecastStructure.forEach(row => {
-          if (row.type === 'total' || row.type === 'margin') {
-              const key = row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
-              let budgetValue = 0;
-              let actualValue = 0;
+        const monthData = monthlyResults[i];
+        
+        forecastStructure.forEach(row => {
+            if (row.type === 'total' || row.type === 'margin') {
+                const key = row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
+                let budgetValue = 0;
+                let actualValue = 0;
 
-              if (row.type === 'total') {
-                  row.calculate.forEach(itemKey => {
-                      const valueKey = itemKey.startsWith('total_') || itemKey.startsWith('margin_') 
-                          ? itemKey : itemKey;
-                      const values = monthData[valueKey];
-                      if(values) {
-                        budgetValue += values.budget;
-                        actualValue += values.actual;
-                      }
-                  });
-              } else { // margin
-                  row.calculate.from.forEach(itemKey => {
-                      const valueKey = itemKey.startsWith('total_') || itemKey.startsWith('margin_') ? itemKey : itemKey;
-                      const values = monthData[valueKey];
-                      if(values) {
-                        budgetValue += values.budget;
-                        actualValue += values.actual;
-                      }
-                  });
-                  row.calculate.subtract.forEach(itemKey => {
-                      const valueKey = itemKey.startsWith('total_') || itemKey.startsWith('margin_') ? itemKey : itemKey;
-                       const values = monthData[valueKey];
-                      if(values) {
-                        budgetValue -= values.budget;
-                        actualValue -= values.actual;
-                      }
-                  });
-              }
-              monthData[key] = {
-                  budget: budgetValue,
-                  actual: actualValue,
-                  scostamento: 0,
-                  percScostamento: 0
-              };
-          }
-      });
-      // Calculate deviations after calculating all totals
-      Object.values(monthData).forEach(values => {
-          values.scostamento = values.actual - values.budget;
-          values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : (values.actual > 0 ? 100 : 0);
-      });
+                const getValues = (itemKey: string) => {
+                    const normalizedKey = itemKey.replace(/^(total_|margin_)/, '');
+                    return monthData[normalizedKey];
+                };
+
+                if (row.type === 'total') {
+                    row.calculate.forEach(itemKey => {
+                        const values = getValues(itemKey);
+                        if(values) {
+                            budgetValue += values.budget;
+                            actualValue += values.actual;
+                        }
+                    });
+                } else { // margin
+                    row.calculate.from.forEach(itemKey => {
+                        const values = getValues(itemKey);
+                        if(values) {
+                            budgetValue += values.budget;
+                            actualValue += values.actual;
+                        }
+                    });
+                    row.calculate.subtract.forEach(itemKey => {
+                        const values = getValues(itemKey);
+                        if(values) {
+                            budgetValue -= values.budget;
+                            actualValue -= values.actual;
+                        }
+                    });
+                }
+                
+                monthData[key] = {
+                    budget: budgetValue,
+                    actual: actualValue,
+                    scostamento: 0,
+                    percScostamento: 0
+                };
+            }
+        });
+
+        // Calculate deviations after calculating all totals
+        Object.values(monthData).forEach(values => {
+            values.scostamento = values.actual - values.budget;
+            values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : (values.actual > 0 ? 100 : 0);
+        });
     }
 
     return monthlyResults;
@@ -479,3 +483,5 @@ export default function ForecastPage() {
     </>
   );
 }
+
+    
