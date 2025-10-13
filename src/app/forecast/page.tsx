@@ -35,6 +35,15 @@ type CalculatedValues = {
 
 type MonthlyData = Record<string, CalculatedValues>;
 
+const getRowClass = (row: ForecastRow) => {
+    switch (row.type) {
+        case 'header': return "bg-muted/50 font-semibold text-foreground";
+        case 'total': return "bg-yellow-100 dark:bg-yellow-900/50 font-bold";
+        case 'margin': return "bg-green-100 dark:bg-green-900/50 font-bold";
+        default: return "";
+    }
+};
+
 export default function ForecastPage() {
   const [isClient, setIsClient] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -167,9 +176,14 @@ export default function ForecastPage() {
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        // Use the sign of the amount as stored in Firestore
         const amount = t.amount;
-        monthlyResults[month][rowToUpdate.key].actual += (rowToUpdate.key === 'pazienti' ? amount : Math.abs(amount));
+        // Se è un'entrata (amount > 0), sommala.
+        // Se è un'uscita (amount < 0), somma il suo valore assoluto.
+        if (t.type === 'Entrata' && rowToUpdate.key === 'pazienti') {
+             monthlyResults[month][rowToUpdate.key].actual += amount;
+        } else if (t.type === 'Uscita') {
+            monthlyResults[month][rowToUpdate.key].actual += Math.abs(amount);
+        }
       }
     });
 
@@ -262,14 +276,6 @@ export default function ForecastPage() {
   const renderValue = (value: number) => isClient ? `€${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `€${value.toFixed(2)}`;
   const renderPercentage = (value: number) => `${value.toFixed(2)}%`;
 
-  const getRowClass = (row: ForecastRow) => {
-    switch (row.type) {
-        case 'header': return "bg-muted/50 font-semibold text-foreground";
-        case 'total': return "bg-yellow-100 dark:bg-yellow-900/50 font-bold";
-        case 'margin': return "bg-green-100 dark:bg-green-900/50 font-bold";
-        default: return "";
-    }
-  };
   
   const isTotalRow = (row: ForecastRow) => row.type === 'total';
   const isEbitdaRow = (row: ForecastRow) => row.label === 'EBITDA';
