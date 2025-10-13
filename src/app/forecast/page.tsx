@@ -13,7 +13,7 @@ import { Loader2, AlertCircle, TrendingUp, TrendingDown, Download } from "lucide
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { format, getYear, getMonth, parseISO, isValid } from "date-fns";
 import { it } from 'date-fns/locale';
 import { type Transaction } from '@/data/transactions-data';
@@ -63,7 +63,6 @@ export default function ForecastPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch ALL Transactions for historical budget calculation
       const transactionsCollectionRef = collection(db, "transactions");
       const transSnapshot = await getDocs(transactionsCollectionRef);
       const fetchedTransactions: Transaction[] = [];
@@ -85,7 +84,6 @@ export default function ForecastPage() {
       });
       setTransactions(fetchedTransactions);
 
-      // Fetch Budgets for the selected year
       const budgetsCollectionRef = collection(db, "budgets_forecast");
       const budgetQuery = query(budgetsCollectionRef, where('year', '==', parseInt(selectedYear)));
       const budgetSnapshot = await getDocs(budgetQuery);
@@ -95,14 +93,15 @@ export default function ForecastPage() {
         fetchedBudgets[`${data.month}_${data.itemKey}`] = data.amount;
       });
 
-      // Calculate and set automatic budget for items that don't have one
       const newBudgetsToSet = { ...fetchedBudgets };
-      let budgetNeedsUpdate = false;
+      const batch = writeBatch(db);
+      let hasNewCalculatedBudgets = false;
+
       for (let month = 0; month < 12; month++) {
         for (const row of forecastStructure) {
           if (row.type === 'row' && row.mappable) {
             const budgetKey = `${month}_${row.key}`;
-            if (fetchedBudgets[budgetKey] === undefined) {
+            if (newBudgetsToSet[budgetKey] === undefined) {
               const historicalTransactions = fetchedTransactions.filter(t => {
                 const transDate = parseISO(t.date);
                 if (!isValid(transDate)) return false;
@@ -110,10 +109,13 @@ export default function ForecastPage() {
                 const matchesCategory = Array.isArray(row.transactionCategory)
                   ? row.transactionCategory.includes(t.category)
                   : row.transactionCategory === t.category;
-
-                const matchesSubCategory = t.subcategory && (Array.isArray(row.transactionSubCategory)
-                  ? row.transactionSubCategory.includes(t.subcategory)
-                  : row.transactionSubCategory === t.subcategory);
+                
+                let matchesSubCategory = false;
+                if (row.transactionSubCategory) {
+                    matchesSubCategory = Array.isArray(row.transactionSubCategory)
+                    ? row.transactionSubCategory.includes(t.subcategory ?? '')
+                    : row.transactionSubCategory === t.subcategory;
+                }
 
                 const isTargetItem = (row.transactionCategory && matchesCategory) || (row.transactionSubCategory && matchesSubCategory);
 
@@ -125,13 +127,22 @@ export default function ForecastPage() {
                 const totalAmount = historicalTransactions.reduce((acc, t) => acc + Math.abs(t.amount), 0);
                 const avgAmount = totalAmount / Math.max(1, uniqueYears.size);
                 newBudgetsToSet[budgetKey] = avgAmount;
-                budgetNeedsUpdate = true;
+                
+                const docId = `${selectedYear}-${month}-${row.key}`;
+                const budgetRef = doc(db, "budgets_forecast", docId);
+                batch.set(budgetRef, { year: parseInt(selectedYear), month, itemKey: row.key, amount: avgAmount });
+                hasNewCalculatedBudgets = true;
               } else {
                  newBudgetsToSet[budgetKey] = 0;
               }
             }
           }
         }
+      }
+      
+      if(hasNewCalculatedBudgets) {
+        await batch.commit();
+        toast({ title: "Budget Suggerito", description: "Alcuni valori di budget sono stati calcolati sulla base dei dati storici." });
       }
 
       setBudgetData(newBudgetsToSet);
@@ -203,23 +214,19 @@ export default function ForecastPage() {
       const rowToUpdate = forecastStructure.find(row => {
         if (row.type !== 'row' || !row.mappable) return false;
         
-        const categoryMatch = Array.isArray(row.transactionCategory)
+        const categoryMatch = row.transactionCategory && (Array.isArray(row.transactionCategory)
           ? row.transactionCategory.includes(t.category)
-          : row.transactionCategory === t.category;
+          : row.transactionCategory === t.category);
 
-        const subCategoryMatch = t.subcategory && (Array.isArray(row.transactionSubCategory)
-          ? row.transactionSubCategory.includes(t.subcategory)
+        const subCategoryMatch = row.transactionSubCategory && (Array.isArray(row.transactionSubCategory)
+          ? row.transactionSubCategory.includes(t.subcategory ?? '')
           : row.transactionSubCategory === t.subcategory);
         
-        return (row.transactionCategory && categoryMatch) || (row.transactionSubCategory && subCategoryMatch);
+        return categoryMatch || subCategoryMatch;
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        if (t.type === 'Entrata') {
-             monthlyResults[month][rowToUpdate.key].actual += t.amount;
-        } else if (t.type === 'Uscita') {
-            monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
-        }
+        monthlyResults[month][rowToUpdate.key].actual += t.type === 'Entrata' ? t.amount : Math.abs(t.amount);
       }
     });
 
