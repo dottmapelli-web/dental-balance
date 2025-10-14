@@ -33,7 +33,9 @@ export type ForecastItemKey =
   | 'obblighi_legge'
   | 'andi'
   | 'banca_oneri'
-  | 'rimborso_trasferte';
+  | 'rimborso_trasferte'
+  | 'tasse' // Aggiunta voce
+  | 'varie_eventuali'; // Aggiunta voce
 
 export interface ForecastItem {
   key: ForecastItemKey;
@@ -93,8 +95,8 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
-  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela'] },
-  { key: 'tfr', label: 'TFR', type: 'row', mappable: true, transactionSubCategory: 'TFR' },
+  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela', "Compenso Chiara"] },
+  { key: 'tfr', label: 'TFR', type: 'row', mappable: true, transactionSubCategory: "TFR" },
   { key: 'emolumento_amministratori', label: 'Emolumento Amministratori', type: 'row', mappable: true, transactionSubCategory: 'Emolumento Amministratori' },
   { key: 'manutenzione', label: 'Manutenzione', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
   { key: 'assicurazione', label: 'Assicurazione', type: 'row', mappable: true, transactionSubCategory: 'Assicurazione' },
@@ -105,21 +107,24 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
   { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
   { key: 'consulenti_lavoro', label: 'Consulenti del Lavoro', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
+  { key: 'tasse', label: 'Tasse', type: 'row', mappable: true, transactionSubCategory: 'Tasse' },
   { key: 'finanziamenti', label: 'Finanziamenti', type: 'row', mappable: true, transactionSubCategory: 'Finanziamenti' },
   { key: 'prestiti', label: 'Prestiti', type: 'row', mappable: true, transactionSubCategory: 'Prestiti' },
   { key: 'leasing', label: 'Leasing', type: 'row', mappable: true, transactionSubCategory: 'Leasing' },
-  { key: 'marche_da_bollo', label: 'Marche da bollo', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
   { key: 'servizi_finanziari', label: 'Servizi Finanziari (Pagodil)', type: 'row', mappable: true, transactionSubCategory: 'Servizi Finanziari (Pagodil)' },
+  { key: 'marche_da_bollo', label: 'Marche da bollo', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
   { key: 'obblighi_legge', label: 'Obblighi di Legge', type: 'row', mappable: true, transactionSubCategory: 'Obbligo di legge' },
   { key: 'andi', label: 'ANDI', type: 'row', mappable: true, transactionSubCategory: 'ANDI' },
   { key: 'banca_oneri', label: 'Banca e Oneri', type: 'row', mappable: true, transactionSubCategory: 'Banca' },
   { key: 'rimborso_trasferte', label: 'Rimborso Trasferte', type: 'row', mappable: true, transactionSubCategory: 'Rimborso Trasferte' },
+  { key: 'varie_eventuali', label: 'Varie ed Eventuali', type: 'row', mappable: true, transactionCategory: 'Altre spese'},
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
     'affitto_sede', 'spese_condominiali', 'utenze', 'stipendi_lordi', 'tfr', 
     'emolumento_amministratori', 'manutenzione', 'assicurazione', 'software_gestionale', 
     'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
     'consulenti_lavoro', 'finanziamenti', 'prestiti', 'leasing', 'marche_da_bollo', 
-    'servizi_finanziari', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte'
+    'servizi_finanziari', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte',
+    'tasse', 'varie_eventuali'
   ] },
 
   // --- TOTALI FINALI ---
