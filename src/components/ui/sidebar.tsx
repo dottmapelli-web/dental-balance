@@ -525,14 +525,14 @@ const sidebarMenuButtonVariants = cva(
 )
 
 export interface SidebarMenuButtonProps
-  extends React.HTMLAttributes<HTMLElement>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof sidebarMenuButtonVariants> {
   asChild?: boolean;
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 }
 
-const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
+const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
   (props, ref) => {
     const { className, variant, size, asChild = false, isActive = false, tooltip, children, ...buttonProps } = props;
     const { isMobile, state } = useSidebar();
@@ -540,7 +540,7 @@ const SidebarMenuButton = React.forwardRef<HTMLElement, SidebarMenuButtonProps>(
 
     const element = (
       <Comp
-        ref={ref as React.Ref<HTMLButtonElement>}
+        ref={ref}
         data-sidebar="menu-button"
         data-size={size || "default"} 
         data-active={isActive}
@@ -739,5 +739,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
