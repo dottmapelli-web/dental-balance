@@ -12,6 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { BudgetListItem, ObjectiveListItem } from '@/app/budget-objectives/page'; // BudgetListItem still has 'actual' for display purposes
+import { useCategories } from '@/contexts/category-context';
+import { Loader2 } from 'lucide-react';
+
 
 const budgetPeriods = ['Mensile', 'Bimestrale', 'Trimestrale', 'Semestrale', 'Annuale'] as const;
 
@@ -43,7 +46,7 @@ interface BudgetObjectiveModalProps {
   modalType: 'budget' | 'objective';
   editingItem?: (BudgetListItem & { type?: 'budget' }) | (ObjectiveListItem & { type?: 'objective' }) | null; // editingItem can be BudgetListItem or ObjectiveListItem
   onSave: (data: BudgetObjectiveFormData) => void;
-  allExpenseCategories: string[];
+  allExpenseCategories: string[]; // This will now come from the context
 }
 
 export default function BudgetObjectiveModal({
@@ -52,15 +55,18 @@ export default function BudgetObjectiveModal({
   modalType,
   editingItem,
   onSave,
-  allExpenseCategories,
-}: BudgetObjectiveModalProps) {
+}: Omit<BudgetObjectiveModalProps, 'allExpenseCategories'> & { allExpenseCategories: string[] }) {
   
+  const { expenseCategories, loading: loadingCategories } = useCategories();
+  const allExpenseCategoryNames = useMemo(() => Object.keys(expenseCategories), [expenseCategories]);
+
+
   const defaultBudgetValues = useMemo<BudgetFormData>(() => ({
     type: 'budget',
-    category: allExpenseCategories[0] || '',
+    category: allExpenseCategoryNames[0] || '',
     budgeted: 0,
     period: 'Mensile',
-  }), [allExpenseCategories]);
+  }), [allExpenseCategoryNames]);
 
   const defaultObjectiveValues = useMemo<ObjectiveFormData>(() => ({
     type: 'objective',
@@ -119,94 +125,98 @@ export default function BudgetObjectiveModal({
             {editingItem ? `Modifica ${modalType === 'budget' ? 'Budget' : 'Obiettivo'}` : `Nuovo ${modalType === 'budget' ? 'Budget' : 'Obiettivo'}`}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
 
-          {modalType === 'budget' && (
-            <>
-              <div>
-                <Label htmlFor="category">Categoria</Label>
-                <Controller
-                  name="category"
-                  control={control}
-                  rules={{ required: "La categoria è obbligatoria."}} 
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Seleziona categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allExpenseCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="budgeted">Importo Preventivato (€)</Label>
-                <Input id="budgeted" type="number" step="0.01" {...register("budgeted")} />
-                {errors.budgeted && <p className="text-sm text-destructive mt-1">{errors.budgeted.message}</p>}
-              </div>
-              {/* "Importo Speso" (actual) is removed from the form as it's calculated automatically.
-                  If it needs to be displayed for reference when editing, it would be a non-form element.
-              */}
-               {editingItem && modalType === 'budget' && 'actual' in editingItem && (
+        {loadingCategories && modalType === 'budget' ? (
+             <div className="flex h-48 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+             </div>
+        ) : (
+            <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
+
+            {modalType === 'budget' && (
+                <>
                 <div>
-                  <Label>Importo Speso Attuale (Calcolato)</Label>
-                  <Input type="text" value={`€${(editingItem as BudgetListItem).actual.toFixed(2)}`} readOnly disabled className="bg-muted/50" />
+                    <Label htmlFor="category">Categoria</Label>
+                    <Controller
+                    name="category"
+                    control={control}
+                    rules={{ required: "La categoria è obbligatoria."}} 
+                    render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                        <SelectTrigger id="category">
+                            <SelectValue placeholder="Seleziona categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {allExpenseCategoryNames.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    )}
+                    />
+                    {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
                 </div>
-              )}
-              <div>
-                <Label htmlFor="period">Periodo</Label>
-                 <Controller
-                  name="period"
-                  control={control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value ?? 'Mensile'}>
-                      <SelectTrigger id="period"><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
-                      <SelectContent>
-                        {budgetPeriods.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.period && <p className="text-sm text-destructive mt-1">{errors.period.message}</p>}
-              </div>
-            </>
-          )}
+                <div>
+                    <Label htmlFor="budgeted">Importo Preventivato (€)</Label>
+                    <Input id="budgeted" type="number" step="0.01" {...register("budgeted")} />
+                    {errors.budgeted && <p className="text-sm text-destructive mt-1">{errors.budgeted.message}</p>}
+                </div>
+                {editingItem && modalType === 'budget' && 'actual' in editingItem && (
+                    <div>
+                    <Label>Importo Speso Attuale (Calcolato)</Label>
+                    <Input type="text" value={`€${(editingItem as BudgetListItem).actual.toFixed(2)}`} readOnly disabled className="bg-muted/50" />
+                    </div>
+                )}
+                <div>
+                    <Label htmlFor="period">Periodo</Label>
+                    <Controller
+                    name="period"
+                    control={control}
+                    render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value ?? 'Mensile'}>
+                        <SelectTrigger id="period"><SelectValue placeholder="Seleziona periodo" /></SelectTrigger>
+                        <SelectContent>
+                            {budgetPeriods.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                    )}
+                    />
+                    {errors.period && <p className="text-sm text-destructive mt-1">{errors.period.message}</p>}
+                </div>
+                </>
+            )}
 
-          {modalType === 'objective' && (
-            <>
-              <div>
-                <Label htmlFor="name">Nome Obiettivo</Label>
-                <Input id="name" {...register("name")} />
-                {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="target">Valore Target</Label>
-                <Input id="target" type="number" step="0.01" {...register("target")} />
-                {errors.target && <p className="text-sm text-destructive mt-1">{errors.target.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="current">Valore Corrente</Label>
-                <Input id="current" type="number" step="0.01" {...register("current")} />
-                {errors.current && <p className="text-sm text-destructive mt-1">{errors.current.message}</p>}
-              </div>
-              <div>
-                <Label htmlFor="unit">Unità (es. %, €, n°)</Label>
-                <Input id="unit" {...register("unit")} />
-                {errors.unit && <p className="text-sm text-destructive mt-1">{errors.unit.message}</p>}
-              </div>
-            </>
-          )}
+            {modalType === 'objective' && (
+                <>
+                <div>
+                    <Label htmlFor="name">Nome Obiettivo</Label>
+                    <Input id="name" {...register("name")} />
+                    {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="target">Valore Target</Label>
+                    <Input id="target" type="number" step="0.01" {...register("target")} />
+                    {errors.target && <p className="text-sm text-destructive mt-1">{errors.target.message}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="current">Valore Corrente</Label>
+                    <Input id="current" type="number" step="0.01" {...register("current")} />
+                    {errors.current && <p className="text-sm text-destructive mt-1">{errors.current.message}</p>}
+                </div>
+                <div>
+                    <Label htmlFor="unit">Unità (es. %, €, n°)</Label>
+                    <Input id="unit" {...register("unit")} />
+                    {errors.unit && <p className="text-sm text-destructive mt-1">{errors.unit.message}</p>}
+                </div>
+                </>
+            )}
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Annulla</Button>
-            </DialogClose>
-            <Button type="submit">{editingItem ? "Salva Modifiche" : "Aggiungi"}</Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+                <DialogClose asChild>
+                <Button type="button" variant="outline">Annulla</Button>
+                </DialogClose>
+                <Button type="submit">{editingItem ? "Salva Modifiche" : "Aggiungi"}</Button>
+            </DialogFooter>
+            </form>
+        )}
       </DialogContent>
     </Dialog>
   );

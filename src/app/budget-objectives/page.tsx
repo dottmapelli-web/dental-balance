@@ -12,7 +12,7 @@ import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2, Al
 import BudgetObjectiveModal, { type BudgetObjectiveFormData, type BudgetFormData as ModalBudgetFormData } from '@/components/budget-objective-modal';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { allExpenseCategories } from '@/config/transaction-categories';
+import { useCategories } from '@/contexts/category-context';
 import { type Transaction } from '@/data/transactions-data';
 import { getMonth, getYear, parseISO, isValid, format } from 'date-fns';
 import { db } from '@/lib/firebase';
@@ -65,6 +65,8 @@ export default function BudgetObjectivesPage() {
   const [definedBudgets, setDefinedBudgets] = useState<DefinedBudget[]>([]);
   const [objectives, setObjectives] = useState<ObjectiveListItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { expenseCategories, loading: loadingCategories } = useCategories();
+
 
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(true);
   const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
@@ -334,7 +336,7 @@ export default function BudgetObjectivesPage() {
     }
   };
 
-  const isLoading = isLoadingBudgets || isLoadingObjectives || isLoadingTransactions;
+  const isLoading = isLoadingBudgets || isLoadingObjectives || isLoadingTransactions || loadingCategories;
 
   if (isLoading && isClient && !budgetsError && !objectivesError && !transactionsError) {
     return (
@@ -401,7 +403,7 @@ export default function BudgetObjectivesPage() {
           modalType={modalType}
           editingItem={editingItem}
           onSave={handleSaveItem}
-          allExpenseCategories={allExpenseCategories}
+          allExpenseCategories={Object.keys(expenseCategories)}
         />
       )}
 

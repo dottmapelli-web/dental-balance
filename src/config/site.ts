@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, ArrowRightLeft, CalendarDays, BarChart3, Goal, Sheet } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, CalendarDays, BarChart3, Goal, Sheet, Settings } from 'lucide-react';
 
 export type NavItem = {
   title: string;
@@ -49,6 +49,11 @@ export const siteConfig: SiteConfig = {
       title: "Budget & Obiettivi",
       href: "/budget-objectives",
       icon: Goal,
+    },
+     {
+      title: "Impostazioni",
+      href: "/settings",
+      icon: Settings,
     },
   ],
   // Example for items at the bottom of the sidebar

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -38,7 +39,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
-import { allExpenseCategories } from '@/config/transaction-categories';
+import { useCategories } from '@/contexts/category-context';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from '@/contexts/auth-context';
 
@@ -132,6 +133,8 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { transactionsVersion, incrementTransactionsVersion } = useAuth(); // Per aggiornare i dati
+  const { expenseCategories } = useCategories();
+
 
   const [currentMonthSummary, setCurrentMonthSummary] = useState<{ income: number; expenses: number; balance: number }>({ income: 0, expenses: 0, balance: 0 });
   const [lastSixMonthsChartData, setLastSixMonthsChartData] = useState<Array<{ month: string; income: number; expenses: number }>>([]);
@@ -421,7 +424,7 @@ export default function DashboardPage() {
 
   // useEffect for detailedExpenseCategoryCards based on selected period
   useEffect(() => {
-    if (isLoadingTransactions || transactionsError) {
+    if (isLoadingTransactions || transactionsError || Object.keys(expenseCategories).length === 0) {
       setDetailedExpenseCategoryCards([]);
       setIsLoadingDetailedCategories(false);
       return;
@@ -439,7 +442,7 @@ export default function DashboardPage() {
              t.status === 'Completato';
     });
 
-    const mainCategoriesForCards = allExpenseCategories; 
+    const mainCategoriesForCards = Object.keys(expenseCategories); 
     const cardDataArray: DetailCardData[] = [];
 
     mainCategoriesForCards.forEach((category, index) => {
@@ -472,7 +475,7 @@ export default function DashboardPage() {
     setDetailedExpenseCategoryCards(cardDataArray);
     setIsLoadingDetailedCategories(false);
 
-  }, [transactions, isLoadingTransactions, transactionsError, categoriesSelectedYear, categoriesSelectedMonth]);
+  }, [transactions, isLoadingTransactions, transactionsError, categoriesSelectedYear, categoriesSelectedMonth, expenseCategories]);
 
 
   const handleGenerateInsight = useCallback(async () => {

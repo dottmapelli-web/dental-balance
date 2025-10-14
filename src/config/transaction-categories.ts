@@ -1,5 +1,8 @@
+// THIS FILE IS NOW A FALLBACK FOR INITIAL MIGRATION
+// The source of truth for categories is now Firestore in the 'transactionCategories' collection.
+// This data is used once to populate Firestore if it's empty.
 
-export const expenseCategories = {
+export const initialExpenseCategories = {
   "Spese Fisse": ["Affitto", "Spese condominiali", "Elettricità", "Rifiuti", "Internet/Telefono"],
   "Spesa Studio": ["Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
   "Materiali": ["Materiali di Consumo Odontoiatrico", "Materiale Conservativa", "Materiale Chirurgia", "Materiale Impianti", "Materiali Endo", "Materiale Protesi", "Materiale Ortodonzia", "Materiale Igiene", "Materiale Estetica"],
@@ -10,28 +13,12 @@ export const expenseCategories = {
   "Altre spese": ["Varie ed Eventuali"],
 };
 
-export const incomeCategories = {
+export const initialIncomeCategories = {
   "Pazienti": [],
   "Altre fonti di reddito": [],
 };
 
-export type ExpenseCategory = keyof typeof expenseCategories;
-export type IncomeCategory = keyof typeof incomeCategories;
-
-export const allExpenseCategories = Object.keys(expenseCategories) as ExpenseCategory[];
-export const allIncomeCategories = Object.keys(incomeCategories) as IncomeCategory[];
-
-export const getSubcategories = (type: 'Entrata' | 'Uscita', category: string): string[] => {
-  if (type === 'Uscita') {
-    return expenseCategories[category as ExpenseCategory] || [];
-  }
-  if (type === 'Entrata') {
-    // Per le entrate, le sottocategorie potrebbero non essere necessarie, ma restituiamo un array vuoto
-    return incomeCategories[category as IncomeCategory] || [];
-  }
-  return [];
-};
-
+// These types and constants can remain as they are still useful throughout the app
 export const recurrenceFrequencies = ['Mensile', 'Bimestrale', 'Trimestrale', 'Semestrale', 'Annuale'] as const;
 export type RecurrenceFrequency = typeof recurrenceFrequencies[number];
 

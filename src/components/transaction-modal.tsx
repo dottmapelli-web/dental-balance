@@ -17,11 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import type { Transaction } from '@/data/transactions-data';
-import { allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies, transactionStatuses, type RecurrenceFrequency, type TransactionStatus } from "@/config/transaction-categories";
+import { recurrenceFrequencies, transactionStatuses, type RecurrenceFrequency, type TransactionStatus } from "@/config/transaction-categories";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useCategories } from '@/contexts/category-context';
 
 export const transactionFormSchema = z.object({
   type: z.enum(['Entrata', 'Uscita']),
@@ -62,6 +63,8 @@ export default function TransactionModal({
   onSubmitSuccess,
 }: TransactionModalProps) {
   const { toast } = useToast();
+  const { expenseCategories, incomeCategories, loading: loadingCategories } = useCategories();
+
   const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
@@ -83,6 +86,9 @@ export default function TransactionModal({
       const defaultType = editingTransaction ? editingTransaction.type : transactionTypeInitial;
       setValue('type', defaultType);
 
+      const allIncome = Object.keys(incomeCategories);
+      const allExpense = Object.keys(expenseCategories);
+
       if (editingTransaction) {
         const date = parseISO(editingTransaction.date);
         reset({
@@ -102,7 +108,7 @@ export default function TransactionModal({
           date: new Date(),
           description: '',
           amount: 0,
-          category: transactionTypeInitial === 'Entrata' ? 'Pazienti' : '',
+          category: transactionTypeInitial === 'Entrata' ? allIncome[0] || '' : allExpense[0] || '',
           subcategory: '',
           status: 'Completato',
           isRecurring: false,
@@ -111,17 +117,18 @@ export default function TransactionModal({
         });
       }
     }
-  }, [isOpen, editingTransaction, transactionTypeInitial, reset, setValue]);
+  }, [isOpen, editingTransaction, transactionTypeInitial, reset, setValue, incomeCategories, expenseCategories]);
 
 
   const availableCategories = useMemo(() => {
-    return watchedType === 'Entrata' ? allIncomeCategories : allExpenseCategories;
-  }, [watchedType]);
+    return watchedType === 'Entrata' ? Object.keys(incomeCategories) : Object.keys(expenseCategories);
+  }, [watchedType, incomeCategories, expenseCategories]);
 
   const availableSubcategories = useMemo(() => {
     if (!watchedCategory) return [];
-    return getSubcategories(watchedType, watchedCategory);
-  }, [watchedType, watchedCategory]);
+    const source = watchedType === 'Entrata' ? incomeCategories : expenseCategories;
+    return source[watchedCategory] || [];
+  }, [watchedType, watchedCategory, incomeCategories, expenseCategories]);
 
   const processSubmit: SubmitHandler<TransactionFormData> = (data) => {
     const finalData = {
@@ -156,204 +163,211 @@ export default function TransactionModal({
         <DialogHeader>
           <DialogTitle>{editingTransaction ? "Modifica Transazione" : `Nuova ${watchedType}`}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
 
-          <div>
-            <Label htmlFor="transactionTypeDisplay">Tipo</Label>
-            <p id="transactionTypeDisplay" className={cn(
-                "w-full h-10 flex items-center rounded-md border border-input bg-muted px-3 py-2 text-sm",
-                watchedType === 'Entrata' ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
-              )}>
-              {watchedType}
-            </p>
-          </div>
+        {loadingCategories ? (
+             <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+             </div>
+        ): (
+            <form onSubmit={handleSubmit(processSubmit)} className="space-y-4 py-4">
 
-          <div>
-            <Label htmlFor="date">Data</Label>
-            <Controller
-              name="date"
-              control={control}
-              render={({ field }) => (
-                <Popover modal={true}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-auto p-0" 
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                      locale={it}
-                    />
-                  </PopoverContent>
-                </Popover>
-              )}
-            />
-            {errors.date && <p className="text-sm text-destructive mt-1">{errors.date.message}</p>}
-          </div>
-
-          <div>
-            <Label htmlFor="amount">Importo</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              {...register("amount")}
-              onFocus={(e) => e.target.select()}
-            />
-            {errors.amount && <p className="text-sm text-destructive mt-1">{errors.amount.message}</p>}
-          </div>
-
-          <div>
-            <Label htmlFor="category">Categoria</Label>
-            <Controller
-              name="category"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={(value) => { field.onChange(value); setValue('subcategory', undefined); }} value={field.value}>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Seleziona categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
-          </div>
-
-          {availableSubcategories.length > 0 && (
             <div>
-              <Label htmlFor="subcategory">Sottocategoria</Label>
-              <Controller
-                name="subcategory"
+                <Label htmlFor="transactionTypeDisplay">Tipo</Label>
+                <p id="transactionTypeDisplay" className={cn(
+                    "w-full h-10 flex items-center rounded-md border border-input bg-muted px-3 py-2 text-sm",
+                    watchedType === 'Entrata' ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
+                )}>
+                {watchedType}
+                </p>
+            </div>
+
+            <div>
+                <Label htmlFor="date">Data</Label>
+                <Controller
+                name="date"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <SelectTrigger id="subcategory">
-                      <SelectValue placeholder="Seleziona sottocategoria" />
+                    <Popover modal={true}>
+                    <PopoverTrigger asChild>
+                        <Button
+                        variant={"outline"}
+                        className="w-full justify-start text-left font-normal"
+                        >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                        className="w-auto p-0" 
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                        <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                        locale={it}
+                        />
+                    </PopoverContent>
+                    </Popover>
+                )}
+                />
+                {errors.date && <p className="text-sm text-destructive mt-1">{errors.date.message}</p>}
+            </div>
+
+            <div>
+                <Label htmlFor="amount">Importo</Label>
+                <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                {...register("amount")}
+                onFocus={(e) => e.target.select()}
+                />
+                {errors.amount && <p className="text-sm text-destructive mt-1">{errors.amount.message}</p>}
+            </div>
+
+            <div>
+                <Label htmlFor="category">Categoria</Label>
+                <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                    <Select onValueChange={(value) => { field.onChange(value); setValue('subcategory', undefined); }} value={field.value}>
+                    <SelectTrigger id="category">
+                        <SelectValue placeholder="Seleziona categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableSubcategories.map(subcat => <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>)}
+                        {availableCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                     </SelectContent>
-                  </Select>
+                    </Select>
                 )}
-              />
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="description">Descrizione (Opzionale)</Label>
-            <Textarea id="description" {...register("description")} />
-            {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
-          </div>
-
-          {watchedType === 'Uscita' && (
-            <>
-              <div className="flex items-center space-x-2 pt-2">
-                <Controller
-                  name="isRecurring"
-                  control={control}
-                  render={({ field }) => (
-                      <Checkbox id="isRecurring" checked={field.value} onCheckedChange={field.onChange} />
-                  )}
                 />
-                <Label htmlFor="isRecurring">Transazione Ricorrente</Label>
-              </div>
+                {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
+            </div>
 
-              {watchedIsRecurring && (
+            {availableSubcategories.length > 0 && (
+                <div>
+                <Label htmlFor="subcategory">Sottocategoria</Label>
+                <Controller
+                    name="subcategory"
+                    control={control}
+                    render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <SelectTrigger id="subcategory">
+                        <SelectValue placeholder="Seleziona sottocategoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {availableSubcategories.map(subcat => <SelectItem key={subcat} value={subcat}>{subcat}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    )}
+                />
+                </div>
+            )}
+
+            <div>
+                <Label htmlFor="description">Descrizione (Opzionale)</Label>
+                <Textarea id="description" {...register("description")} />
+                {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
+            </div>
+
+            {watchedType === 'Uscita' && (
                 <>
-                  <div>
-                    <Label htmlFor="recurrenceFrequency">Frequenza</Label>
+                <div className="flex items-center space-x-2 pt-2">
                     <Controller
-                      name="recurrenceFrequency"
-                      control={control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger id="recurrenceFrequency">
-                            <SelectValue placeholder="Seleziona frequenza" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(recurrenceFrequencies as readonly string[]).map(freq => <SelectItem key={freq} value={freq}>{freq}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      )}
+                    name="isRecurring"
+                    control={control}
+                    render={({ field }) => (
+                        <Checkbox id="isRecurring" checked={field.value} onCheckedChange={field.onChange} />
+                    )}
                     />
-                    {errors.recurrenceFrequency && <p className="text-sm text-destructive mt-1">{errors.recurrenceFrequency.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="recurrenceEndDate">Data Fine Ricorrenza (Opzionale)</Label>
-                    <Controller
-                      name="recurrenceEndDate"
-                      control={control}
-                      render={({ field }) => (
-                        <Popover modal={true}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant={"outline"}
-                              className="w-full justify-start text-left font-normal"
+                    <Label htmlFor="isRecurring">Transazione Ricorrente</Label>
+                </div>
+
+                {watchedIsRecurring && (
+                    <>
+                    <div>
+                        <Label htmlFor="recurrenceFrequency">Frequenza</Label>
+                        <Controller
+                        name="recurrenceFrequency"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger id="recurrenceFrequency">
+                                <SelectValue placeholder="Seleziona frequenza" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(recurrenceFrequencies as readonly string[]).map(freq => <SelectItem key={freq} value={freq}>{freq}</SelectItem>)}
+                            </SelectContent>
+                            </Select>
+                        )}
+                        />
+                        {errors.recurrenceFrequency && <p className="text-sm text-destructive mt-1">{errors.recurrenceFrequency.message}</p>}
+                    </div>
+                    <div>
+                        <Label htmlFor="recurrenceEndDate">Data Fine Ricorrenza (Opzionale)</Label>
+                        <Controller
+                        name="recurrenceEndDate"
+                        control={control}
+                        render={({ field }) => (
+                            <Popover modal={true}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className="w-full justify-start text-left font-normal"
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent 
+                                className="w-auto p-0" 
+                                onOpenAutoFocus={(e) => e.preventDefault()}
                             >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(field.value, "PPP", { locale: it }) : <span>Scegli una data</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent 
-                            className="w-auto p-0" 
-                            onOpenAutoFocus={(e) => e.preventDefault()}
-                           >
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              locale={it}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    />
-                  </div>
+                                <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                locale={it}
+                                />
+                            </PopoverContent>
+                            </Popover>
+                        )}
+                        />
+                    </div>
+                    </>
+                )}
                 </>
-              )}
-            </>
-          )}
+            )}
 
-          <div>
-            <Label htmlFor="status">Stato</Label>
-            <Controller
-              name="status"
-              control={control}
-              defaultValue="Completato"
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Seleziona stato" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(transactionStatuses as readonly string[]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
+            <div>
+                <Label htmlFor="status">Stato</Label>
+                <Controller
+                name="status"
+                control={control}
+                defaultValue="Completato"
+                render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="status">
+                        <SelectValue placeholder="Seleziona stato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {(transactionStatuses as readonly string[]).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
+                )}
+                />
+            </div>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
-            </DialogClose>
-            <Button type="submit">{editingTransaction ? "Salva Modifiche" : "Aggiungi Transazione"}</Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+                <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
+                </DialogClose>
+                <Button type="submit">{editingTransaction ? "Salva Modifiche" : "Aggiungi Transazione"}</Button>
+            </DialogFooter>
+            </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -5,9 +5,10 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import AppShell from '@/components/layout/app-shell';
 import { AuthProvider } from '@/contexts/auth-context';
-import { Inter as FontSans, Literata as FontSerif } from 'next/font/google'; // Ripristinato
-import { siteConfig } from '@/config/site'; // Ripristinato
-import { ThemeProvider } from "next-themes"; // Ripristinato
+import { CategoryProvider } from '@/contexts/category-context'; // Aggiunto
+import { Inter as FontSans, Literata as FontSerif } from 'next/font/google';
+import { siteConfig } from '@/config/site';
+import { ThemeProvider } from "next-themes";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -48,9 +49,11 @@ export default function RootLayout({
             disableTransitionOnChange
         >
           <AuthProvider>
-            <AppShell>
-              {children}
-            </AppShell>
+            <CategoryProvider>
+              <AppShell>
+                {children}
+              </AppShell>
+            </CategoryProvider>
           </AuthProvider>
         </ThemeProvider>
         <Toaster />
