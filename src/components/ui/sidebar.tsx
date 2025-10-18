@@ -532,44 +532,42 @@ export interface SidebarMenuButtonProps
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 }
 
-const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
-  (props, ref) => {
-    const { className, variant, size, asChild = false, isActive = false, tooltip, children, ...buttonProps } = props;
-    const { isMobile, state } = useSidebar();
-    const Comp = asChild ? Slot : "button";
+const SidebarMenuButton = React.forwardRef<
+  HTMLButtonElement,
+  SidebarMenuButtonProps
+>(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
+  const { isMobile, state } = useSidebar()
+  const Comp = asChild ? Slot : "button"
 
-    const element = (
-      <Comp
-        ref={ref}
-        data-sidebar="menu-button"
-        data-size={size || "default"} 
-        data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...buttonProps}
-      >
-        {children}
-      </Comp>
-    );
+  const element = (
+    <Comp
+      ref={ref}
+      data-sidebar="menu-button"
+      data-size={size || "default"}
+      data-active={isActive}
+      className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
 
-    if (!tooltip || (state === "expanded" && !isMobile) || isMobile) {
-      return element;
-    }
-    
-    const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
-
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{element}</TooltipTrigger>
-        <TooltipContent
-          side="right"
-          align="center"
-          {...tooltipContentProps}
-        />
-      </Tooltip>
-    );
+  if (!tooltip || (state === "expanded" && !isMobile) || isMobile) {
+    return element
   }
-);
-SidebarMenuButton.displayName = "SidebarMenuButton";
+  
+  const tooltipContentProps = typeof tooltip === 'string' ? { children: tooltip } : tooltip;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{element}</TooltipTrigger>
+      <TooltipContent
+        side="right"
+        align="center"
+        {...tooltipContentProps}
+      />
+    </Tooltip>
+  )
+})
+SidebarMenuButton.displayName = "SidebarMenuButton"
 
 
 const SidebarMenuAction = React.forwardRef<
@@ -739,3 +737,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
