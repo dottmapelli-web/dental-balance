@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/use-auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { format, getYear, getMonth, parseISO, isValid } from "date-fns";
@@ -119,18 +119,14 @@ export default function ForecastPage() {
                   return (row.transactionCategory ? matchesCategory : false) || (row.transactionSubCategory ? matchesSubCategory : false);
               });
 
-              // --- NUOVA LOGICA DI CALCOLO BUDGET ---
-
-              // Metodo 1: Media dello stesso mese negli anni precedenti
-              const sameMonthTransactions = historicalTransactions.filter(t => getMonth(parseISO(t.date)) === month);
               let avgAmount = 0;
+              const sameMonthTransactions = historicalTransactions.filter(t => getMonth(parseISO(t.date)) === month);
               if (sameMonthTransactions.length > 0) {
                   const uniqueYears = new Set(sameMonthTransactions.map(t => getYear(parseISO(t.date))));
                   const totalAmount = sameMonthTransactions.reduce((acc, t) => acc + Math.abs(t.amount), 0);
                   avgAmount = totalAmount / Math.max(1, uniqueYears.size);
               }
 
-              // Metodo 2 (Fallback): Media mensile basata sulla media annuale, se il Metodo 1 non ha dato risultati.
               if (avgAmount === 0 && historicalTransactions.length > 0) {
                   const yearlyTotals: Record<number, number> = {};
                   historicalTransactions.forEach(t => {
@@ -200,7 +196,7 @@ export default function ForecastPage() {
     debouncedSaveBudget(parseInt(selectedYear), month, itemKey, amount);
   };
   
-  const calculatedMonthlyData = useMemo((): MonthlyData[] => {
+ const calculatedMonthlyData = useMemo((): MonthlyData[] => {
     if (isLoading) return [];
     
     const monthlyResults: MonthlyData[] = Array(12).fill(0).map(() => ({}));
@@ -209,7 +205,6 @@ export default function ForecastPage() {
       return isValid(d) && getYear(d).toString() === selectedYear;
     });
 
-    // 1. Initialize all data rows for each month
     forecastStructure.forEach(row => {
       if (row.type === 'row') {
         for (let i = 0; i < 12; i++) {
@@ -224,7 +219,6 @@ export default function ForecastPage() {
       }
     });
 
-    // 2. Aggregate 'Actual' data from transactions of the selected year
     currentYearTransactions.forEach(t => {
       const transactionDate = parseISO(t.date);
       if (!isValid(transactionDate)) return;
@@ -245,8 +239,6 @@ export default function ForecastPage() {
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        // Le uscite sono negative in Firestore, le entrate positive.
-        // Per 'actual' sommiamo i valori assoluti delle uscite e i valori positivi delle entrate.
         if (t.type === 'Entrata') {
           monthlyResults[month][rowToUpdate.key].actual += t.amount;
         } else { // Uscita
@@ -255,7 +247,6 @@ export default function ForecastPage() {
       }
     });
 
-    // 3. Calculate totals, margins, and deviations for each month
     for (let i = 0; i < 12; i++) {
         const monthData = monthlyResults[i];
         
@@ -265,9 +256,11 @@ export default function ForecastPage() {
                 let budgetValue = 0;
                 let actualValue = 0;
 
-                const getValues = (itemKey: string) => {
-                    const normalizedKey = itemKey.replace(/^(total_|margin_)/, '');
-                    return monthData[normalizedKey];
+                const getValues = (itemKey: string): CalculatedValues | undefined => {
+                    if (itemKey.startsWith('total_') || itemKey.startsWith('margin_')) {
+                        return monthData[itemKey];
+                    }
+                    return monthData[itemKey];
                 };
 
                 if (row.type === 'total') {
@@ -304,7 +297,6 @@ export default function ForecastPage() {
             }
         });
 
-        // Calculate deviations after calculating all totals
         Object.values(monthData).forEach(values => {
             values.scostamento = values.actual - values.budget;
             values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : (values.actual > 0 ? 100 : 0);
@@ -343,6 +335,62 @@ export default function ForecastPage() {
     
     return totals;
   }, [calculatedMonthlyData]);
+
+  const handleExportToCSV = () => {
+    if (Object.keys(annualTotals).length === 0) {
+      toast({
+        title: "Nessun dato da esportare",
+        description: "La tabella dei totali annuali è vuota.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const headers = ['Voce', 'Budget', 'Actual', 'Scostamento', '% Scostamento'];
+    const csvRows = [headers.join(';')]; // Usa il punto e virgola per compatibilità Excel IT
+
+    const formatNumberForCSV = (num: number) => num.toFixed(2).replace('.', ',');
+
+    forecastStructure.forEach(row => {
+      if (row.type === 'header') {
+        // Aggiungi una riga vuota e poi l'intestazione per spaziatura
+        csvRows.push('');
+        csvRows.push(row.label);
+      } else {
+        const key = row.type === 'row' ? row.key : row.label.toLowerCase().replace(/\s/g, '_').replace(/[\/]/g, '_');
+        const values = annualTotals[key];
+        if (values) {
+          const rowData = [
+            row.label,
+            formatNumberForCSV(values.budget),
+            formatNumberForCSV(values.actual),
+            formatNumberForCSV(values.scostamento),
+            `${formatNumberForCSV(values.percScostamento)}%`
+          ];
+          csvRows.push(rowData.join(';'));
+        }
+      }
+    });
+    
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' }); // BOM per Excel
+
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `previsione_annuale_${selectedYear}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    toast({
+      title: "Esportazione Completata",
+      description: `Il file previsione_annuale_${selectedYear}.csv è stato scaricato.`,
+    });
+  };
 
   const renderMonthTab = (monthIndex: number, data: MonthlyData) => (
       <Table>
@@ -413,7 +461,7 @@ export default function ForecastPage() {
                 {generateYears().map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" disabled>
+            <Button variant="outline" onClick={handleExportToCSV}>
                 <Download className="mr-2 h-4 w-4" />
                 Esporta
             </Button>
@@ -483,5 +531,3 @@ export default function ForecastPage() {
     </>
   );
 }
-
-    
