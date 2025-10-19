@@ -26,6 +26,7 @@ export type ForecastItemKey =
   | 'apm_dvr'
   | 'web_agency'
   | 'consulenti_lavoro'
+  | 'tasse'
   | 'finanziamenti'
   | 'prestiti'
   | 'leasing'
@@ -35,7 +36,6 @@ export type ForecastItemKey =
   | 'andi'
   | 'banca_oneri'
   | 'rimborso_trasferte'
-  | 'tasse'
   | 'varie_eventuali';
 
 export interface ForecastItem {
@@ -97,7 +97,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
-  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela', "Compenso Chiara"] },
+  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela'] },
   { key: 'tfr', label: 'TFR', type: 'row', mappable: true, transactionSubCategory: "TFR" },
   { key: 'emolumento_amministratori', label: 'Emolumento Amministratori', type: 'row', mappable: true, transactionSubCategory: 'Emolumento Amministratori' },
   { key: 'manutenzione', label: 'Manutenzione', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
@@ -124,9 +124,9 @@ export const forecastStructure: ForecastRow[] = [
     'affitto_sede', 'spese_condominiali', 'utenze', 'stipendi_lordi', 'tfr', 
     'emolumento_amministratori', 'manutenzione', 'assicurazione', 'software_gestionale', 
     'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
-    'consulenti_lavoro', 'finanziamenti', 'prestiti', 'leasing', 'marche_da_bollo', 
-    'servizi_finanziari', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte',
-    'tasse', 'varie_eventuali'
+    'consulenti_lavoro', 'tasse', 'finanziamenti', 'prestiti', 'leasing', 'servizi_finanziari', 
+    'marche_da_bollo', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte',
+    'varie_eventuali'
   ] },
 
   // --- TOTALI FINALI ---
