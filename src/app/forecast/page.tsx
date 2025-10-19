@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth-context';
+import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { format, getYear, getMonth, parseISO, isValid } from "date-fns";
@@ -180,7 +180,7 @@ export default function ForecastPage() {
       try {
         const docId = `${year}-${month}-${itemKey}`;
         const budgetRef = doc(db, "budgets_forecast", docId);
-        await setDoc(budgetRef, { year, month, itemKey, amount });
+        await setDoc(budgetRef, { year, month, itemKey: itemKey, amount });
         toast({ title: "Budget Salvato", description: `Valore per ${itemKey} aggiornato.` });
       } catch (e: any) {
         toast({ title: "Errore Salvataggio Budget", description: e.message, variant: "destructive" });
@@ -239,11 +239,7 @@ export default function ForecastPage() {
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
-        if (t.type === 'Entrata') {
-          monthlyResults[month][rowToUpdate.key].actual += t.amount;
-        } else { // Uscita
           monthlyResults[month][rowToUpdate.key].actual += Math.abs(t.amount);
-        }
       }
     });
 
@@ -257,10 +253,8 @@ export default function ForecastPage() {
                 let actualValue = 0;
 
                 const getValues = (itemKey: string): CalculatedValues | undefined => {
-                    if (itemKey.startsWith('total_') || itemKey.startsWith('margin_')) {
-                        return monthData[itemKey];
-                    }
-                    return monthData[itemKey];
+                    const cleanKey = itemKey.replace('total_', '').replace('margin_', '');
+                    return Object.values(monthData).find((_v, k) => k === cleanKey) || monthData[cleanKey];
                 };
 
                 if (row.type === 'total') {
