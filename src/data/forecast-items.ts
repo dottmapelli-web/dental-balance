@@ -2,6 +2,7 @@
 export type ForecastItemKey = 
   // Ricavi
   | 'pazienti'
+  | 'altre_fonti_reddito'
   // Costi di Produzione
   | 'materiali_uso'
   | 'compensi_medici'
@@ -34,8 +35,8 @@ export type ForecastItemKey =
   | 'andi'
   | 'banca_oneri'
   | 'rimborso_trasferte'
-  | 'tasse' // Aggiunta voce
-  | 'varie_eventuali'; // Aggiunta voce
+  | 'tasse'
+  | 'varie_eventuali';
 
 export interface ForecastItem {
   key: ForecastItemKey;
@@ -75,7 +76,8 @@ export const forecastStructure: ForecastRow[] = [
   // --- RICAVI ---
   { label: 'RICAVI', type: 'header' },
   { key: 'pazienti', label: 'Pazienti', type: 'row', mappable: true, transactionCategory: 'Pazienti' },
-  { label: 'TOTALE RICAVI', type: 'total', calculate: ['pazienti'] },
+  { key: 'altre_fonti_reddito', label: 'Altre Fonti di Reddito', type: 'row', mappable: true, transactionCategory: 'Altre fonti di reddito' },
+  { label: 'TOTALE RICAVI', type: 'total', calculate: ['pazienti', 'altre_fonti_reddito'] },
   
   // --- COSTI DI PRODUZIONE ---
   { label: 'COSTI DI PRODUZIONE', type: 'header' },
@@ -85,10 +87,10 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'regali', label: 'Regali', type: 'row', mappable: true, transactionSubCategory: 'Regali' },
   { key: 'corsi_congressi', label: 'Corsi e Congressi', type: 'row', mappable: true, transactionSubCategory: 'Corsi e Congressi' },
   { key: 'campagne_web', label: 'Campagne Web', type: 'row', mappable: true, transactionSubCategory: 'Campagne Web' }, 
-  { label: 'TOTALI COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'compensi_medici', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
+  { label: 'TOTALE COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'compensi_medici', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
 
   // --- MARGINE DI CONTRIBUZIONE ---
-  { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totali_costi_di_produzione'] } },
+  { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totale_costi_di_produzione'] } },
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
@@ -128,6 +130,6 @@ export const forecastStructure: ForecastRow[] = [
   ] },
 
   // --- TOTALI FINALI ---
-  { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totali_costi_di_produzione', 'total_totale_costi_produttivi'] },
+  { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totale_costi_di_produzione', 'total_totale_costi_produttivi'] },
   { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];

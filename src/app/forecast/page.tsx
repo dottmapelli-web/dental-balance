@@ -205,6 +205,7 @@ export default function ForecastPage() {
       return isValid(d) && getYear(d).toString() === selectedYear;
     });
 
+    // Step 1: Initialize all rows and calculate 'actuals' for mappable rows
     forecastStructure.forEach(row => {
       if (row.type === 'row') {
         for (let i = 0; i < 12; i++) {
@@ -218,7 +219,7 @@ export default function ForecastPage() {
         }
       }
     });
-
+    
     currentYearTransactions.forEach(t => {
       const transactionDate = parseISO(t.date);
       if (!isValid(transactionDate)) return;
@@ -227,15 +228,21 @@ export default function ForecastPage() {
       const rowToUpdate = forecastStructure.find(row => {
         if (row.type !== 'row' || !row.mappable) return false;
         
-        const categoryMatch = row.transactionCategory && (Array.isArray(row.transactionCategory)
-          ? row.transactionCategory.includes(t.category)
-          : row.transactionCategory === t.category);
+        let categoryMatch = false;
+        if (row.transactionCategory) {
+            categoryMatch = Array.isArray(row.transactionCategory)
+                ? row.transactionCategory.includes(t.category)
+                : row.transactionCategory === t.category;
+        }
 
-        const subCategoryMatch = row.transactionSubCategory && (Array.isArray(row.transactionSubCategory)
-          ? row.transactionSubCategory.includes(t.subcategory ?? '')
-          : row.transactionSubCategory === t.subcategory);
+        let subCategoryMatch = false;
+        if (row.transactionSubCategory) {
+            subCategoryMatch = Array.isArray(row.transactionSubCategory)
+                ? row.transactionSubCategory.includes(t.subcategory ?? '')
+                : row.transactionSubCategory === t.subcategory;
+        }
         
-        return (row.transactionCategory ? categoryMatch : false) || (row.transactionSubCategory ? subCategoryMatch : false);
+        return categoryMatch || subCategoryMatch;
       }) as ForecastItem | undefined;
 
       if (rowToUpdate) {
@@ -243,6 +250,7 @@ export default function ForecastPage() {
       }
     });
 
+    // Step 2: Calculate totals and margins for each month
     for (let i = 0; i < 12; i++) {
         const monthData = monthlyResults[i];
         
@@ -252,48 +260,43 @@ export default function ForecastPage() {
                 let budgetValue = 0;
                 let actualValue = 0;
 
-                const getValues = (itemKey: string): CalculatedValues | undefined => {
-                    const cleanKey = itemKey.replace('total_', '').replace('margin_', '');
-                    return Object.values(monthData).find((_v, k) => k === cleanKey) || monthData[cleanKey];
+                const getValues = (itemKey: string): CalculatedValues => {
+                    const cleanKey = itemKey.replace(/^(total_|margin_)/, '');
+                    return monthData[cleanKey] || { budget: 0, actual: 0, scostamento: 0, percScostamento: 0 };
                 };
 
                 if (row.type === 'total') {
                     row.calculate.forEach(itemKey => {
                         const values = getValues(itemKey);
-                        if(values) {
-                            budgetValue += values.budget;
-                            actualValue += values.actual;
-                        }
+                        budgetValue += values.budget;
+                        actualValue += values.actual;
                     });
                 } else { // margin
                     row.calculate.from.forEach(itemKey => {
                         const values = getValues(itemKey);
-                        if(values) {
-                            budgetValue += values.budget;
-                            actualValue += values.actual;
-                        }
+                        budgetValue += values.budget;
+                        actualValue += values.actual;
                     });
                     row.calculate.subtract.forEach(itemKey => {
                         const values = getValues(itemKey);
-                        if(values) {
-                            budgetValue -= values.budget;
-                            actualValue -= values.actual;
-                        }
+                        budgetValue -= values.budget;
+                        actualValue -= values.actual;
                     });
                 }
                 
                 monthData[key] = {
                     budget: budgetValue,
                     actual: actualValue,
-                    scostamento: 0,
-                    percScostamento: 0
+                    scostamento: 0, // will calculate next
+                    percScostamento: 0, // will calculate next
                 };
             }
         });
 
+        // Step 3: Final pass for scostamento and percentages for the current month
         Object.values(monthData).forEach(values => {
             values.scostamento = values.actual - values.budget;
-            values.percScostamento = values.budget !== 0 ? (values.scostamento / values.budget) * 100 : (values.actual > 0 ? 100 : 0);
+            values.percScostamento = values.budget !== 0 ? (values.scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
         });
     }
 
@@ -324,7 +327,7 @@ export default function ForecastPage() {
 
     for(const key in totals) {
         totals[key].scostamento = totals[key].actual - totals[key].budget;
-        totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / totals[key].budget) * 100 : (totals[key].actual > 0 ? 100 : 0);
+        totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / Math.abs(totals[key].budget)) * 100 : (totals[key].actual > 0 ? 100 : 0);
     }
     
     return totals;
@@ -355,11 +358,11 @@ export default function ForecastPage() {
         const values = annualTotals[key];
         if (values) {
           const rowData = [
-            row.label,
+            `"${row.label.replace(/"/g, '""')}"`, // Escape quotes in label
             formatNumberForCSV(values.budget),
             formatNumberForCSV(values.actual),
             formatNumberForCSV(values.scostamento),
-            `${formatNumberForCSV(values.percScostamento)}%`
+            `"${formatNumberForCSV(values.percScostamento)}%"`
           ];
           csvRows.push(rowData.join(';'));
         }
@@ -407,10 +410,23 @@ export default function ForecastPage() {
                       return <TableRow key={rowIndex} className={rowClass}><TableCell colSpan={5}>{row.label}</TableCell></TableRow>;
                   }
 
-                  const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
-                  
+                  const scostamentoClass = values?.scostamento > 0 ? 'text-red-600 dark:text-red-400' : (values?.scostamento < 0 ? 'text-green-600 dark:text-green-400' : '');
+                  if(row.label === 'EBITDA' || row.label === 'MARGINE DI CONTRIBUZIONE'){
+                      // Per EBITDA e margini, positivo è buono (verde)
+                      const ebitdaScostamentoClass = values?.scostamento > 0 ? 'text-green-600 dark:text-green-400' : (values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : '');
+                       return (
+                          <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                              <TableCell className="font-medium">{row.label}</TableCell>
+                              <TableCell>{isClient ? renderValue(values?.budget || 0) : '€0.00' }</TableCell>
+                              <TableCell>{isClient ? renderValue(values?.actual || 0) : '€0.00'}</TableCell>
+                              <TableCell className={ebitdaScostamentoClass}>{isClient ? renderValue(values?.scostamento || 0) : '€0.00'}</TableCell>
+                              <TableCell className={ebitdaScostamentoClass}>{isClient ? renderPercentage(values?.percScostamento || 0) : '0.00%'}</TableCell>
+                          </TableRow>
+                      );
+                  }
+
                   return (
-                      <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                      <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold')}>
                           <TableCell className="font-medium">{row.label}</TableCell>
                           <TableCell>
                               {row.type === 'row' && row.mappable ? (
@@ -505,9 +521,21 @@ export default function ForecastPage() {
                           if (row.type === 'header') {
                               return <TableRow key={rowIndex} className={rowClass}><TableCell colSpan={5}>{row.label}</TableCell></TableRow>;
                           }
-                          const scostamentoClass = values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
+                          const scostamentoClass = values?.scostamento > 0 ? 'text-red-600 dark:text-red-400' : (values?.scostamento < 0 ? 'text-green-600 dark:text-green-400' : '');
+                          if(row.label === 'EBITDA' || row.label === 'MARGINE DI CONTRIBUZIONE'){
+                               const ebitdaScostamentoClass = values?.scostamento > 0 ? 'text-green-600 dark:text-green-400' : (values?.scostamento < 0 ? 'text-red-600 dark:text-red-400' : '');
+                                return (
+                                  <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                                      <TableCell className="font-medium">{row.label}</TableCell>
+                                      <TableCell>{isClient ? renderValue(values?.budget || 0) : '€0.00'}</TableCell>
+                                      <TableCell>{isClient ? renderValue(values?.actual || 0) : '€0.00'}</TableCell>
+                                      <TableCell className={ebitdaScostamentoClass}>{isClient ? renderValue(values?.scostamento || 0) : '€0.00'}</TableCell>
+                                      <TableCell className={ebitdaScostamentoClass}>{isClient ? renderPercentage(values?.percScostamento || 0) : '0.00%'}</TableCell>
+                                  </TableRow>
+                              );
+                          }
                           return (
-                              <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold', row.label === 'EBITDA' && 'bg-green-200 dark:bg-green-800/60 font-extrabold')}>
+                              <TableRow key={rowIndex} className={cn(rowClass, row.type === 'total' && 'font-extrabold')}>
                                   <TableCell className="font-medium">{row.label}</TableCell>
                                   <TableCell>{isClient ? renderValue(values?.budget || 0) : '€0.00'}</TableCell>
                                   <TableCell>{isClient ? renderValue(values?.actual || 0) : '€0.00'}</TableCell>
