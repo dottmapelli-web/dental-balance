@@ -5,7 +5,7 @@ export type ForecastItemKey =
   | 'altre_fonti_reddito'
   // Costi di Produzione
   | 'materiali_uso'
-  | 'compensi_medici'
+  | 'compensi_medici' // Modificato per includere tutto il personale
   | 'laboratorio'
   | 'regali'
   | 'corsi_congressi'
@@ -14,8 +14,6 @@ export type ForecastItemKey =
   | 'affitto_sede'
   | 'spese_condominiali'
   | 'utenze'
-  | 'stipendi_lordi'
-  | 'tfr'
   | 'emolumento_amministratori'
   | 'manutenzione'
   | 'assicurazione'
@@ -82,23 +80,21 @@ export const forecastStructure: ForecastRow[] = [
   // --- COSTI DI PRODUZIONE ---
   { label: 'COSTI DI PRODUZIONE', type: 'header' },
   { key: 'materiali_uso', label: "Materiali d'uso", type: 'row', mappable: true, transactionCategory: 'Materiali' },
-  { key: 'compensi_medici', label: 'Compensi Medici', type: 'row', mappable: true, transactionSubCategory: ['Compenso Chiara', 'Compenso Dr. Mapelli', 'Compenso Dr. Manfredi', 'Compenso Dr. Rinaldi', 'Compenso Dr. Crottini', 'Compenso Dr. Beretta', 'Compenso Dr. De Vecchi', 'Compenso Dr. Gjoni'] },
   { key: 'laboratorio', label: 'Laboratorio', type: 'row', mappable: true, transactionSubCategory: ['Lab. Baisotti', 'Lab. Ennevi (Orto)'] },
   { key: 'regali', label: 'Regali', type: 'row', mappable: true, transactionSubCategory: 'Regali' },
   { key: 'corsi_congressi', label: 'Corsi e Congressi', type: 'row', mappable: true, transactionSubCategory: 'Corsi e Congressi' },
   { key: 'campagne_web', label: 'Campagne Web', type: 'row', mappable: true, transactionSubCategory: 'Campagne Web' }, 
-  { label: 'TOTALE COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'compensi_medici', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
+  { label: 'TOTALE COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
 
   // --- MARGINE DI CONTRIBUZIONE ---
   { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totale_costi_di_produzione'] } },
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
+  { key: 'compensi_medici', label: 'Costi del Personale (Compensi, Stipendi, TFR)', type: 'row', mappable: true, transactionCategory: 'Personale' },
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
-  { key: 'stipendi_lordi', label: 'Stipendi Lordi', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela'] },
-  { key: 'tfr', label: 'TFR', type: 'row', mappable: true, transactionSubCategory: "TFR" },
   { key: 'emolumento_amministratori', label: 'Emolumento Amministratori', type: 'row', mappable: true, transactionSubCategory: 'Emolumento Amministratori' },
   { key: 'manutenzione', label: 'Manutenzione', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
   { key: 'assicurazione', label: 'Assicurazione', type: 'row', mappable: true, transactionSubCategory: 'Assicurazione' },
@@ -108,7 +104,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' },
   { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
   { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
-  { key: 'consulenti_lavoro', label: 'Consulenti del Lavoro', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
+  { key: 'consulenti_lavoro', label: 'Commercialista/Consulenti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
   { key: 'tasse', label: 'Tasse', type: 'row', mappable: true, transactionSubCategory: 'Tasse' },
   { key: 'finanziamenti', label: 'Finanziamenti', type: 'row', mappable: true, transactionSubCategory: 'Finanziamenti' },
   { key: 'prestiti', label: 'Prestiti', type: 'row', mappable: true, transactionSubCategory: 'Prestiti' },
@@ -121,7 +117,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'rimborso_trasferte', label: 'Rimborso Trasferte', type: 'row', mappable: true, transactionSubCategory: 'Rimborso Trasferte' },
   { key: 'varie_eventuali', label: 'Varie ed Eventuali', type: 'row', mappable: true, transactionCategory: 'Altre spese'},
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
-    'affitto_sede', 'spese_condominiali', 'utenze', 'stipendi_lordi', 'tfr', 
+    'compensi_medici', 'affitto_sede', 'spese_condominiali', 'utenze', 
     'emolumento_amministratori', 'manutenzione', 'assicurazione', 'software_gestionale', 
     'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
     'consulenti_lavoro', 'tasse', 'finanziamenti', 'prestiti', 'leasing', 'servizi_finanziari', 
@@ -133,3 +129,5 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totale_costi_di_produzione', 'total_totale_costi_produttivi'] },
   { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];
+
+    
