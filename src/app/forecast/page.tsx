@@ -403,7 +403,7 @@ export default function ForecastPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(calculatedForecastDatanpm .find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actual)}
+                            {formatCurrency(calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actual)}
                         </div>
                         <p className="text-xs text-muted-foreground">Ricavi meno costi variabili diretti.</p>
                     </CardContent>
@@ -436,3 +436,5 @@ export default function ForecastPage() {
         </>
     );
 }
+
+    
