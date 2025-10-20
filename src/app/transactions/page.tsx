@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set, subMonths, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval, addDays } from "date-fns";
 import { it } from "date-fns/locale";
-import { RecurrenceFrequency, TransactionStatus, expenseCategories, transactionStatuses, allIncomeCategories, allExpenseCategories, getSubcategories, recurrenceFrequencies } from "@/config/transaction-categories";
+import { type RecurrenceFrequency, type TransactionStatus, transactionStatuses, recurrenceFrequencies } from "@/config/transaction-categories";
 import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit, Loader2 } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

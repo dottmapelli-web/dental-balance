@@ -3,6 +3,17 @@
 // The source of truth for categories is now Firestore in the 'transactionCategories' collection.
 // This data is used once to populate Firestore if it's empty.
 
+export type ForecastType = 'Costi di Produzione' | 'Costi Produttivi';
+
+export interface CategoryStructure {
+  subcategories: string[];
+  forecastType?: ForecastType;
+}
+
+export interface CategoryDefinition {
+  [category: string]: CategoryStructure;
+}
+
 export const initialExpenseCategories: { [key: string]: string[] } = {
   "Spese Fisse": ["Affitto", "Spese condominiali", "Elettricità", "Rifiuti", "Internet/Telefono"],
   "Spesa Studio": ["Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
@@ -25,5 +36,3 @@ export type RecurrenceFrequency = typeof recurrenceFrequencies[number];
 
 export const transactionStatuses = ['Completato', 'In Attesa', 'Pianificato'] as const;
 export type TransactionStatus = typeof transactionStatuses[number];
-
-    
