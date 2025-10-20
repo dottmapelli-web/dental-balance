@@ -535,9 +535,9 @@ export interface SidebarMenuButtonProps
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   SidebarMenuButtonProps
->(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
+>(({ className, variant, size, asChild: isAsChild, isActive, tooltip, ...props }, ref) => {
   const { isMobile, state } = useSidebar()
-  const Comp = asChild ? Slot : "button"
+  const Comp = isAsChild ? Slot : "button"
 
   const element = (
     <Comp
@@ -737,5 +737,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
