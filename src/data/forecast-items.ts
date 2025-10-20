@@ -87,7 +87,7 @@ export const forecastStructure: ForecastRow[] = [
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
-  { key: 'costi_personale', label: 'Costi del Personale', type: 'row', mappable: true, transactionCategory: 'Personale' },
+  { key: 'costi_personale', label: 'Costi del Personale', type: 'row', mappable: true, transactionCategory: 'Personale', transactionSubCategory: ["Stipendio Ilaria", "Stipendio Daniela", "Compenso Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni", "TFR", "Emolumento Amministratori", "Rimborso Trasferte"] },
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
@@ -98,7 +98,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'forniture_ufficio', label: 'Forniture ufficio', type: 'row', mappable: true, transactionSubCategory: 'Forniture D’Ufficio' },
   { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' },
   { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
-  { key: 'web_agency', label: 'Web Agency', type 'row', mappable: true, transactionSubCategory: 'Web Agency' },
+  { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
   { key: 'consulenti', label: 'Commercialista/Consulenti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
   { key: 'tasse', label: 'Tasse', type: 'row', mappable: true, transactionSubCategory: 'Tasse' },
   { key: 'finanziamenti_prestiti_leasing', label: 'Finanziamenti/Prestiti/Leasing', type: 'row', mappable: true, transactionSubCategory: ['Finanziamenti', 'Prestiti', 'Leasing'] },
