@@ -127,7 +127,8 @@ export default function TransactionModal({
   const availableSubcategories = useMemo(() => {
     if (!watchedCategory) return [];
     const source = watchedType === 'Entrata' ? incomeCategories : expenseCategories;
-    return source[watchedCategory] || [];
+    // Correzione: accedere alla proprietà .subcategories dell'oggetto
+    return source[watchedCategory]?.subcategories || [];
   }, [watchedType, watchedCategory, incomeCategories, expenseCategories]);
 
   const processSubmit: SubmitHandler<TransactionFormData> = (data) => {
