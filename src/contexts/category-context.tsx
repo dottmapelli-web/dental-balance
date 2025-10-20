@@ -37,7 +37,7 @@ const migrateCategories = (oldCategories: { [key: string]: any }): CategoryDefin
     const newCats: CategoryDefinition = {};
     for (const key in oldCategories) {
         let subcategories: Subcategory[] = [];
-        let forecastType: ForecastType | undefined = 'Costi Produttivi';
+        let forecastType: ForecastType;
 
         const categoryData = oldCategories[key];
 
@@ -50,10 +50,10 @@ const migrateCategories = (oldCategories: { [key: string]: any }): CategoryDefin
                 }
                 return sub; // Già nel nuovo formato
             });
-            forecastType = categoryData.forecastType;
         }
-
-        if(key === 'Materiali' || key === 'Servizi esterni' || key === 'Compensi Medici'){
+        
+        // Assegna il forecastType corretto in base alla categoria
+        if (key === 'Materiali' || key === 'Servizi esterni' || key === 'Compensi Medici') {
             forecastType = 'Costi di Produzione';
         } else {
             forecastType = 'Costi Produttivi';
