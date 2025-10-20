@@ -111,7 +111,7 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
     'costi_personale', 'affitto_sede', 'spese_condominiali', 'utenze', 
     'manutenzione', 'assicurazione', 'software_gestionale', 
-    'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
+    'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency',
     'consulenti', 'tasse', 'finanziamenti_prestiti_leasing', 'servizi_finanziari', 
     'marche_da_bollo', 'obblighi_legge', 'andi', 'banca_oneri',
     'varie_eventuali'
