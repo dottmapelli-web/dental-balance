@@ -32,19 +32,15 @@ const migrateCategories = (oldCategories: { [key: string]: string[] }): Category
     const newCats: CategoryDefinition = {};
     for (const key in oldCategories) {
         // Assegna un tipo di previsione di default
-        const forecastType: ForecastType = 
-            (key === 'Materiali' || key === 'Servizi esterni' || key === 'Marketing e Sviluppo') 
-            ? 'Costi di Produzione' 
-            : 'Costi Produttivi';
+        let forecastType: ForecastType = 'Costi Produttivi'; // Default
+        if (key === 'Materiali' || key === 'Servizi esterni' || key === 'Compensi Medici') {
+          forecastType = 'Costi di Produzione';
+        }
 
         newCats[key] = {
             subcategories: oldCategories[key],
             forecastType: forecastType
         };
-    }
-    // Caso speciale per Personale che è misto
-    if (newCats['Personale']) {
-      newCats['Personale'].forecastType = 'Costi Produttivi';
     }
     return newCats;
 };
