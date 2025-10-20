@@ -282,17 +282,22 @@ export default function ForecastPage() {
 
      Object.entries(allMainCategories).forEach(([catName, catData]) => {
         if (!catData) return;
-        let hasPromotedSub = false;
-        if(catData.subcategories){
+        
+        if (catData.subcategories && catData.subcategories.length > 0) {
+            let hasPromotedSub = false;
             catData.subcategories.forEach(sub => {
                 if (sub.showInForecast) {
                     keysToInitialize.add(`${catName}__${sub.name}`);
                     hasPromotedSub = true;
                 }
             });
-        }
-        if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
-           keysToInitialize.add(catName);
+            // Add the main category itself if it has un-promoted subs
+            if (catData.subcategories.some(s => !s.showInForecast)) {
+                keysToInitialize.add(catName);
+            }
+        } else {
+            // Add main category if it has no subcategories at all
+            keysToInitialize.add(catName);
         }
     });
 
