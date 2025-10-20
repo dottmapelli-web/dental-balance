@@ -88,7 +88,7 @@ export const forecastStructure: ForecastRow[] = [
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
-  { key: 'costi_personale', label: 'Costi del Personale (Compensi, Stipendi, TFR)', type: 'row', mappable: true, transactionCategory: 'Personale' },
+  { key: 'costi_personale', label: 'Costi del Personale', type: 'row', mappable: true, transactionCategory: 'Personale', transactionSubCategory: ["Stipendio Ilaria", "Stipendio Daniela", "Compenso Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni", "TFR", "Emolumento Amministratori", "Rimborso Trasferte"] },
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
@@ -108,14 +108,13 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'obblighi_legge', label: 'Obblighi di Legge', type: 'row', mappable: true, transactionSubCategory: 'Obbligo di legge' },
   { key: 'andi', label: 'ANDI', type: 'row', mappable: true, transactionSubCategory: 'ANDI' },
   { key: 'banca_oneri', label: 'Banca e Oneri', type: 'row', mappable: true, transactionSubCategory: 'Banca' },
-  { key: 'rimborso_trasferte', label: 'Rimborso Trasferte', type: 'row', mappable: true, transactionSubCategory: 'Rimborso Trasferte' },
   { key: 'varie_eventuali', label: 'Varie ed Eventuali', type: 'row', mappable: true, transactionCategory: 'Altre spese'},
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
     'costi_personale', 'affitto_sede', 'spese_condominiali', 'utenze', 
     'manutenzione', 'assicurazione', 'software_gestionale', 
     'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
     'consulenti', 'tasse', 'finanziamenti_prestiti_leasing', 'servizi_finanziari', 
-    'marche_da_bollo', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte',
+    'marche_da_bollo', 'obblighi_legge', 'andi', 'banca_oneri',
     'varie_eventuali'
   ] },
 
