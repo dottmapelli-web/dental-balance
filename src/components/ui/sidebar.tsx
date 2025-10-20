@@ -535,9 +535,10 @@ export interface SidebarMenuButtonProps
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   SidebarMenuButtonProps
->(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
-  const { isMobile, state } = useSidebar()
-  const Comp = asChild ? Slot : "button"
+>(({ className, variant, size, asChild: isAsChild, isActive, tooltip, ...props }, ref) => {
+  const { isMobile, state } = useSidebar();
+  const { asChild: _, ...rest } = props;
+  const Comp = isAsChild ? Slot : "button";
   
   const element = (
     <Comp
@@ -546,7 +547,7 @@ const SidebarMenuButton = React.forwardRef<
       data-size={size || "default"}
       data-active={isActive}
       className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-      {...props}
+      {...rest}
     />
   )
 
