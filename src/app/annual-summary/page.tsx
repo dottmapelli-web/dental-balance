@@ -21,6 +21,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
+import AnnualDetailModal from '@/components/annual-detail-modal'; // Import del nuovo componente
 
 const annualBarChartConfig = {
   totalIncome: { label: "Entrate Totali Annuali", color: "hsl(var(--chart-1))" },
@@ -75,6 +76,14 @@ export default function AnnualSummaryPage() {
   const [annualNarrative, setAnnualNarrative] = useState<string | null>(null);
   const [isLoadingNarrative, setIsLoadingNarrative] = useState<boolean>(false);
   const [narrativeError, setNarrativeError] = useState<string | null>(null);
+
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedYearForModal, setSelectedYearForModal] = useState<string | null>(null);
+
+  const handleOpenDetailModal = (year: string) => {
+    setSelectedYearForModal(year);
+    setIsDetailModalOpen(true);
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -351,6 +360,15 @@ export default function AnnualSummaryPage() {
         }
       />
       
+      {isDetailModalOpen && selectedYearForModal && (
+        <AnnualDetailModal
+            isOpen={isDetailModalOpen}
+            onOpenChange={setIsDetailModalOpen}
+            year={selectedYearForModal}
+            transactions={transactions}
+        />
+      )}
+
       <div id="annual-report-printable-area" ref={reportPrintRef}>
         {transactionsError && (
           <Alert variant="destructive" className="mb-6 print-hidden">
@@ -577,7 +595,7 @@ export default function AnnualSummaryPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline">Riepilogo Dettagliato Annuale Complessivo</CardTitle>
-                <CardDescription>Entrate, uscite e saldo per ogni anno di attività registrato.</CardDescription>
+                <CardDescription>Entrate, uscite e saldo per ogni anno di attività registrato. Clicca su una riga per vedere i dettagli.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -591,7 +609,7 @@ export default function AnnualSummaryPage() {
                   </TableHeader>
                   <TableBody>
                     {annualOverviewData.length > 0 ? annualOverviewData.map((yearData) => (
-                      <TableRow key={yearData.year}>
+                      <TableRow key={yearData.year} onClick={() => handleOpenDetailModal(yearData.year)} className="cursor-pointer hover:bg-muted/50">
                         <TableCell className="font-medium">{yearData.year}</TableCell>
                         <TableCell className="text-right text-green-600 dark:text-green-400">
                           €{isClient ? yearData.totalIncome.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : yearData.totalIncome.toFixed(2)}
