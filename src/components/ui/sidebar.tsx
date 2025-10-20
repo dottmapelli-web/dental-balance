@@ -538,9 +538,7 @@ const SidebarMenuButton = React.forwardRef<
 >(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
   const { isMobile, state } = useSidebar()
   const Comp = asChild ? Slot : "button"
-  // Correctly remove asChild from props passed to the DOM element
-  const { asChild: _asChild, ...rest } = props;
-
+  
   const element = (
     <Comp
       ref={ref}
@@ -548,7 +546,7 @@ const SidebarMenuButton = React.forwardRef<
       data-size={size || "default"}
       data-active={isActive}
       className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-      {...rest}
+      {...props}
     />
   )
 
@@ -739,5 +737,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
