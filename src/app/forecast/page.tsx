@@ -144,19 +144,26 @@ export default function ForecastPage() {
 
     for (let i = 0; i < 12; i++) { // For each month
         const month = i;
+        if (!monthlyResults[month]) monthlyResults[month] = {};
 
         // Initialize all promoted subcategories and main categories
         Object.entries(allCategories).forEach(([catName, catData]) => {
-            // Main category row
-            monthlyResults[month][catName] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+            if (!catData) return;
+
+            // Main category row (if it has non-promoted subs or no subs)
+            if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+                 if (!monthlyResults[month][catName]) monthlyResults[month][catName] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+            }
             
-            catData.subcategories.forEach(sub => {
-                if (sub.showInForecast) {
-                    // Promoted subcategory row
-                    const subKey = `${catName}__${sub.name}`;
-                    monthlyResults[month][subKey] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
-                }
-            });
+            // Promoted subcategory rows
+            if(catData.subcategories){
+                catData.subcategories.forEach(sub => {
+                    if (sub.showInForecast) {
+                        const subKey = `${catName}__${sub.name}`;
+                        if (!monthlyResults[month][subKey]) monthlyResults[month][subKey] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+                    }
+                });
+            }
         });
     }
 
@@ -169,15 +176,15 @@ export default function ForecastPage() {
 
         if (catInfo) {
             const amount = Math.abs(t.amount);
-            const subcategoryInfo = catInfo.subcategories.find(s => s.name === t.subcategory);
+            const subcategoryInfo = catInfo.subcategories?.find(s => s.name === t.subcategory);
 
             if (subcategoryInfo?.showInForecast) {
                  const subKey = `${t.category}__${t.subcategory}`;
-                 if(monthlyResults[month][subKey]) {
+                 if(monthlyResults[month] && monthlyResults[month][subKey]) {
                     monthlyResults[month][subKey].actual += amount;
                  }
             } else {
-                if(monthlyResults[month][t.category]) {
+                if(monthlyResults[month] && monthlyResults[month][t.category]) {
                     monthlyResults[month][t.category].actual += amount;
 
                     const subcatKeyForBreakdown = t.subcategory || "N/D";
@@ -193,26 +200,31 @@ export default function ForecastPage() {
     for (let i = 0; i < 12; i++) { // For each month
         const month = i;
         const monthData = monthlyResults[month];
+        if (!monthData) continue;
         
         Object.entries(allCategories).forEach(([catName, catData]) => {
-            let mainCatBudget = budgetData[`${month}_${catName}`] || 0;
-            let mainCatActual = monthData[catName]?.actual || 0;
+            if(!catData) return;
             
-            catData.subcategories.forEach(sub => {
-                const subKey = `${catName}__${sub.name}`;
-                if (sub.showInForecast) {
-                    if (monthData[subKey]) {
-                        monthData[subKey].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
+            // Main category row budget
+            if (monthData[catName]) {
+                 monthData[catName].budget = budgetData[`${month}_${catName}`] || 0;
+            }
+            
+            // Subcategory budgets
+            if (catData.subcategories){
+                catData.subcategories.forEach(sub => {
+                    const subKey = `${catName}__${sub.name}`;
+                    if (sub.showInForecast) {
+                        if (monthData[subKey]) {
+                            monthData[subKey].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
+                        }
+                    } else {
+                        if (monthData[catName]?.breakdown?.[sub.name]) {
+                            monthData[catName].breakdown[sub.name].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
+                        }
                     }
-                } else {
-                     if (monthData[catName]?.breakdown?.[sub.name]) {
-                        monthData[catName].breakdown[sub.name].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
-                     }
-                }
-            });
-             if(monthData[catName]) {
-                monthData[catName].budget = mainCatBudget;
-             }
+                });
+            }
         });
 
         let totaleRicavi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
@@ -220,7 +232,7 @@ export default function ForecastPage() {
         let totaleCostiProduttivi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
 
         Object.entries(monthData).forEach(([key, values]) => {
-            const [catName, subName] = key.split('__');
+            const [catName] = key.split('__');
             const categoryInfo = allCategories[catName];
 
             if (categoryInfo) {
@@ -269,15 +281,17 @@ export default function ForecastPage() {
     const keysToInitialize = new Set<string>();
 
      Object.entries(allMainCategories).forEach(([catName, catData]) => {
+        if (!catData) return;
         let hasPromotedSub = false;
-        catData.subcategories.forEach(sub => {
-            if (sub.showInForecast) {
-                keysToInitialize.add(`${catName}__${sub.name}`);
-                hasPromotedSub = true;
-            }
-        });
-        // If there are non-promoted subs, or no subs, the main category row should exist
-        if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+        if(catData.subcategories){
+            catData.subcategories.forEach(sub => {
+                if (sub.showInForecast) {
+                    keysToInitialize.add(`${catName}__${sub.name}`);
+                    hasPromotedSub = true;
+                }
+            });
+        }
+        if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
            keysToInitialize.add(catName);
         }
     });
@@ -363,7 +377,7 @@ export default function ForecastPage() {
           const [catName, subName] = key.split('__');
           const isPromotedSub = !!subName;
           const mainCategoryData = allCategories[catName];
-          const hasBreakdown = !isPromotedSub && mainCategoryData && mainCategoryData.subcategories.some(s => !s.showInForecast);
+          const hasBreakdown = !isPromotedSub && mainCategoryData && mainCategoryData.subcategories && mainCategoryData.subcategories.some(s => !s.showInForecast);
           const isExpandable = hasBreakdown || ['totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi'].includes(key);
 
           const isExpanded = expandedRows.has(key);
@@ -379,10 +393,17 @@ export default function ForecastPage() {
                     {label}
                   </TableCell>
                   <TableCell>
-                      {canEditBudget ? (
+                      {canEditBudget && !isPromotedSub ? (
                         <Input type="number" step="0.01"
                             defaultValue={values.budget.toFixed(2)}
-                            onChange={(e) => handleBudgetChange(monthIndex as number, catName, isPromotedSub ? subName : null, e.target.value)}
+                            onChange={(e) => handleBudgetChange(monthIndex as number, catName, null, e.target.value)}
+                            className="h-8"
+                            onClick={(e) => e.stopPropagation()}
+                            />
+                      ) : (canEditBudget && isPromotedSub) ? (
+                         <Input type="number" step="0.01"
+                            defaultValue={values.budget.toFixed(2)}
+                            onChange={(e) => handleBudgetChange(monthIndex as number, catName, subName, e.target.value)}
                             className="h-8"
                             onClick={(e) => e.stopPropagation()}
                             />
@@ -404,45 +425,54 @@ export default function ForecastPage() {
 
       rowsToRender.push({ type: 'header', label: 'RICAVI' });
       Object.entries(incomeCategories).forEach(([catName, catData]) => {
-          if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+          if (!catData) return;
+          if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
               rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: true });
           }
-          catData.subcategories.forEach(sub => {
-              if (sub.showInForecast) {
-                  const key = `${catName}__${sub.name}`;
-                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: true });
-              }
-          });
+          if (catData.subcategories) {
+            catData.subcategories.forEach(sub => {
+                if (sub.showInForecast) {
+                    const key = `${catName}__${sub.name}`;
+                    rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: true });
+                }
+            });
+          }
       });
       rowsToRender.push({ type: 'row', key: 'totale_ricavi', label: 'TOTALE RICAVI', values: data['totale_ricavi'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: true });
 
       rowsToRender.push({ type: 'header', label: 'COSTI DI PRODUZIONE' });
-      Object.entries(expenseCategories).filter(([,val]) => val.forecastType === 'Costi di Produzione').forEach(([catName, catData]) => {
-           if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+      Object.entries(expenseCategories).filter(([,val]) => val?.forecastType === 'Costi di Produzione').forEach(([catName, catData]) => {
+           if (!catData) return;
+           if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
               rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: false });
            }
-           catData.subcategories.forEach(sub => {
-              if (sub.showInForecast) {
-                  const key = `${catName}__${sub.name}`;
-                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
-              }
-           });
+           if (catData.subcategories) {
+                catData.subcategories.forEach(sub => {
+                    if (sub.showInForecast) {
+                        const key = `${catName}__${sub.name}`;
+                        rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
+                    }
+                });
+           }
       });
       rowsToRender.push({ type: 'row', key: 'totale_costi_di_produzione', label: 'TOTALE COSTI DI PRODUZIONE', values: data['totale_costi_di_produzione'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: false });
       
       rowsToRender.push({ type: 'row', key: 'margine_di_contribuzione', label: 'MARGINE DI CONTRIBUZIONE', values: data['margine_di_contribuzione'], rowClass: 'bg-green-100 dark:bg-green-900/50 font-bold', isPositiveGood: true });
       
       rowsToRender.push({ type: 'header', label: 'COSTI PRODUTTIVI' });
-      Object.entries(expenseCategories).filter(([,val]) => val.forecastType !== 'Costi di Produzione').forEach(([catName, catData]) => {
-           if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+      Object.entries(expenseCategories).filter(([,val]) => val?.forecastType !== 'Costi di Produzione').forEach(([catName, catData]) => {
+           if (!catData) return;
+           if (!catData.subcategories || catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
               rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: false });
            }
-           catData.subcategories.forEach(sub => {
-              if (sub.showInForecast) {
-                  const key = `${catName}__${sub.name}`;
-                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
-              }
-           });
+           if (catData.subcategories) {
+                catData.subcategories.forEach(sub => {
+                    if (sub.showInForecast) {
+                        const key = `${catName}__${sub.name}`;
+                        rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
+                    }
+                });
+           }
       });
       rowsToRender.push({ type: 'row', key: 'totale_costi_produttivi', label: 'TOTALE COSTI PRODUTTIVI', values: data['totale_costi_produttivi'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: false });
       
@@ -553,3 +583,5 @@ export default function ForecastPage() {
     </>
   );
 }
+
+    
