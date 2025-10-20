@@ -1,12 +1,12 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, AlertCircle, TrendingUp, TrendingDown, Percent, Banknote, Landmark } from "lucide-react";
+import { Loader2, AlertCircle, TrendingUp, TrendingDown, Percent, Banknote, Landmark, Wand2, Calculator } from "lucide-react";
 import { getYear, getMonth, parseISO, isValid, format } from "date-fns";
 import { it } from "date-fns/locale";
 import type { Transaction } from '@/data/transactions-data';
@@ -17,28 +17,38 @@ import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firesto
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 const months = Array.from({ length: 12 }, (_, i) => format(new Date(2000, i), "MMMM", { locale: it }));
 
 const generateYears = (transactions: Transaction[]): string[] => {
-  if (transactions.length === 0) return [getYear(new Date()).toString()];
   const years = new Set<string>();
+  const currentYear = getYear(new Date());
+  years.add(currentYear.toString());
+  years.add((currentYear - 1).toString());
+
   transactions.forEach(t => {
     const date = parseISO(t.date);
     if (isValid(date)) {
       years.add(getYear(date).toString());
     }
   });
-  if (years.size === 0) return [getYear(new Date()).toString()];
+  
   return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
 };
+
+type MonthlyValues = number[];
 
 interface ForecastRow {
   label: string;
@@ -47,15 +57,19 @@ interface ForecastRow {
   isMainSection?: boolean;
   isFinancialMetric?: boolean;
   isHighlighted?: boolean;
-  values: number[];
-  categoryKey?: string;
-  subcategoryKey?: string;
+  actualValues: MonthlyValues;
+  budgetValues: MonthlyValues;
+  isEditable?: boolean;
+  path?: string; // e.g., 'RICAVI.Pazienti' or 'COSTI_PRODUZIONE.Materiali.Materiale Conservativa'
 }
 
 const formatCurrency = (value: number) => {
     return `€${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
-
+const formatPercentage = (value: number) => {
+    if (isNaN(value) || !isFinite(value)) return "-";
+    return `${value.toFixed(2)}%`;
+}
 
 export default function ForecastPage() {
     const { expenseCategories, incomeCategories, loading: loadingCategories, error: categoriesError } = useCategories();
@@ -63,9 +77,15 @@ export default function ForecastPage() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
     const [transactionsError, setTransactionsError] = useState<string | null>(null);
+    const { toast } = useToast();
 
     const availableYears = useMemo(() => generateYears(transactions), [transactions]);
     const [selectedYear, setSelectedYear] = useState<string>(availableYears[0]);
+    
+    // State for budget data
+    const [budgetData, setBudgetData] = useState<Record<string, MonthlyValues>>({});
+    const [editingCell, setEditingCell] = useState<{ path: string; month: number } | null>(null);
+    const [editingValue, setEditingValue] = useState<string>("");
 
     useEffect(() => {
         if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
@@ -109,143 +129,245 @@ export default function ForecastPage() {
         fetchTransactions();
     }, [transactionsVersion]);
 
-    const calculatedMonthlyData = useMemo(() => {
-        const year = parseInt(selectedYear);
-        const monthlyTotals: {
-            income: number[],
-            productionCosts: number[],
-            fixedCosts: number[],
-            incomeByCategory: Record<string, number[]>,
-            productionCostsByCategory: Record<string, number[]>,
-            fixedCostsByCategory: Record<string, number[]>,
-            productionCostsBySubcategory: Record<string, Record<string, number[]>>,
-            fixedCostsBySubcategory: Record<string, Record<string, number[]>>,
-        } = {
-            income: Array(12).fill(0),
-            productionCosts: Array(12).fill(0),
-            fixedCosts: Array(12).fill(0),
-            incomeByCategory: {},
-            productionCostsByCategory: {},
-            fixedCostsByCategory: {},
-            productionCostsBySubcategory: {},
-            fixedCostsBySubcategory: {},
+    const handleBudgetGeneration = (method: 'prevYear' | 'prevYearAvg') => {
+        const prevYear = parseInt(selectedYear) - 1;
+        const prevYearTransactions = transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === prevYear && t.status === 'Completato');
+        
+        if (prevYearTransactions.length === 0) {
+            toast({
+                title: "Dati Mancanti",
+                description: `Nessuna transazione trovata per l'anno precedente (${prevYear}) per generare il budget.`,
+                variant: "destructive"
+            });
+            return;
+        }
+
+        const newBudgetData: Record<string, MonthlyValues> = {};
+
+        const processCategory = (catName: string, catData: any, type: 'Entrata' | 'Uscita', pathPrefix: string) => {
+            const catPath = `${pathPrefix}.${catName}`;
+            
+            const getValues = () => {
+                if (method === 'prevYearAvg') {
+                    const total = prevYearTransactions
+                        .filter(t => t.type === type && t.category === catName)
+                        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                    return Array(12).fill(total / 12);
+                } else { // prevYear
+                    return Array.from({ length: 12 }, (_, monthIndex) => {
+                        return prevYearTransactions
+                            .filter(t => t.type === type && t.category === catName && getMonth(parseISO(t.date)) === monthIndex)
+                            .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                    });
+                }
+            };
+            newBudgetData[catPath] = getValues();
+
+            if (catData.subcategories && Array.isArray(catData.subcategories)) {
+                catData.subcategories.forEach((sub: Subcategory) => {
+                    if (sub.showInForecast) {
+                        const subPath = `${catPath}.${sub.name}`;
+                        const getSubValues = () => {
+                             if (method === 'prevYearAvg') {
+                                const total = prevYearTransactions
+                                    .filter(t => t.type === type && t.category === catName && t.subcategory === sub.name)
+                                    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                                return Array(12).fill(total / 12);
+                            } else {
+                                return Array.from({ length: 12 }, (_, monthIndex) => {
+                                    return prevYearTransactions
+                                        .filter(t => t.type === type && t.category === catName && t.subcategory === sub.name && getMonth(parseISO(t.date)) === monthIndex)
+                                        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                                });
+                            }
+                        };
+                        newBudgetData[subPath] = getSubValues();
+                    }
+                });
+            }
         };
 
-        transactions.forEach(t => {
-            const date = parseISO(t.date);
-            if (!isValid(date) || getYear(date) !== year || t.status !== 'Completato') return;
-
-            const month = getMonth(date);
-            const amount = Math.abs(t.amount);
-
-            if (t.type === 'Entrata') {
-                monthlyTotals.income[month] += amount;
-                if (!monthlyTotals.incomeByCategory[t.category]) {
-                    monthlyTotals.incomeByCategory[t.category] = Array(12).fill(0);
-                }
-                monthlyTotals.incomeByCategory[t.category][month] += amount;
-            } else if (t.type === 'Uscita') {
-                const categoryInfo = expenseCategories[t.category];
-                if (!categoryInfo) return;
-
-                const isProductionCost = categoryInfo.forecastType === 'Costi di Produzione';
-
-                if (isProductionCost) {
-                    monthlyTotals.productionCosts[month] += amount;
-                    if (!monthlyTotals.productionCostsByCategory[t.category]) {
-                        monthlyTotals.productionCostsByCategory[t.category] = Array(12).fill(0);
-                    }
-                    monthlyTotals.productionCostsByCategory[t.category][month] += amount;
-                    // Subcategory logic for production costs
-                    if(t.subcategory && categoryInfo.subcategories.find(s => s.name === t.subcategory && s.showInForecast)){
-                         if (!monthlyTotals.productionCostsBySubcategory[t.category]) {
-                            monthlyTotals.productionCostsBySubcategory[t.category] = {};
-                        }
-                        if(!monthlyTotals.productionCostsBySubcategory[t.category][t.subcategory]){
-                            monthlyTotals.productionCostsBySubcategory[t.category][t.subcategory] = Array(12).fill(0);
-                        }
-                        monthlyTotals.productionCostsBySubcategory[t.category][t.subcategory][month] += amount;
-                    }
-                } else { // Fixed costs
-                    monthlyTotals.fixedCosts[month] += amount;
-                    if (!monthlyTotals.fixedCostsByCategory[t.category]) {
-                        monthlyTotals.fixedCostsByCategory[t.category] = Array(12).fill(0);
-                    }
-                    monthlyTotals.fixedCostsByCategory[t.category][month] += amount;
-                     // Subcategory logic for fixed costs
-                    if(t.subcategory && categoryInfo.subcategories.find(s => s.name === t.subcategory && s.showInForecast)){
-                        if (!monthlyTotals.fixedCostsBySubcategory[t.category]) {
-                            monthlyTotals.fixedCostsBySubcategory[t.category] = {};
-                        }
-                        if(!monthlyTotals.fixedCostsBySubcategory[t.category][t.subcategory]){
-                            monthlyTotals.fixedCostsBySubcategory[t.category][t.subcategory] = Array(12).fill(0);
-                        }
-                        monthlyTotals.fixedCostsBySubcategory[t.category][t.subcategory][month] += amount;
-                    }
-                }
-            }
+        Object.entries(incomeCategories).forEach(([cat, data]) => processCategory(cat, data, 'Entrata', 'RICAVI'));
+        Object.entries(expenseCategories).forEach(([cat, data]) => {
+            const prefix = data.forecastType === 'Costi di Produzione' ? 'COSTI_DI_PRODUZIONE' : 'COSTI_PRODUTTIVI';
+            processCategory(cat, data, 'Uscita', prefix);
         });
 
-        // Build Table Rows
-        let tableRows: ForecastRow[] = [];
-
-        // --- RICAVI ---
-        tableRows.push({ label: 'RICAVI', isMainSection: true, values: [] });
-        Object.keys(incomeCategories).sort().forEach(cat => {
-            if(monthlyTotals.incomeByCategory[cat]){
-                tableRows.push({ label: cat, values: monthlyTotals.incomeByCategory[cat] });
-            }
+        setBudgetData(newBudgetData);
+        toast({
+            title: "Budget Generato",
+            description: `Il budget per l'anno ${selectedYear} è stato generato con successo.`,
         });
-        tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, values: monthlyTotals.income });
+    };
+
+    const handleBudgetChange = (path: string, month: number, value: string) => {
+        const numericValue = parseFloat(value);
+        if (!isNaN(numericValue)) {
+            setBudgetData(prev => {
+                const newBudgetData = { ...prev };
+                if (!newBudgetData[path]) newBudgetData[path] = Array(12).fill(0);
+                newBudgetData[path][month] = numericValue;
+                return newBudgetData;
+            });
+        }
+    };
+
+    const handleEditBlur = () => {
+        setEditingCell(null);
+    };
+
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+            setEditingCell(null);
+        }
+    };
+
+    const calculatedForecastData = useMemo((): ForecastRow[] => {
+        const year = parseInt(selectedYear);
         
-        const contributionMargin = monthlyTotals.income.map((inc, i) => inc - monthlyTotals.productionCosts[i]);
-        const mocPercentage = monthlyTotals.income.map((inc, i) => inc > 0 ? (contributionMargin[i] / inc) * 100 : 0);
+        const actuals: Record<string, MonthlyValues> = {};
+        const budgets: Record<string, MonthlyValues> = { ...budgetData };
+
+        const getActuals = (path: string, calculation: (month: number) => number): MonthlyValues => {
+            if (!actuals[path]) {
+                actuals[path] = Array.from({ length: 12 }, (_, i) => calculation(i));
+            }
+            return actuals[path];
+        };
+
+        const getBudgets = (path: string, dependentPaths: string[]): MonthlyValues => {
+            if (!budgets[path]) {
+                budgets[path] = Array(12).fill(0);
+                for (let i = 0; i < 12; i++) {
+                    budgets[path][i] = dependentPaths.reduce((sum, depPath) => {
+                        const depValues = getBudgets(depPath, []); // Pass empty array to avoid recursion on already computed values
+                        return sum + (depValues[i] || 0);
+                    }, 0);
+                }
+            }
+            return budgets[path];
+        };
+
+        let tableRows: ForecastRow[] = [];
+        
+        // --- RICAVI ---
+        let ricaviPaths: string[] = [];
+        tableRows.push({ label: 'RICAVI', isMainSection: true, actualValues: [], budgetValues: [] });
+        Object.keys(incomeCategories).sort().forEach(cat => {
+            const catPath = `RICAVI.${cat}`;
+            ricaviPaths.push(catPath);
+            tableRows.push({
+                label: cat,
+                actualValues: getActuals(catPath, (month) => transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === year && getMonth(parseISO(t.date)) === month && t.status === 'Completato' && t.type === 'Entrata' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0)),
+                budgetValues: budgets[catPath] || Array(12).fill(0),
+                isEditable: true,
+                path: catPath,
+            });
+        });
+        const totalRicaviPath = 'RICAVI.total';
+        tableRows.push({
+            label: 'TOTALE RICAVI',
+            isTotal: true,
+            actualValues: getActuals(totalRicaviPath, month => ricaviPaths.reduce((sum, p) => sum + (actuals[p]?.[month] || 0), 0)),
+            budgetValues: getBudgets(totalRicaviPath, ricaviPaths),
+        });
 
         // --- COSTI DI PRODUZIONE ---
-        tableRows.push({ label: 'COSTI DI PRODUZIONE', isMainSection: true, values: [] });
-        Object.keys(expenseCategories).filter(c => expenseCategories[c]?.forecastType === 'Costi di Produzione').sort().forEach(cat => {
-            if(monthlyTotals.productionCostsByCategory[cat] || monthlyTotals.productionCostsBySubcategory[cat]){
-                tableRows.push({ label: cat, values: monthlyTotals.productionCostsByCategory[cat] || Array(12).fill(0) });
-                if(monthlyTotals.productionCostsBySubcategory[cat]){
-                    Object.keys(monthlyTotals.productionCostsBySubcategory[cat]).sort().forEach(subcat => {
-                        tableRows.push({ label: subcat, isSubcategory: true, values: monthlyTotals.productionCostsBySubcategory[cat][subcat] });
-                    });
-                }
-            }
-        });
-        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE', isTotal: true, values: monthlyTotals.productionCosts });
+        let costiProduzionePaths: string[] = [];
+        tableRows.push({ label: 'COSTI DI PRODUZIONE', isMainSection: true, actualValues: [], budgetValues: [] });
+        Object.entries(expenseCategories).filter(([,data]) => data.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+            const catPath = `COSTI_DI_PRODUZIONE.${cat}`;
+            costiProduzionePaths.push(catPath);
+            let subcatPathsForCat: string[] = [];
 
-        // MARGINE & MOC%
-        tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, isHighlighted: true, values: contributionMargin });
-        tableRows.push({ label: 'MOC %', isFinancialMetric: true, values: mocPercentage });
+            if (catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
+                catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
+                    const subPath = `${catPath}.${sub.name}`;
+                    subcatPathsForCat.push(subPath);
+                    tableRows.push({
+                        label: sub.name,
+                        isSubcategory: true,
+                        actualValues: getActuals(subPath, month => transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === year && getMonth(parseISO(t.date)) === month && t.status === 'Completato' && t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0)),
+                        budgetValues: budgets[subPath] || Array(12).fill(0),
+                        isEditable: true,
+                        path: subPath,
+                    });
+                });
+            }
+            
+            tableRows.push({
+                label: cat,
+                actualValues: getActuals(catPath, month => transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === year && getMonth(parseISO(t.date)) === month && t.status === 'Completato' && t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0)),
+                budgetValues: getBudgets(catPath, subcatPathsForCat.length > 0 ? subcatPathsForCat : []),
+                isEditable: subcatPathsForCat.length === 0,
+                path: catPath,
+            });
+        });
+
+        const totalCostiProduzionePath = 'COSTI_DI_PRODUZIONE.total';
+        const actualTotalCostiProduzione = getActuals(totalCostiProduzionePath, month => costiProduzionePaths.reduce((sum, p) => sum + (actuals[p]?.[month] || 0), 0));
+        const budgetTotalCostiProduzione = getBudgets(totalCostiProduzionePath, costiProduzionePaths);
+        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE', isTotal: true, actualValues: actualTotalCostiProduzione, budgetValues: budgetTotalCostiProduzione });
+        
+        // --- MARGINE ---
+        const actualMargine = actuals[totalRicaviPath].map((inc, i) => inc - actualTotalCostiProduzione[i]);
+        const budgetMargine = budgets[totalRicaviPath].map((inc, i) => inc - budgetTotalCostiProduzione[i]);
+        tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, isHighlighted: true, actualValues: actualMargine, budgetValues: budgetMargine });
+        
+        const actualMoc = actuals[totalRicaviPath].map((inc, i) => inc > 0 ? (actualMargine[i] / inc) * 100 : 0);
+        const budgetMoc = budgets[totalRicaviPath].map((inc, i) => inc > 0 ? (budgetMargine[i] / inc) * 100 : 0);
+        tableRows.push({ label: 'MOC %', isFinancialMetric: true, actualValues: actualMoc, budgetValues: budgetMoc });
 
         // --- COSTI PRODUTTIVI ---
-        tableRows.push({ label: 'COSTI PRODUTTIVI', isMainSection: true, values: [] });
-        Object.keys(expenseCategories).filter(c => expenseCategories[c]?.forecastType === 'Costi Produttivi').sort().forEach(cat => {
-            if(monthlyTotals.fixedCostsByCategory[cat] || monthlyTotals.fixedCostsBySubcategory[cat]){
-                tableRows.push({ label: cat, values: monthlyTotals.fixedCostsByCategory[cat] || Array(12).fill(0) });
-                if(monthlyTotals.fixedCostsBySubcategory[cat]){
-                     Object.keys(monthlyTotals.fixedCostsBySubcategory[cat]).sort().forEach(subcat => {
-                        tableRows.push({ label: subcat, isSubcategory: true, values: monthlyTotals.fixedCostsBySubcategory[cat][subcat] });
+        let costiProduttiviPaths: string[] = [];
+        tableRows.push({ label: 'COSTI PRODUTTIVI', isMainSection: true, actualValues: [], budgetValues: [] });
+        Object.entries(expenseCategories).filter(([,data]) => data.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+            const catPath = `COSTI_PRODUTTIVI.${cat}`;
+            costiProduttiviPaths.push(catPath);
+            let subcatPathsForCat: string[] = [];
+
+            if (catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
+                catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
+                     const subPath = `${catPath}.${sub.name}`;
+                     subcatPathsForCat.push(subPath);
+                     tableRows.push({
+                        label: sub.name,
+                        isSubcategory: true,
+                        actualValues: getActuals(subPath, month => transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === year && getMonth(parseISO(t.date)) === month && t.status === 'Completato' && t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0)),
+                        budgetValues: budgets[subPath] || Array(12).fill(0),
+                        isEditable: true,
+                        path: subPath,
                     });
-                }
+                });
             }
+             tableRows.push({
+                label: cat,
+                actualValues: getActuals(catPath, month => transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === year && getMonth(parseISO(t.date)) === month && t.status === 'Completato' && t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0)),
+                budgetValues: getBudgets(catPath, subcatPathsForCat.length > 0 ? subcatPathsForCat : []),
+                isEditable: subcatPathsForCat.length === 0,
+                path: catPath,
+            });
         });
-        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI', isTotal: true, values: monthlyTotals.fixedCosts });
-        
+        const totalCostiProduttiviPath = 'COSTI_PRODUTTIVI.total';
+        const actualTotalCostiProduttivi = getActuals(totalCostiProduttiviPath, month => costiProduttiviPaths.reduce((sum, p) => sum + (actuals[p]?.[month] || 0), 0));
+        const budgetTotalCostiProduttivi = getBudgets(totalCostiProduttiviPath, costiProduttiviPaths);
+        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI', isTotal: true, actualValues: actualTotalCostiProduttivi, budgetValues: budgetTotalCostiProduttivi });
+
         // --- FINAL METRICS ---
-        const bep = mocPercentage.map((moc, i) => moc > 0 ? (monthlyTotals.fixedCosts[i] / (moc / 100)) : 0);
-        const totalCosts = monthlyTotals.productionCosts.map((pc, i) => pc + monthlyTotals.fixedCosts[i]);
-        const ebitda = monthlyTotals.income.map((inc, i) => inc - totalCosts[i]);
+        const actualBep = actualMoc.map((moc, i) => moc > 0 ? (actualTotalCostiProduttivi[i] / (moc / 100)) : 0);
+        const budgetBep = budgetMoc.map((moc, i) => moc > 0 ? (budgetTotalCostiProduttivi[i] / (moc / 100)) : 0);
+        tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, actualValues: actualBep, budgetValues: budgetBep });
 
-        tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, values: bep });
-        tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, isTotal: true, values: totalCosts });
-        tableRows.push({ label: 'EBITDA', isFinancialMetric: true, isHighlighted: true, values: ebitda });
-
+        const actualTotalCosti = actualTotalCostiProduzione.map((pc, i) => pc + actualTotalCostiProduttivi[i]);
+        const budgetTotalCosti = budgetTotalCostiProduzione.map((pc, i) => pc + budgetTotalCostiProduttivi[i]);
+        tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, isTotal: true, actualValues: actualTotalCosti, budgetValues: budgetTotalCosti });
+        
+        const actualEbitda = actualMargine.map((m, i) => m - actualTotalCostiProduttivi[i]);
+        const budgetEbitda = budgetMargine.map((m, i) => m - budgetTotalCostiProduttivi[i]);
+        tableRows.push({ label: 'EBITDA', isFinancialMetric: true, isHighlighted: true, actualValues: actualEbitda, budgetValues: budgetEbitda });
 
         return tableRows;
-
-    }, [selectedYear, transactions, expenseCategories, incomeCategories]);
+    }, [selectedYear, transactions, expenseCategories, incomeCategories, budgetData]);
 
 
     if (isLoadingTransactions || loadingCategories) {
@@ -268,19 +390,39 @@ export default function ForecastPage() {
     }
 
     return (
-        <TooltipProvider>
+        <>
             <PageHeader
-                title="Previsioni Finanziarie"
-                description={`Analisi previsionale dettagliata per l'anno ${selectedYear}, basata sui dati reali delle transazioni.`}
+                title="Previsioni e Budget"
+                description={`Analisi previsionale e confronto con il budget per l'anno ${selectedYear}.`}
                 actions={
                     <div className="flex items-center gap-2">
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                <Wand2 className="mr-2 h-4 w-4" />
+                                Genera Budget
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuLabel>Metodo di Generazione</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleBudgetGeneration('prevYear')}>
+                                    <Calculator className="mr-2 h-4 w-4" />
+                                    <span>Da Mesi Anno Precedente</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleBudgetGeneration('prevYearAvg')}>
+                                    <Calculator className="mr-2 h-4 w-4" />
+                                    <span>Da Media Anno Precedente</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                          <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}
                             disabled={availableYears.length === 0}
                         >
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Seleziona Anno" />
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Anno" />
                             </SelectTrigger>
                             <SelectContent>
                                 {availableYears.map(year => (
@@ -294,32 +436,63 @@ export default function ForecastPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Tabella Previsionale Annuale</CardTitle>
-                    <CardDescription>Riepilogo mensile di ricavi, costi e principali metriche finanziarie.</CardDescription>
+                    <CardTitle className="font-headline">Tabella Previsionale e Budget</CardTitle>
+                    <CardDescription>Riepilogo mensile di ricavi e costi, confrontati con il budget impostato.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="w-full whitespace-nowrap">
                         <Table className="min-w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-background/95 backdrop-blur-sm min-w-[250px] font-bold z-10">Voce</TableHead>
-                                    {months.map(month => <TableHead key={month} className="text-right">{month}</TableHead>)}
-                                    <TableHead className="text-right font-bold">Totale {selectedYear}</TableHead>
+                                    <TableHead className="sticky left-0 bg-background/95 backdrop-blur-sm min-w-[250px] font-bold z-20">Voce</TableHead>
+                                    {months.map((month, monthIndex) => (
+                                        <TableHead key={month} className="text-center border-l w-80">
+                                            {month}
+                                            <TableRow className="text-xs font-medium text-muted-foreground">
+                                                <TableHead className="text-right w-1/4">Budget</TableHead>
+                                                <TableHead className="text-right w-1/4">Actual</TableHead>
+                                                <TableHead className="text-right w-1/4">Scost. €</TableHead>
+                                                <TableHead className="text-right w-1/4">Scost. %</TableHead>
+                                            </TableRow>
+                                        </TableHead>
+                                    ))}
+                                    <TableHead className="text-center sticky right-0 bg-background/95 backdrop-blur-sm border-l z-20 w-80">
+                                        Totale {selectedYear}
+                                        <TableRow className="text-xs font-medium text-muted-foreground">
+                                            <TableHead className="text-right w-1/4">Budget</TableHead>
+                                            <TableHead className="text-right w-1/4">Actual</TableHead>
+                                            <TableHead className="text-right w-1/4">Scost. €</TableHead>
+                                            <TableHead className="text-right w-1/4">Scost. %</TableHead>
+                                        </TableRow>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {calculatedMonthlyData.map((row, rowIndex) => {
-                                    const rowTotal = row.values.reduce((acc, val) => acc + val, 0);
+                                {calculatedForecastData.map((row, rowIndex) => {
+                                    const totalActual = row.actualValues.reduce((a, b) => a + b, 0);
+                                    const totalBudget = row.budgetValues.reduce((a, b) => a + b, 0);
+                                    const totalVariance = totalActual - totalBudget;
+                                    const totalVariancePerc = totalBudget !== 0 ? (totalVariance / totalBudget) * 100 : 0;
                                     
-                                    // Handle MOC % average correctly
                                     const isMocRow = row.label === 'MOC %';
-                                    const totalRicaviRow = calculatedMonthlyData.find(r => r.label === 'TOTALE RICAVI');
-                                    const totalMargineRow = calculatedMonthlyData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE');
-                                    const totalRicavi = totalRicaviRow?.values.reduce((a, b) => a + b, 0) || 0;
-                                    const totalMargine = totalMargineRow?.values.reduce((a, b) => a + b, 0) || 0;
-                                    const finalTotalValue = isMocRow 
-                                        ? (totalRicavi > 0 ? (totalMargine / totalRicavi) * 100 : 0) 
-                                        : rowTotal;
+                                    
+                                    const finalTotalActual = isMocRow ? (
+                                        (() => {
+                                            const totalRicavi = calculatedForecastData.find(r => r.label === 'TOTALE RICAVI')?.actualValues.reduce((a, b) => a + b, 0) || 0;
+                                            const totalMargine = calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actualValues.reduce((a, b) => a + b, 0) || 0;
+                                            return totalRicavi > 0 ? (totalMargine / totalRicavi) * 100 : 0;
+                                        })()
+                                    ) : totalActual;
+                                    const finalTotalBudget = isMocRow ? (
+                                        (() => {
+                                            const totalRicavi = calculatedForecastData.find(r => r.label === 'TOTALE RICAVI')?.budgetValues.reduce((a, b) => a + b, 0) || 0;
+                                            const totalMargine = calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.budgetValues.reduce((a, b) => a + b, 0) || 0;
+                                            return totalRicavi > 0 ? (totalMargine / totalRicavi) * 100 : 0;
+                                        })()
+                                    ) : totalBudget;
+                                    const finalTotalVariance = finalTotalActual - finalTotalBudget;
+                                    const finalTotalVariancePerc = finalTotalBudget !== 0 ? (finalTotalVariance / finalTotalBudget) * 100 : 0;
+
 
                                     return (
                                     <TableRow key={rowIndex} className={cn(
@@ -336,16 +509,54 @@ export default function ForecastPage() {
                                             {row.label}
                                         </TableCell>
 
-                                        {row.values.map((value, colIndex) => (
-                                            <TableCell key={colIndex} className="text-right font-mono">
-                                                {row.isMainSection ? "" : 
-                                                 row.label === 'MOC %' ? `${value.toFixed(2)}%` : formatCurrency(value)}
-                                            </TableCell>
-                                        ))}
+                                        {months.map((_, monthIndex) => {
+                                            const budget = row.budgetValues[monthIndex] || 0;
+                                            const actual = row.actualValues[monthIndex] || 0;
+                                            const variance = actual - budget;
+                                            const variancePerc = budget !== 0 ? (variance / budget) * 100 : 0;
+                                            const isEditing = editingCell?.path === row.path && editingCell?.month === monthIndex;
 
-                                        <TableCell className="text-right font-bold font-mono sticky right-0 bg-background/95 backdrop-blur-sm z-10">
-                                             {row.isMainSection ? "" : 
-                                              row.label === 'MOC %' ? `${finalTotalValue.toFixed(2)}%` : formatCurrency(finalTotalValue)}
+                                            if (row.isMainSection) return <TableCell key={monthIndex} colSpan={4} className="border-l"></TableCell>
+                                            
+                                            return(
+                                            <TableCell key={monthIndex} className="text-right font-mono border-l p-0">
+                                                <TableRow className="hover:bg-transparent">
+                                                    <TableCell className="w-1/4 p-2 text-right">
+                                                        {row.isEditable ? (
+                                                            isEditing ? (
+                                                                <Input 
+                                                                    type="text"
+                                                                    value={editingValue}
+                                                                    onChange={(e) => setEditingValue(e.target.value)}
+                                                                    onBlur={handleEditBlur}
+                                                                    onKeyDown={handleEditKeyDown}
+                                                                    onBlurCapture={() => handleBudgetChange(row.path!, monthIndex, editingValue)}
+                                                                    autoFocus
+                                                                    className="h-6 text-right p-1"
+                                                                />
+                                                            ) : (
+                                                                <div className="h-6 cursor-pointer" onClick={() => { setEditingCell({ path: row.path!, month: monthIndex }); setEditingValue(budget.toString());}}>
+                                                                    {isMocRow ? formatPercentage(budget) : formatCurrency(budget)}
+                                                                </div>
+                                                            )
+                                                        ) : ( isMocRow ? formatPercentage(budget) : formatCurrency(budget) )}
+                                                    </TableCell>
+                                                    <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(actual) : formatCurrency(actual)}</TableCell>
+                                                    <TableCell className={cn("w-1/4 p-2 text-right", variance > 0 && !isMocRow ? "text-green-600" : variance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
+                                                    <TableCell className={cn("w-1/4 p-2 text-right", variancePerc > 0 && !isMocRow ? "text-green-600" : variancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(variancePerc)}</TableCell>
+                                                </TableRow>
+                                            </TableCell>
+                                        )})}
+
+                                        <TableCell className="text-right font-bold font-mono sticky right-0 bg-background/95 backdrop-blur-sm z-10 border-l p-0">
+                                            {row.isMainSection ? <div colSpan={4}></div> : (
+                                            <TableRow className="hover:bg-transparent font-bold">
+                                                 <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(finalTotalBudget) : formatCurrency(finalTotalBudget)}</TableCell>
+                                                 <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(finalTotalActual) : formatCurrency(finalTotalActual)}</TableCell>
+                                                 <TableCell className={cn("w-1/4 p-2 text-right", finalTotalVariance > 0 && !isMocRow ? "text-green-600" : finalTotalVariance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(finalTotalVariance) : formatCurrency(finalTotalVariance)}</TableCell>
+                                                 <TableCell className={cn("w-1/4 p-2 text-right", finalTotalVariancePerc > 0 && !isMocRow ? "text-green-600" : finalTotalVariancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(finalTotalVariancePerc)}</TableCell>
+                                            </TableRow>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )})}
@@ -356,61 +567,61 @@ export default function ForecastPage() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                <Card>
+                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">EBITDA Annuale</CardTitle>
+                        <CardTitle className="text-sm font-medium">EBITDA Annuale (Actual)</CardTitle>
                         <Banknote className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(calculatedMonthlyData.find(r => r.label === 'EBITDA')?.values.reduce((a,b) => a+b, 0) || 0)}
+                            {formatCurrency(calculatedForecastData.find(r => r.label === 'EBITDA')?.actualValues.reduce((a,b) => a+b, 0) || 0)}
                         </div>
-                         <p className="text-xs text-muted-foreground">Utile prima di interessi, tasse, svalutazioni e ammortamenti.</p>
+                         <p className="text-xs text-muted-foreground">Utile effettivo prima di interessi, tasse, svalutazioni e ammortamenti.</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Margine di Contribuzione</CardTitle>
+                        <CardTitle className="text-sm font-medium">Margine di Contribuzione (Actual)</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(calculatedMonthlyData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.values.reduce((a,b) => a+b, 0) || 0)}
+                            {formatCurrency(calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actualValues.reduce((a,b) => a+b, 0) || 0)}
                         </div>
-                        <p className="text-xs text-muted-foreground">Ricavi meno i costi variabili diretti.</p>
+                        <p className="text-xs text-muted-foreground">Ricavi effettivi meno i costi variabili diretti.</p>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">MOC % Annuale</CardTitle>
+                        <CardTitle className="text-sm font-medium">MOC % Annuale (Actual)</CardTitle>
                         <Percent className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                          <div className="text-2xl font-bold">
                             {(() => {
-                                const totalRicavi = calculatedMonthlyData.find(r => r.label === 'TOTALE RICAVI')?.values.reduce((a,b) => a+b, 0) || 0;
-                                const totalMargine = calculatedMonthlyData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.values.reduce((a,b) => a+b, 0) || 0;
+                                const totalRicavi = calculatedForecastData.find(r => r.label === 'TOTALE RICAVI')?.actualValues.reduce((a,b) => a+b, 0) || 0;
+                                const totalMargine = calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actualValues.reduce((a,b) => a+b, 0) || 0;
                                 const moc = totalRicavi > 0 ? (totalMargine/totalRicavi) * 100 : 0;
                                 return `${moc.toFixed(2)}%`;
                             })()}
                         </div>
-                        <p className="text-xs text-muted-foreground">Margine di contribuzione in percentuale sui ricavi.</p>
+                        <p className="text-xs text-muted-foreground">Margine di contribuzione effettivo in percentuale sui ricavi.</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                         <CardTitle className="text-sm font-medium">Totale Costi Fissi Annuali</CardTitle>
+                         <CardTitle className="text-sm font-medium">Costi Fissi Annuali (Actual)</CardTitle>
                         <Landmark className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(calculatedMonthlyData.find(r => r.label === 'TOTALE COSTI PRODUTTIVI')?.values.reduce((a,b) => a+b, 0) || 0)}
+                            {formatCurrency(calculatedForecastData.find(r => r.label === 'TOTALE COSTI PRODUTTIVI')?.actualValues.reduce((a,b) => a+b, 0) || 0)}
                         </div>
-                        <p className="text-xs text-muted-foreground">Costi che non variano con il volume di produzione.</p>
+                        <p className="text-xs text-muted-foreground">Costi effettivi che non variano con il volume di produzione.</p>
                     </CardContent>
                 </Card>
             </div>
-        </TooltipProvider>
+        </>
     );
 }
 
