@@ -121,7 +121,7 @@ export default function ForecastPage() {
                     });
                 });
                 setTransactions(fetchedTransactions);
-            } catch (error: any) => {
+            } catch (error: any) {
                 console.error("Errore caricamento transazioni (Forecast):", error);
                 setTransactionsError(`Impossibile caricare le transazioni: ${error.message}`);
             } finally {
