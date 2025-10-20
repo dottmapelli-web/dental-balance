@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, TrendingUp, TrendingDown, Download, ChevronRight, ChevronDown } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { format, getYear, getMonth, parseISO, isValid } from "date-fns";
@@ -152,7 +152,7 @@ export default function ForecastPage() {
       if (!isValid(transactionDate)) return;
       
       const month = getMonth(transactionDate);
-      if (monthlyResults[month][t.category]) {
+      if (monthlyResults[month] && monthlyResults[month][t.category]) {
           const amount = Math.abs(t.amount);
           monthlyResults[month][t.category].actual += amount;
 
@@ -169,27 +169,31 @@ export default function ForecastPage() {
     for (let i = 0; i < 12; i++) {
         const monthData = monthlyResults[i];
         
-        let totaleRicavi = { budget: 0, actual: 0, breakdown: {} };
-        let totaleCostiProduzione = { budget: 0, actual: 0, breakdown: {} };
-        let totaleCostiProduttivi = { budget: 0, actual: 0, breakdown: {} };
+        let totaleRicavi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
+        let totaleCostiProduzione = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
+        let totaleCostiProduttivi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
 
         for (const category in incomeCategories) {
-            totaleRicavi.budget += monthData[category]?.budget || 0;
-            totaleRicavi.actual += monthData[category]?.actual || 0;
-            if(monthData[category]) totaleRicavi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+            if (monthData[category]) {
+                totaleRicavi.budget += monthData[category].budget;
+                totaleRicavi.actual += monthData[category].actual;
+                totaleRicavi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+            }
         }
 
         for (const category in expenseCategories) {
             const catData = expenseCategories[category];
             const forecastType = catData.forecastType;
-            if (forecastType === 'Costi di Produzione') {
-                totaleCostiProduzione.budget += monthData[category]?.budget || 0;
-                totaleCostiProduzione.actual += monthData[category]?.actual || 0;
-                 if(monthData[category]) totaleCostiProduzione.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
-            } else { // 'Costi Produttivi' or undefined
-                totaleCostiProduttivi.budget += monthData[category]?.budget || 0;
-                totaleCostiProduttivi.actual += monthData[category]?.actual || 0;
-                 if(monthData[category]) totaleCostiProduttivi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+            if (monthData[category]) {
+                if (forecastType === 'Costi di Produzione') {
+                    totaleCostiProduzione.budget += monthData[category].budget;
+                    totaleCostiProduzione.actual += monthData[category].actual;
+                    totaleCostiProduzione.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+                } else { // 'Costi Produttivi' or undefined
+                    totaleCostiProduttivi.budget += monthData[category].budget;
+                    totaleCostiProduttivi.actual += monthData[category].actual;
+                    totaleCostiProduttivi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+                }
             }
         }
         
@@ -211,7 +215,7 @@ export default function ForecastPage() {
         };
         const scostamentoMargine = margineContribuzione.actual - margineContribuzione.budget;
         const percScostamentoMargine = margineContribuzione.budget !== 0 ? (scostamentoMargine / Math.abs(margineContribuzione.budget)) * 100 : (margineContribuzione.actual !== 0 ? 100 : 0);
-        monthData['margine_di_contribuzione'] = { ...margineContribuzione, scostamento: scostamentoMargine, percScostamento: percScostamentoMargine };
+        monthData['margine_di_contribuzione'] = { ...margineContribuzione, scostamento: scostamentoMargine, percScostamento: percScostamentoMargine, breakdown: {} };
 
         const totaleCosti = {
             budget: totaleCostiProduzione.budget + totaleCostiProduttivi.budget,
@@ -219,7 +223,7 @@ export default function ForecastPage() {
         };
         const scostamentoCosti = totaleCosti.actual - totaleCosti.budget;
         const percScostamentoCosti = totaleCosti.budget !== 0 ? (scostamentoCosti / Math.abs(totaleCosti.budget)) * 100 : (totaleCosti.actual > 0 ? 100 : 0);
-        monthData['totale_costi'] = { ...totaleCosti, scostamento: scostamentoCosti, percScostamento: percScostamentoCosti };
+        monthData['totale_costi'] = { ...totaleCosti, scostamento: scostamentoCosti, percScostamento: percScostamentoCosti, breakdown: {} };
         
         const ebitda = {
             budget: margineContribuzione.budget - totaleCostiProduttivi.budget,
@@ -227,7 +231,7 @@ export default function ForecastPage() {
         };
         const scostamentoEbitda = ebitda.actual - ebitda.budget;
         const percScostamentoEbitda = ebitda.budget !== 0 ? (scostamentoEbitda / Math.abs(ebitda.budget)) * 100 : (ebitda.actual !== 0 ? 100 : 0);
-        monthData['ebitda'] = { ...ebitda, scostamento: scostamentoEbitda, percScostamento: percScostamentoEbitda };
+        monthData['ebitda'] = { ...ebitda, scostamento: scostamentoEbitda, percScostamento: percScostamentoEbitda, breakdown: {} };
 
         // Final pass for individual items scostamento
         Object.values(monthData).forEach(values => {
@@ -276,8 +280,10 @@ export default function ForecastPage() {
     });
 
     for(const key in totals) {
-        totals[key].scostamento = totals[key].actual - totals[key].budget;
-        totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / Math.abs(totals[key].budget)) * 100 : (totals[key].actual > 0 ? 100 : 0);
+        if(totals[key]){
+            totals[key].scostamento = totals[key].actual - totals[key].budget;
+            totals[key].percScostamento = totals[key].budget !== 0 ? (totals[key].scostamento / Math.abs(totals[key].budget)) * 100 : (totals[key].actual > 0 ? 100 : 0);
+        }
     }
     
     return totals;
@@ -299,7 +305,8 @@ export default function ForecastPage() {
     });
   };
 
-  const renderBreakdownRows = (breakdown: Record<string, { budget: number, actual: number }>, isPositiveGood: boolean) => {
+  const renderBreakdownRows = (breakdown: Record<string, { budget: number, actual: number }> | undefined, isPositiveGood: boolean) => {
+      if (!breakdown) return null;
       return Object.entries(breakdown).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([key, values]) => {
           const scostamento = values.actual - values.budget;
           const percScostamento = values.budget !== 0 ? (scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
@@ -463,5 +470,3 @@ export default function ForecastPage() {
     </>
   );
 }
-
-    
