@@ -17,6 +17,7 @@ import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firesto
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 const generateYears = (transactions: Transaction[]): string[] => {
     const years = new Set<string>();
@@ -36,7 +37,7 @@ const generateYears = (transactions: Transaction[]): string[] => {
 
 const monthsOfYear = Array.from({ length: 12 }, (_, i) => ({
     value: i.toString(),
-    label: format(new Date(2000, i), "MMMM", { locale: it }),
+    label: format(new Date(2000, i), "MMM", { locale: it }),
 }));
 
 
@@ -70,7 +71,7 @@ export default function ForecastPage() {
 
     const availableYears = useMemo(() => generateYears(transactions), [transactions]);
     const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
-    const [selectedMonth, setSelectedMonth] = useState<string>(new Date().getMonth().toString());
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(new Date().getMonth().toString()); // month index or 'total'
 
     useEffect(() => {
         if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
@@ -118,11 +119,14 @@ export default function ForecastPage() {
         if (loadingCategories || isLoadingTransactions) return [];
 
         const year = parseInt(selectedYear);
-        const month = parseInt(selectedMonth);
+        const month = selectedPeriod !== 'total' ? parseInt(selectedPeriod) : -1;
 
         const periodTransactions = transactions.filter(t => {
             const date = parseISO(t.date);
-            return isValid(date) && getYear(date) === year && getMonth(date) === month && t.status === 'Completato';
+            const isInYear = isValid(date) && getYear(date) === year;
+            if (!isInYear) return false;
+            if (month === -1) return t.status === 'Completato'; // All year for total
+            return getMonth(date) === month && t.status === 'Completato';
         });
 
         let tableRows: ForecastRowData[] = [];
@@ -187,9 +191,9 @@ export default function ForecastPage() {
         tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: 0, isHighlighted: true });
         tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: 0, isHighlighted: true });
 
-        return tableRows.filter(row => !(row.isMainSection && row.label !== 'RICAVI' && !tableRows.slice(tableRows.findIndex(r => r.label === row.label) + 1).some(r => !r.isMainSection && !r.isTotal && !r.isFinancialMetric)));
+        return tableRows.filter(row => !(row.isMainSection && row.label !== 'RICAVI' && !tableRows.slice(tableRows.findIndex(r => r.label === row.label) + 1).some(r => !r.isMainSection && !r.isTotal && !r.isFinancialMetric && r.actual > 0)));
 
-    }, [selectedYear, selectedMonth, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions]);
+    }, [selectedYear, selectedPeriod, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions]);
 
     if (isLoadingTransactions || loadingCategories) {
         return (
@@ -210,28 +214,15 @@ export default function ForecastPage() {
         );
     }
     
-    const pageDescription = `Analisi previsionale e budget per ${monthsOfYear.find(m => m.value === selectedMonth)?.label} ${selectedYear}`;
+    const pageTitle = selectedPeriod === 'total' ? `Previsioni Totali ${selectedYear}` : `Previsioni ${format(new Date(parseInt(selectedYear), parseInt(selectedPeriod)), "MMMM yyyy", { locale: it })}`;
 
     return (
         <>
             <PageHeader
                 title="Previsioni"
-                description={pageDescription}
+                description={pageTitle}
                 actions={
                     <div className="flex items-center gap-2">
-                         <Select
-                            value={selectedMonth}
-                            onValueChange={setSelectedMonth}
-                        >
-                            <SelectTrigger className="w-[150px]">
-                                <SelectValue placeholder="Mese" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {monthsOfYear.map(month => (
-                                    <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                         <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}
@@ -250,12 +241,39 @@ export default function ForecastPage() {
                 }
             />
 
+            <div className="mb-6 overflow-x-auto pb-2">
+                <div className="inline-flex items-center rounded-md shadow-sm bg-muted p-1 space-x-1">
+                    {monthsOfYear.map(month => (
+                         <Button 
+                            key={month.value} 
+                            variant={selectedPeriod === month.value ? 'default' : 'ghost'} 
+                            size="sm"
+                            className={cn(
+                                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                                selectedPeriod === month.value ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                            )}
+                            onClick={() => setSelectedPeriod(month.value)}
+                         >
+                            {month.label}
+                        </Button>
+                    ))}
+                    <Button 
+                        key="total"
+                        variant={selectedPeriod === 'total' ? 'default' : 'ghost'} 
+                        size="sm"
+                        className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                            selectedPeriod === 'total' ? 'bg-background text-foreground shadow' : 'text-muted-foreground hover:bg-background/50 hover:text-foreground'
+                        )}
+                        onClick={() => setSelectedPeriod('total')}
+                    >
+                        TOTALI
+                    </Button>
+                </div>
+            </div>
+
             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Conto Economico Gestionale</CardTitle>
-                    <CardDescription>Riepilogo di ricavi e costi per il periodo selezionato.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -270,7 +288,7 @@ export default function ForecastPage() {
                             {calculatedForecastData.map((row, index) => {
                                 if (row.isMainSection) {
                                     return (
-                                        <TableRow key={index}>
+                                        <TableRow key={index} className="hover:bg-transparent">
                                             <TableCell colSpan={5} className="pt-6 pb-2">
                                                 <h3 className="font-bold text-md text-foreground">{row.label}</h3>
                                             </TableCell>
@@ -281,11 +299,11 @@ export default function ForecastPage() {
                                 const variance = row.actual - row.budget;
                                 const variancePerc = row.budget !== 0 ? (variance / row.budget) * 100 : (row.actual > 0 ? 100 : 0);
 
-                                const isPositiveVarianceGood = !row.label.toLowerCase().includes('costi');
+                                const isPositiveVarianceGood = !row.label.toLowerCase().includes('costi') && row.label !== 'TOTALE COSTI';
 
                                 return (
                                 <TableRow key={index} className={cn(
-                                    row.isHighlighted && "bg-yellow-50 dark:bg-yellow-900/20",
+                                    row.label.includes('TOTALE') && "bg-yellow-50 dark:bg-yellow-900/20",
                                     row.label === "MARGINE DI CONTRIBUZIONE" && "bg-green-50 dark:bg-green-900/20",
                                     row.label === "EBITDA" && "bg-green-50 dark:bg-green-900/20",
                                 )}>
@@ -296,17 +314,17 @@ export default function ForecastPage() {
                                     )}>
                                         {row.label}
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">{formatCurrency(row.budget)}</TableCell>
-                                    <TableCell className="text-right font-mono">{row.label.includes('%') ? formatPercentage(row.actual) : formatCurrency(row.actual)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
+                                    <TableCell className="text-right">{row.label.includes('%') ? formatPercentage(row.actual) : formatCurrency(row.actual)}</TableCell>
                                     <TableCell className={cn(
-                                        "text-right font-mono",
+                                        "text-right",
                                         variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
                                         variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
                                         variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
                                         variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
                                     )}>{row.label.includes('%') ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
                                     <TableCell className={cn(
-                                        "text-right font-mono font-bold",
+                                        "text-right font-bold",
                                         variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
                                         variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
                                         variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
@@ -372,5 +390,4 @@ export default function ForecastPage() {
             </div>
         </>
     );
-
-    
+}
