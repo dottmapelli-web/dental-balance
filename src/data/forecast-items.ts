@@ -30,7 +30,6 @@ export type ForecastItemKey =
   | 'obblighi_legge'
   | 'andi'
   | 'banca_oneri'
-  | 'rimborso_trasferte'
   | 'varie_eventuali';
 
 export interface ForecastItem {
@@ -99,7 +98,7 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'forniture_ufficio', label: 'Forniture ufficio', type: 'row', mappable: true, transactionSubCategory: 'Forniture D’Ufficio' },
   { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' },
   { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
-  { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
+  { key: 'web_agency', label: 'Web Agency', type 'row', mappable: true, transactionSubCategory: 'Web Agency' },
   { key: 'consulenti', label: 'Commercialista/Consulenti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
   { key: 'tasse', label: 'Tasse', type: 'row', mappable: true, transactionSubCategory: 'Tasse' },
   { key: 'finanziamenti_prestiti_leasing', label: 'Finanziamenti/Prestiti/Leasing', type: 'row', mappable: true, transactionSubCategory: ['Finanziamenti', 'Prestiti', 'Leasing'] },
@@ -122,5 +121,3 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totale_costi_di_produzione', 'total_totale_costi_produttivi'] },
   { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];
-
-    
