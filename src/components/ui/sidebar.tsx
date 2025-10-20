@@ -538,8 +538,8 @@ const SidebarMenuButton = React.forwardRef<
 >(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
   const { isMobile, state } = useSidebar()
   const Comp = asChild ? Slot : "button"
-  // Remove asChild from the props passed to the underlying component
-  const { asChild: _, ...rest } = props as { asChild?: boolean } & typeof props;
+  // Correctly remove asChild from props passed to the DOM element
+  const { asChild: _asChild, ...rest } = props;
 
   const element = (
     <Comp
@@ -739,3 +739,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
