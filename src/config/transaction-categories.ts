@@ -1,3 +1,4 @@
+
 // THIS FILE IS NOW A FALLBACK FOR INITIAL MIGRATION
 // The source of truth for categories is now Firestore in the 'transactionCategories' collection.
 // This data is used once to populate Firestore if it's empty.
@@ -6,7 +7,7 @@ export const initialExpenseCategories = {
   "Spese Fisse": ["Affitto", "Spese condominiali", "Elettricità", "Rifiuti", "Internet/Telefono"],
   "Spesa Studio": ["Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
   "Materiali": ["Materiali di Consumo Odontoiatrico", "Materiale Conservativa", "Materiale Chirurgia", "Materiale Impianti", "Materiali Endo", "Materiale Protesi", "Materiale Ortodonzia", "Materiale Igiene", "Materiale Estetica"],
-  "Personale": ["Stipendio Ilaria", "Stipendio Daniela", "Compenso Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni", "TFR", "Emolumento Amministratori", "Rimborso Trasferte"],
+  "Personale": ["Stipendio Ilaria", "Stipendio Daniela", "Stipendio Chiara", "Compenso Dr. Mapelli", "Compenso Dr. Manfredi", "Compenso Dr. Rinaldi", "Compenso Dr. Crottini", "Compenso Dr. Beretta", "Compenso Dr. De Vecchi", "Compenso Dr. Gjoni", "TFR", "Emolumento Amministratori", "Rimborso Trasferte"],
   "Servizi esterni": ["Lab. Baisotti", "Lab. Ennevi (Orto)", "Commercialista", "Consulente del Lavoro", "APM (DVR + aggiornamente)"],
   "Marketing e Sviluppo": ["Marketing", "Campagne Web", "Web Agency", "Regali", "Corsi e Congressi"],
   "Spese Finanziarie e Legali": ["Tasse", "Finanziamenti", "Prestiti", "Leasing", "Servizi Finanziari (Pagodil)", "Marche da Bollo", "Banca", "Obbligo di legge", "ANDI"],
@@ -24,3 +25,5 @@ export type RecurrenceFrequency = typeof recurrenceFrequencies[number];
 
 export const transactionStatuses = ['Completato', 'In Attesa', 'Pianificato'] as const;
 export type TransactionStatus = typeof transactionStatuses[number];
+
+    

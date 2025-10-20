@@ -6,11 +6,12 @@ export type ForecastItemKey =
   // Costi di Produzione
   | 'materiali_uso'
   | 'laboratorio'
+  | 'compensi_medici' // Aggiunto
   | 'regali'
   | 'corsi_congressi'
   | 'campagne_web'
   // Costi Produttivi
-  | 'costi_personale'
+  | 'costi_personale' // Modificato
   | 'affitto_sede'
   | 'spese_condominiali'
   | 'utenze'
@@ -77,17 +78,18 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'COSTI DI PRODUZIONE', type: 'header' },
   { key: 'materiali_uso', label: "Materiali d'uso", type: 'row', mappable: true, transactionCategory: 'Materiali' },
   { key: 'laboratorio', label: 'Laboratorio', type: 'row', mappable: true, transactionSubCategory: ['Lab. Baisotti', 'Lab. Ennevi (Orto)'] },
+  { key: 'compensi_medici', label: 'Compensi Medici', type: 'row', mappable: true, transactionSubCategory: ['Compenso Dr. Mapelli', 'Compenso Dr. Manfredi', 'Compenso Dr. Rinaldi', 'Compenso Dr. Crottini', 'Compenso Dr. Beretta', 'Compenso Dr. De Vecchi', 'Compenso Dr. Gjoni']},
   { key: 'regali', label: 'Regali', type: 'row', mappable: true, transactionSubCategory: 'Regali' },
   { key: 'corsi_congressi', label: 'Corsi e Congressi', type: 'row', mappable: true, transactionSubCategory: 'Corsi e Congressi' },
   { key: 'campagne_web', label: 'Campagne Web', type: 'row', mappable: true, transactionSubCategory: 'Campagne Web' }, 
-  { label: 'TOTALE COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'laboratorio', 'regali', 'corsi_congressi', 'campagne_web'] },
+  { label: 'TOTALE COSTI DI PRODUZIONE', type: 'total', calculate: ['materiali_uso', 'laboratorio', 'compensi_medici', 'regali', 'corsi_congressi', 'campagne_web'] },
 
   // --- MARGINE DI CONTRIBUZIONE ---
   { label: 'MARGINE DI CONTRIBUZIONE', type: 'margin', calculate: { from: ['total_totale_ricavi'], subtract: ['total_totale_costi_di_produzione'] } },
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
-  { key: 'costi_personale', label: 'Costi del Personale', type: 'row', mappable: true, transactionCategory: 'Personale' },
+  { key: 'costi_personale', label: 'Costi del Personale (non medico)', type: 'row', mappable: true, transactionSubCategory: ['Stipendio Ilaria', 'Stipendio Daniela', 'Stipendio Chiara', 'TFR', 'Emolumento Amministratori', 'Rimborso Trasferte'] },
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
@@ -121,3 +123,5 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totale_costi_di_produzione', 'total_totale_costi_produttivi'] },
   { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];
+
+    
