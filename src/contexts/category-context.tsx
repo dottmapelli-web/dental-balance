@@ -144,16 +144,16 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
     try {
       const docRef = doc(db, 'transactionCategories', type);
       await setDoc(docRef, { categories: newCategories });
-      // Non c'è bisogno di chiamare setExpense/IncomeCategories qui,
-      // perché l'onSnapshot listener lo farà automaticamente, mantenendo una singola fonte di verità.
+      // The onSnapshot listener will automatically update the state,
+      // maintaining a single source of truth.
     } catch (e: any) {
       console.error("Error updating categories:", e);
       setError(`Impossibile aggiornare le categorie: ${e.message}`);
-      throw e; // Rilancia l'errore per gestirlo nel componente chiamante (es. mostrare un toast)
+      throw e; // Re-throw the error to be handled by the calling component (e.g., to show a toast)
     } finally {
-      // Non impostiamo più setLoading(false) qui, perché l'aggiornamento dello stato
-      // avverrà tramite il listener, che gestirà il suo stato di caricamento.
-      // Questo previene "sfarfallii" dell'UI.
+      // It's important to set loading to false here to unblock the UI.
+      // Although the listener will update the data, this ensures the loading state from the action is terminated.
+      setLoading(false);
     }
   };
   
@@ -184,5 +184,3 @@ export const useCategories = (): CategoryContextValue => {
   }
   return context;
 };
-
-    
