@@ -10,9 +10,14 @@ import { Loader2 } from 'lucide-react';
 
 export type ForecastType = 'Costi di Produzione' | 'Costi Produttivi';
 
+export interface Subcategory {
+  name: string;
+  showInForecast?: boolean;
+}
+
 export interface CategoryDefinition {
   [category: string]: {
-    subcategories: string[];
+    subcategories: Subcategory[];
     forecastType?: ForecastType;
   };
 }
@@ -27,20 +32,34 @@ interface CategoryContextValue {
 
 const CategoryContext = createContext<CategoryContextValue | undefined>(undefined);
 
-// Funzione per migrare la vecchia struttura (string[]) alla nuova ({ subcategories: string[] })
-const migrateCategories = (oldCategories: { [key: string]: string[] }): CategoryDefinition => {
+// Funzione per migrare la vecchia struttura (string[] o {subcategories: string[]}) alla nuova ({subcategories: Subcategory[]})
+const migrateCategories = (oldCategories: { [key: string]: any }): CategoryDefinition => {
     const newCats: CategoryDefinition = {};
     for (const key in oldCategories) {
-        // Assegna un tipo di previsione di default
-        let forecastType: ForecastType = 'Costi Produttivi'; // Default
-        if (key === 'Materiali' || key === 'Servizi esterni' || key === 'Compensi Medici') {
-          forecastType = 'Costi di Produzione';
+        let subcategories: Subcategory[] = [];
+        let forecastType: ForecastType | undefined = 'Costi Produttivi';
+
+        const categoryData = oldCategories[key];
+
+        if (Array.isArray(categoryData)) { // Struttura più vecchia: { "Cat": ["Sub1", "Sub2"] }
+            subcategories = categoryData.map(sub => ({ name: sub, showInForecast: false }));
+        } else if (typeof categoryData === 'object' && Array.isArray(categoryData.subcategories)) { // Struttura intermedia: { "Cat": { subcategories: ["Sub1", "Sub2"], ... } }
+            subcategories = categoryData.subcategories.map((sub: any) => {
+                if (typeof sub === 'string') {
+                    return { name: sub, showInForecast: false };
+                }
+                return sub; // Già nel nuovo formato
+            });
+            forecastType = categoryData.forecastType;
         }
 
-        newCats[key] = {
-            subcategories: oldCategories[key],
-            forecastType: forecastType
-        };
+        if(key === 'Materiali' || key === 'Servizi esterni' || key === 'Compensi Medici'){
+            forecastType = 'Costi di Produzione';
+        } else {
+            forecastType = 'Costi Produttivi';
+        }
+
+        newCats[key] = { subcategories, forecastType };
     }
     return newCats;
 };
@@ -70,23 +89,14 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
             if (docSnap.exists()) {
                 let data = docSnap.data()?.categories || {};
                 
-                // Logica di migrazione per le categorie di spesa
-                if (key === 'uscite' && Object.keys(data).length > 0) {
+                if (Object.keys(data).length > 0) {
                     const firstCatKey = Object.keys(data)[0];
-                    if (Array.isArray(data[firstCatKey])) { // Vecchia struttura
-                        console.log("Migrating old expense category structure...");
-                        data = migrateCategories(data as { [key: string]: string[] });
-                        await setDoc(docRef, { categories: data }); // Salva la nuova struttura
-                    }
-                } else if (key === 'entrate' && Object.keys(data).length > 0) {
-                    const firstCatKey = Object.keys(data)[0];
-                    if (Array.isArray(data[firstCatKey])) { // Vecchia struttura per entrate
-                         const migratedIncome: CategoryDefinition = {};
-                         for(const catName in (data as { [key: string]: string[] })) {
-                             migratedIncome[catName] = { subcategories: data[catName] };
-                         }
-                         data = migratedIncome;
-                         await setDoc(docRef, { categories: data });
+                    const firstCatData = data[firstCatKey];
+                    // Check if migration is needed
+                    if (Array.isArray(firstCatData) || (typeof firstCatData === 'object' && firstCatData !== null && Array.isArray(firstCatData.subcategories) && firstCatData.subcategories.length > 0 && typeof firstCatData.subcategories[0] === 'string')) {
+                        console.log(`Migrating old category structure for ${key}...`);
+                        data = migrateCategories(data);
+                        await setDoc(docRef, { categories: data });
                     }
                 }
 
@@ -96,14 +106,11 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
             } else {
                 // Document doesn't exist, create it with initial (nuova) data
                 try {
-                    let initialData;
+                    let initialData: CategoryDefinition;
                     if (key === 'uscite') {
                         initialData = migrateCategories(initialExpenseCategories);
                     } else { // entrate
-                        initialData = {};
-                        for(const catName in initialIncomeCategories) {
-                             (initialData as CategoryDefinition)[catName] = { subcategories: initialIncomeCategories[catName] };
-                         }
+                        initialData = migrateCategories(initialIncomeCategories);
                     }
                     await setDoc(docRef, { categories: initialData });
                     if (key === 'uscite') setExpenseCategories(initialData);
@@ -121,7 +128,7 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
         });
     });
 
-    setLoading(false); // Set loading to false after setting up listeners
+    setLoading(false);
 
     return () => unsubscribes.forEach(unsub => unsub());
 
@@ -140,15 +147,11 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
     try {
       const docRef = doc(db, 'transactionCategories', type);
       await setDoc(docRef, { categories: newCategories });
-      // The onSnapshot listener will automatically update the state,
-      // maintaining a single source of truth.
     } catch (e: any) {
       console.error("Error updating categories:", e);
       setError(`Impossibile aggiornare le categorie: ${e.message}`);
-      throw e; // Re-throw the error to be handled by the calling component (e.g., to show a toast)
+      throw e; 
     } finally {
-      // It's important to set loading to false here to unblock the UI.
-      // Although the listener will update the data, this ensures the loading state from the action is terminated.
       setLoading(false);
     }
   };

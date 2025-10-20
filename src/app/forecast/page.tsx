@@ -31,7 +31,6 @@ type CalculatedValues = {
   actual: number;
   scostamento: number;
   percScostamento: number;
-  // Per il drill-down: le chiavi sono le sottocategorie
   breakdown?: Record<string, { budget: number, actual: number }>; 
 };
 
@@ -85,7 +84,12 @@ export default function ForecastPage() {
       const fetchedBudgets: Record<string, number> = {};
       budgetSnapshot.forEach((doc) => {
         const data = doc.data();
+        // Key for main category budget
         fetchedBudgets[`${data.month}_${data.category}`] = data.amount;
+        // Key for subcategory budget (if exists)
+        if (data.subcategory) {
+             fetchedBudgets[`${data.month}_${data.category}_${data.subcategory}`] = data.amount;
+        }
       });
       setBudgetData(fetchedBudgets);
 
@@ -103,12 +107,16 @@ export default function ForecastPage() {
   }, [selectedYear, transactionsVersion, fetchData]);
   
   const debouncedSaveBudget = useCallback(
-    debounce(async (year: number, month: number, category: string, amount: number) => {
+    debounce(async (year: number, month: number, category: string, subcategory: string | null, amount: number) => {
       try {
-        const docId = `${year}-${month}-${category}`;
+        const docId = subcategory ? `${year}-${month}-${category}-${subcategory}` : `${year}-${month}-${category}`;
         const budgetRef = doc(db, "budgets_forecast", docId);
-        await setDoc(budgetRef, { year, month, category, amount });
-        toast({ title: "Budget Salvato", description: `Valore per ${category} aggiornato.` });
+        const dataToSave: { year: number, month: number, category: string, subcategory?: string, amount: number } = { year, month, category, amount };
+        if (subcategory) {
+            dataToSave.subcategory = subcategory;
+        }
+        await setDoc(budgetRef, dataToSave);
+        toast({ title: "Budget Salvato", description: `Valore per ${subcategory || category} aggiornato.` });
       } catch (e: any) {
         toast({ title: "Errore Salvataggio Budget", description: e.message, variant: "destructive" });
       }
@@ -116,11 +124,11 @@ export default function ForecastPage() {
     [toast]
   );
 
-  const handleBudgetChange = (month: number, category: string, value: string) => {
+  const handleBudgetChange = (month: number, category: string, subcategory: string | null, value: string) => {
     const amount = parseFloat(value) || 0;
-    const key = `${month}_${category}`;
+    const key = subcategory ? `${month}_${category}_${subcategory}` : `${month}_${category}`;
     setBudgetData(prev => ({ ...prev, [key]: amount }));
-    debouncedSaveBudget(parseInt(selectedYear), month, category, amount);
+    debouncedSaveBudget(parseInt(selectedYear), month, category, subcategory, amount);
   };
   
  const calculatedMonthlyData = useMemo((): MonthlyData[] => {
@@ -131,85 +139,119 @@ export default function ForecastPage() {
       const d = parseISO(t.date);
       return isValid(d) && getYear(d).toString() === selectedYear;
     });
-
+    
     const allCategories = { ...incomeCategories, ...expenseCategories };
 
-    // Step 1: Initialize all rows and sub-rows, then calculate 'actuals'
-    for (let i = 0; i < 12; i++) {
-        for (const category in allCategories) {
-            monthlyResults[i][category] = {
-                budget: budgetData[`${i}_${category}`] || 0,
-                actual: 0, scostamento: 0, percScostamento: 0,
-                breakdown: {}
-            };
-            const subcategories = allCategories[category]?.subcategories || [];
-            if (subcategories.length > 0) {
-              for (const subcat of subcategories) {
-                  monthlyResults[i][category].breakdown![subcat] = { budget: 0, actual: 0 };
-              }
-            }
-        }
+    for (let i = 0; i < 12; i++) { // For each month
+        const month = i;
+
+        // Initialize all promoted subcategories and main categories
+        Object.entries(allCategories).forEach(([catName, catData]) => {
+            // Main category row
+            monthlyResults[month][catName] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+            
+            catData.subcategories.forEach(sub => {
+                if (sub.showInForecast) {
+                    // Promoted subcategory row
+                    const subKey = `${catName}__${sub.name}`;
+                    monthlyResults[month][subKey] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+                }
+            });
+        });
     }
 
     currentYearTransactions.forEach(t => {
-      const transactionDate = parseISO(t.date);
-      if (!isValid(transactionDate)) return;
-      
-      const month = getMonth(transactionDate);
-      if (monthlyResults[month]?.[t.category]) {
-          const amount = Math.abs(t.amount);
-          monthlyResults[month][t.category].actual += amount;
+        const transactionDate = parseISO(t.date);
+        if (!isValid(transactionDate)) return;
+        
+        const month = getMonth(transactionDate);
+        const catInfo = allCategories[t.category];
 
-          // Breakdown by subcategory
-          const subcatKey = t.subcategory || "N/D";
-          if (!monthlyResults[month][t.category].breakdown![subcatKey]) {
-              monthlyResults[month][t.category].breakdown![subcatKey] = { budget: 0, actual: 0 };
-          }
-          monthlyResults[month][t.category].breakdown![subcatKey].actual += amount;
-      }
+        if (catInfo) {
+            const amount = Math.abs(t.amount);
+            const subcategoryInfo = catInfo.subcategories.find(s => s.name === t.subcategory);
+
+            if (subcategoryInfo?.showInForecast) {
+                 const subKey = `${t.category}__${t.subcategory}`;
+                 if(monthlyResults[month][subKey]) {
+                    monthlyResults[month][subKey].actual += amount;
+                 }
+            } else {
+                if(monthlyResults[month][t.category]) {
+                    monthlyResults[month][t.category].actual += amount;
+
+                    const subcatKeyForBreakdown = t.subcategory || "N/D";
+                    if (!monthlyResults[month][t.category].breakdown![subcatKeyForBreakdown]) {
+                         monthlyResults[month][t.category].breakdown![subcatKeyForBreakdown] = { budget: 0, actual: 0 };
+                    }
+                    monthlyResults[month][t.category].breakdown![subcatKeyForBreakdown].actual += amount;
+                }
+            }
+        }
     });
 
-    // Step 2: Calculate totals and margins for each month
-    for (let i = 0; i < 12; i++) {
-        const monthData = monthlyResults[i];
+    for (let i = 0; i < 12; i++) { // For each month
+        const month = i;
+        const monthData = monthlyResults[month];
         
+        Object.entries(allCategories).forEach(([catName, catData]) => {
+            let mainCatBudget = budgetData[`${month}_${catName}`] || 0;
+            let mainCatActual = monthData[catName]?.actual || 0;
+            
+            catData.subcategories.forEach(sub => {
+                const subKey = `${catName}__${sub.name}`;
+                if (sub.showInForecast) {
+                    if (monthData[subKey]) {
+                        monthData[subKey].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
+                    }
+                } else {
+                     if (monthData[catName]?.breakdown?.[sub.name]) {
+                        monthData[catName].breakdown[sub.name].budget = budgetData[`${month}_${catName}_${sub.name}`] || 0;
+                     }
+                }
+            });
+             if(monthData[catName]) {
+                monthData[catName].budget = mainCatBudget;
+             }
+        });
+
         let totaleRicavi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
         let totaleCostiProduzione = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
         let totaleCostiProduttivi = { budget: 0, actual: 0, breakdown: {} as Record<string, { budget: number, actual: number }> };
 
-        for (const category in incomeCategories) {
-            if (monthData[category]) {
-                totaleRicavi.budget += monthData[category].budget;
-                totaleRicavi.actual += monthData[category].actual;
-                totaleRicavi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
-            }
-        }
+        Object.entries(monthData).forEach(([key, values]) => {
+            const [catName, subName] = key.split('__');
+            const categoryInfo = allCategories[catName];
 
-        for (const category in expenseCategories) {
-            const catData = expenseCategories[category];
-            const forecastType = catData.forecastType;
-            if (monthData[category]) {
-                if (forecastType === 'Costi di Produzione') {
-                    totaleCostiProduzione.budget += monthData[category].budget;
-                    totaleCostiProduzione.actual += monthData[category].actual;
-                    totaleCostiProduzione.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
-                } else { // 'Costi Produttivi' or undefined
-                    totaleCostiProduttivi.budget += monthData[category].budget;
-                    totaleCostiProduttivi.actual += monthData[category].actual;
-                    totaleCostiProduttivi.breakdown[category] = { budget: monthData[category].budget, actual: monthData[category].actual };
+            if (categoryInfo) {
+                const isIncome = catName in incomeCategories;
+                const forecastType = expenseCategories[catName]?.forecastType;
+                
+                if (isIncome) {
+                    totaleRicavi.budget += values.budget;
+                    totaleRicavi.actual += values.actual;
+                    totaleRicavi.breakdown[key] = { budget: values.budget, actual: values.actual };
+                } else { // Is expense
+                    if (forecastType === 'Costi di Produzione') {
+                        totaleCostiProduzione.budget += values.budget;
+                        totaleCostiProduzione.actual += values.actual;
+                        totaleCostiProduzione.breakdown[key] = { budget: values.budget, actual: values.actual };
+                    } else { // 'Costi Produttivi' or undefined
+                        totaleCostiProduttivi.budget += values.budget;
+                        totaleCostiProduttivi.actual += values.actual;
+                        totaleCostiProduttivi.breakdown[key] = { budget: values.budget, actual: values.actual };
+                    }
                 }
             }
-        }
+        });
         
         monthData['totale_ricavi'] = { budget: totaleRicavi.budget, actual: totaleRicavi.actual, scostamento: 0, percScostamento: 0, breakdown: totaleRicavi.breakdown };
         monthData['totale_costi_di_produzione'] = { budget: totaleCostiProduzione.budget, actual: totaleCostiProduzione.actual, scostamento: 0, percScostamento: 0, breakdown: totaleCostiProduzione.breakdown };
         monthData['totale_costi_produttivi'] = { budget: totaleCostiProduttivi.budget, actual: totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: totaleCostiProduttivi.breakdown };
-
         monthData['margine_di_contribuzione'] = { budget: totaleRicavi.budget - totaleCostiProduzione.budget, actual: totaleRicavi.actual - totaleCostiProduzione.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
         monthData['totale_costi'] = { budget: totaleCostiProduzione.budget + totaleCostiProduttivi.budget, actual: totaleCostiProduzione.actual + totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
         monthData['ebitda'] = { budget: (totaleRicavi.budget - totaleCostiProduzione.budget) - totaleCostiProduttivi.budget, actual: (totaleRicavi.actual - totaleCostiProduzione.actual) - totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
 
-        // Final pass for individual items scostamento
         Object.values(monthData).forEach(values => {
            values.scostamento = values.actual - values.budget;
            values.percScostamento = values.budget !== 0 ? (values.scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
@@ -223,32 +265,27 @@ export default function ForecastPage() {
     const totals: Record<string, CalculatedValues> = {};
     if (calculatedMonthlyData.length === 0) return totals;
 
-    const allMainCategories = [
-        ...Object.keys(incomeCategories),
-        ...Object.keys(expenseCategories),
-    ];
-    
-    const allSubCategories: Record<string, string[]> = {};
-    Object.entries(expenseCategories).forEach(([cat, data]) => {
-        allSubCategories[cat] = data.subcategories || [];
-    });
-     Object.entries(incomeCategories).forEach(([cat, data]) => {
-        allSubCategories[cat] = data.subcategories || [];
-    });
+    const allMainCategories = { ...incomeCategories, ...expenseCategories };
+    const keysToInitialize = new Set<string>();
 
-    const keysToSum = [
-        ...allMainCategories,
-        'totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi',
-        'margine_di_contribuzione', 'totale_costi', 'ebitda'
-    ];
-
-    keysToSum.forEach(key => {
-        totals[key] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
-        if (allSubCategories[key]) {
-            allSubCategories[key].forEach(subcat => {
-                totals[key].breakdown![subcat] = { budget: 0, actual: 0 };
-            });
+     Object.entries(allMainCategories).forEach(([catName, catData]) => {
+        let hasPromotedSub = false;
+        catData.subcategories.forEach(sub => {
+            if (sub.showInForecast) {
+                keysToInitialize.add(`${catName}__${sub.name}`);
+                hasPromotedSub = true;
+            }
+        });
+        // If there are non-promoted subs, or no subs, the main category row should exist
+        if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+           keysToInitialize.add(catName);
         }
+    });
+
+    ['totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi', 'margine_di_contribuzione', 'totale_costi', 'ebitda'].forEach(k => keysToInitialize.add(k));
+
+    keysToInitialize.forEach(key => {
+        totals[key] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
     });
     
     calculatedMonthlyData.forEach(monthData => {
@@ -262,13 +299,8 @@ export default function ForecastPage() {
                         if (!totals[key].breakdown![breakKey]) {
                             totals[key].breakdown![breakKey] = { budget: 0, actual: 0 };
                         }
-                        // This part is for Total rows breakdown (main categories)
-                        if (['totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi'].includes(key)){
-                             totals[key].breakdown![breakKey].budget += monthData[key].breakdown![breakKey].budget;
-                             totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual;
-                        } else { // This is for main category breakdown (subcategories)
-                             totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual;
-                        }
+                        totals[key].breakdown![breakKey].budget += monthData[key].breakdown![breakKey].budget || 0;
+                        totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual || 0;
                     }
                 }
             }
@@ -305,18 +337,16 @@ export default function ForecastPage() {
       if (!breakdown || Object.keys(breakdown).length === 0) return null;
       return Object.entries(breakdown).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([key, values]) => {
           const scostamento = values.actual - values.budget;
-          // For subcategories, budget is often 0, so we just compare actual vs category budget portion
-          // The calculation here is simplified for display
           const percScostamento = values.budget !== 0 ? (scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
           const scostamentoClass = scostamento === 0 ? '' : (isPositiveGood ? (scostamento > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : (scostamento > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'));
           
           return (
               <TableRow key={`break-${key}`} className="bg-muted/30 hover:bg-muted/50">
                   <TableCell className={cn("font-light", isSubcategory ? "pl-12 italic" : "pl-8")}>{key}</TableCell>
-                  <TableCell>{isClient && !isSubcategory ? renderValue(values.budget) : (isSubcategory ? "" : "€0.00")}</TableCell>
+                  <TableCell>{isClient ? renderValue(values.budget) : '€0.00'}</TableCell>
                   <TableCell>{isClient ? renderValue(values.actual) : '€0.00'}</TableCell>
-                  <TableCell className={scostamentoClass}>{isClient && !isSubcategory ? renderValue(scostamento) : ""}</TableCell>
-                  <TableCell className={scostamentoClass}>{isClient && !isSubcategory ? renderPercentage(percScostamento) : ""}</TableCell>
+                  <TableCell className={scostamentoClass}>{isClient ? renderValue(scostamento) : ""}</TableCell>
+                  <TableCell className={scostamentoClass}>{isClient ? renderPercentage(percScostamento) : ""}</TableCell>
               </TableRow>
           );
       });
@@ -324,60 +354,111 @@ export default function ForecastPage() {
 
   const renderTableRows = (data: MonthlyData | Record<string, CalculatedValues>, monthIndex: number | 'annual') => {
       const isAnnual = monthIndex === 'annual';
+
+      const allCategories = { ...incomeCategories, ...expenseCategories };
       
-      const renderRow = (key: string, label: string, values: CalculatedValues | undefined, rowClass: string, isExpandable: boolean, isPositiveGood: boolean, isMainCategory: boolean = false) => {
+      const renderRow = (key: string, label: string, values: CalculatedValues | undefined, rowClass: string, isPositiveGood: boolean) => {
           if (!values) return null;
+
+          const [catName, subName] = key.split('__');
+          const isPromotedSub = !!subName;
+          const mainCategoryData = allCategories[catName];
+          const hasBreakdown = !isPromotedSub && mainCategoryData && mainCategoryData.subcategories.some(s => !s.showInForecast);
+          const isExpandable = hasBreakdown || ['totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi'].includes(key);
+
           const isExpanded = expandedRows.has(key);
-          const scostamentoClass = values.scostamento === 0 ? '' : (isPositiveGood ? (values.scostamento > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : (values.scostamento > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'));
+          const scostamentoClass = values.scostamento === 0 ? '' : (isPositiveGood ? (values.scostamento > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : (scostamento > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'));
           
+          const canEditBudget = !isAnnual;
+
           return (
             <React.Fragment key={key}>
               <TableRow className={cn(rowClass, isExpandable && "cursor-pointer")} onClick={isExpandable ? () => toggleRow(key) : undefined}>
-                  <TableCell className="font-medium flex items-center">
+                  <TableCell className={cn("font-medium flex items-center", isPromotedSub && "pl-8 italic")}>
                     {isExpandable && (isExpanded ? <ChevronDown className="h-4 w-4 mr-2"/> : <ChevronRight className="h-4 w-4 mr-2"/>)}
                     {label}
                   </TableCell>
                   <TableCell>
-                      {isAnnual || !isMainCategory ? (isClient ? renderValue(values.budget) : '€0.00') : (
+                      {canEditBudget ? (
                         <Input type="number" step="0.01"
                             defaultValue={values.budget.toFixed(2)}
-                            onChange={(e) => handleBudgetChange(monthIndex as number, key, e.target.value)}
+                            onChange={(e) => handleBudgetChange(monthIndex as number, catName, isPromotedSub ? subName : null, e.target.value)}
                             className="h-8"
                             onClick={(e) => e.stopPropagation()}
                             />
-                      )}
+                      ) : (isClient ? renderValue(values.budget) : '€0.00')}
                   </TableCell>
                   <TableCell>{isClient ? renderValue(values.actual) : '€0.00'}</TableCell>
                   <TableCell className={scostamentoClass}>{isClient ? renderValue(values.scostamento) : '€0.00'}</TableCell>
                   <TableCell className={scostamentoClass}>{isClient ? renderPercentage(values.percScostamento) : '0.00%'}</TableCell>
               </TableRow>
-              {isExpanded && values.breakdown && (isMainCategory 
-                ? renderBreakdownRows(values.breakdown, isPositiveGood, true) // Breakdown of a main category shows subcategories
-                : renderBreakdownRows(values.breakdown, isPositiveGood, false) // Breakdown of a total shows main categories
+              {isExpanded && values.breakdown && (isPromotedSub
+                ? null // Promoted subs don't have breakdown
+                : renderBreakdownRows(values.breakdown, isPositiveGood, key.includes('totale_') ? false : true)
               )}
             </React.Fragment>
           );
       };
+      
+      const rowsToRender: {type: 'header' | 'row', key?: string, label?: string, values?: any, rowClass?: string, isPositiveGood?: boolean}[] = [];
+
+      rowsToRender.push({ type: 'header', label: 'RICAVI' });
+      Object.entries(incomeCategories).forEach(([catName, catData]) => {
+          if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+              rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: true });
+          }
+          catData.subcategories.forEach(sub => {
+              if (sub.showInForecast) {
+                  const key = `${catName}__${sub.name}`;
+                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: true });
+              }
+          });
+      });
+      rowsToRender.push({ type: 'row', key: 'totale_ricavi', label: 'TOTALE RICAVI', values: data['totale_ricavi'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: true });
+
+      rowsToRender.push({ type: 'header', label: 'COSTI DI PRODUZIONE' });
+      Object.entries(expenseCategories).filter(([,val]) => val.forecastType === 'Costi di Produzione').forEach(([catName, catData]) => {
+           if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+              rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: false });
+           }
+           catData.subcategories.forEach(sub => {
+              if (sub.showInForecast) {
+                  const key = `${catName}__${sub.name}`;
+                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
+              }
+           });
+      });
+      rowsToRender.push({ type: 'row', key: 'totale_costi_di_produzione', label: 'TOTALE COSTI DI PRODUZIONE', values: data['totale_costi_di_produzione'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: false });
+      
+      rowsToRender.push({ type: 'row', key: 'margine_di_contribuzione', label: 'MARGINE DI CONTRIBUZIONE', values: data['margine_di_contribuzione'], rowClass: 'bg-green-100 dark:bg-green-900/50 font-bold', isPositiveGood: true });
+      
+      rowsToRender.push({ type: 'header', label: 'COSTI PRODUTTIVI' });
+      Object.entries(expenseCategories).filter(([,val]) => val.forecastType !== 'Costi di Produzione').forEach(([catName, catData]) => {
+           if (catData.subcategories.some(s => !s.showInForecast) || catData.subcategories.length === 0) {
+              rowsToRender.push({ type: 'row', key: catName, label: catName, values: data[catName], rowClass: '', isPositiveGood: false });
+           }
+           catData.subcategories.forEach(sub => {
+              if (sub.showInForecast) {
+                  const key = `${catName}__${sub.name}`;
+                  rowsToRender.push({ type: 'row', key, label: sub.name, values: data[key], rowClass: '', isPositiveGood: false });
+              }
+           });
+      });
+      rowsToRender.push({ type: 'row', key: 'totale_costi_produttivi', label: 'TOTALE COSTI PRODUTTIVI', values: data['totale_costi_produttivi'], rowClass: 'bg-muted/50 font-bold', isPositiveGood: false });
+      
+      rowsToRender.push({ type: 'row', key: 'totale_costi', label: 'TOTALE COSTI', values: data['totale_costi'], rowClass: 'bg-yellow-100 dark:bg-yellow-900/50 font-bold', isPositiveGood: false });
+      rowsToRender.push({ type: 'row', key: 'ebitda', label: 'EBITDA', values: data['ebitda'], rowClass: 'bg-green-200 dark:bg-green-800/60 font-extrabold text-lg', isPositiveGood: true });
+
 
       return (
-        <>
-            <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>RICAVI</TableCell></TableRow>
-            {Object.keys(incomeCategories).sort().map(cat => renderRow(cat, cat, data[cat], '', true, true, true))}
-            {renderRow('totale_ricavi', 'TOTALE RICAVI', data['totale_ricavi'], 'bg-muted/50 font-bold', true, true, false)}
-
-            <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>COSTI DI PRODUZIONE</TableCell></TableRow>
-            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType === 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', true, false, true))}
-            {renderRow('totale_costi_di_produzione', 'TOTALE COSTI DI PRODUZIONE', data['totale_costi_di_produzione'], 'bg-muted/50 font-bold', true, false, false)}
-
-            {renderRow('margine_di_contribuzione', 'MARGINE DI CONTRIBUZIONE', data['margine_di_contribuzione'], 'bg-green-100 dark:bg-green-900/50 font-bold', false, true)}
-            
-            <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>COSTI PRODUTTIVI</TableCell></TableRow>
-            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType !== 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', true, false, true))}
-            {renderRow('totale_costi_produttivi', 'TOTALE COSTI PRODUTTIVI', data['totale_costi_produttivi'], 'bg-muted/50 font-bold', true, false, false)}
-
-            {renderRow('totale_costi', 'TOTALE COSTI', data['totale_costi'], 'bg-yellow-100 dark:bg-yellow-900/50 font-bold', false, false)}
-            {renderRow('ebitda', 'EBITDA', data['ebitda'], 'bg-green-200 dark:bg-green-800/60 font-extrabold text-lg', false, true)}
-        </>
+          <>
+            {rowsToRender.map((row, index) => {
+                if (row.type === 'header') {
+                    return <TableRow key={`header-${index}`} className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>{row.label}</TableCell></TableRow>;
+                }
+                return renderRow(row.key!, row.label!, row.values, row.rowClass!, row.isPositiveGood!);
+            })}
+          </>
       );
   };
   
@@ -472,5 +553,3 @@ export default function ForecastPage() {
     </>
   );
 }
-
-    

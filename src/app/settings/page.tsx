@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useCategories, type CategoryDefinition, type ForecastType } from '@/contexts/category-context';
+import { useCategories, type CategoryDefinition, type ForecastType, type Subcategory } from '@/contexts/category-context';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle, ChevronsUpDown } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Accordion,
@@ -28,7 +28,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
 
 const forecastTypes: ForecastType[] = ['Costi di Produzione', 'Costi Produttivi'];
 
@@ -41,7 +43,8 @@ const EditableCategoryItem = ({
     onSubcategoryAdd,
     onSubcategoryUpdate,
     onSubcategoryDelete,
-    onForecastTypeChange
+    onForecastTypeChange,
+    onSubcategoryFlagChange
 }: {
     categoryName: string;
     categoryData: CategoryDefinition[string];
@@ -49,14 +52,15 @@ const EditableCategoryItem = ({
     onCategoryUpdate: (oldName: string, newName: string) => void;
     onCategoryDelete: (name: string) => void;
     onSubcategoryAdd: (category: string, subcategory: string) => void;
-    onSubcategoryUpdate: (category: string, oldSub: string, newSub: string) => void;
-    onSubcategoryDelete: (category: string, subcategory: string) => void;
+    onSubcategoryUpdate: (category: string, oldSub: Subcategory, newSubName: string) => void;
+    onSubcategoryDelete: (category: string, subcategory: Subcategory) => void;
     onForecastTypeChange: (category: string, forecastType: ForecastType) => void;
+    onSubcategoryFlagChange: (category: string, subcategory: Subcategory, checked: boolean) => void;
 }) => {
     const [isEditingCategory, setIsEditingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState(categoryName);
     
-    const [editingSub, setEditingSub] = useState<string | null>(null);
+    const [editingSub, setEditingSub] = useState<Subcategory | null>(null);
     const [newSubName, setNewSubName] = useState('');
 
     const [addingSub, setAddingSub] = useState(false);
@@ -69,8 +73,8 @@ const EditableCategoryItem = ({
         setIsEditingCategory(false);
     };
     
-    const handleSubcategoryUpdate = (oldSub: string) => {
-        if (newSubName.trim() && newSubName.trim() !== oldSub) {
+    const handleSubcategoryUpdate = (oldSub: Subcategory) => {
+        if (newSubName.trim() && newSubName.trim() !== oldSub.name) {
             onSubcategoryUpdate(categoryName, oldSub, newSubName.trim());
         }
         setEditingSub(null);
@@ -145,11 +149,11 @@ const EditableCategoryItem = ({
                         </div>
                     )}
                     {categoryData.subcategories.map(sub => (
-                         <div key={sub} className="flex items-center justify-between group">
-                           {editingSub === sub ? (
+                         <div key={sub.name} className="flex items-center justify-between group">
+                           {editingSub?.name === sub.name ? (
                                <div className="flex items-center gap-2 flex-grow">
                                    <Input 
-                                        defaultValue={sub}
+                                        defaultValue={sub.name}
                                         onChange={e => setNewSubName(e.target.value)}
                                         className="h-8"
                                    />
@@ -157,10 +161,17 @@ const EditableCategoryItem = ({
                                    <Button size="icon" variant="ghost" onClick={() => setEditingSub(null)} className="h-8 w-8"><X className="h-4 w-4"/></Button>
                                </div>
                            ) : (
-                               <span className="text-muted-foreground">{sub}</span>
+                               <div className="flex items-center gap-3">
+                                   <Checkbox 
+                                        id={`flag-${categoryName}-${sub.name}`} 
+                                        checked={sub.showInForecast} 
+                                        onCheckedChange={(checked) => onSubcategoryFlagChange(categoryName, sub, !!checked)}
+                                    />
+                                   <Label htmlFor={`flag-${categoryName}-${sub.name}`} className="text-muted-foreground cursor-pointer">{sub.name}</Label>
+                               </div>
                            )}
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {!editingSub && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {setEditingSub(sub); setNewSubName(sub);}}><Edit className="h-4 w-4"/></Button>}
+                                {!editingSub && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {setEditingSub(sub); setNewSubName(sub.name);}}><Edit className="h-4 w-4"/></Button>}
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onSubcategoryDelete(categoryName, sub)}><Trash2 className="h-4 w-4"/></Button>
                             </div>
                         </div>
@@ -215,7 +226,7 @@ export default function SettingsPage() {
 
         currentCats[newCategoryName.trim()] = {
             subcategories: [],
-            forecastType: 'Costi Produttivi' // Default per nuove categorie di spesa
+            forecastType: 'Costi Produttivi'
         };
         handleUpdate(type, currentCats);
         setNewCategoryName('');
@@ -242,28 +253,28 @@ export default function SettingsPage() {
     
     const handleAddSubcategory = (type: 'uscite' | 'entrate', categoryName: string, subcategoryName: string) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
-        if (currentCats[categoryName].subcategories.includes(subcategoryName.trim())) {
+        if (currentCats[categoryName].subcategories.some(s => s.name === subcategoryName.trim())) {
              toast({ title: 'Errore', description: 'Questa sottocategoria esiste già.', variant: 'destructive'});
             return;
         }
-        currentCats[categoryName].subcategories = [...currentCats[categoryName].subcategories, subcategoryName.trim()];
+        currentCats[categoryName].subcategories = [...currentCats[categoryName].subcategories, { name: subcategoryName.trim(), showInForecast: false }];
         handleUpdate(type, currentCats);
     }
 
-    const handleUpdateSubcategory = (type: 'uscite' | 'entrate', categoryName: string, oldSub: string, newSub: string) => {
+    const handleUpdateSubcategory = (type: 'uscite' | 'entrate', categoryName: string, oldSub: Subcategory, newSubName: string) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
         const subs = currentCats[categoryName].subcategories;
-        if (subs.includes(newSub)) {
+        if (subs.some(s => s.name === newSubName)) {
              toast({ title: 'Errore', description: 'Una sottocategoria con questo nome esiste già in questa categoria.', variant: 'destructive'});
             return;
         }
-        currentCats[categoryName].subcategories = subs.map(s => s === oldSub ? newSub : s);
+        currentCats[categoryName].subcategories = subs.map(s => s.name === oldSub.name ? { ...s, name: newSubName } : s);
         handleUpdate(type, currentCats);
     }
     
-    const handleDeleteSubcategory = (type: 'uscite' | 'entrate', categoryName: string, subcategoryName: string) => {
+    const handleDeleteSubcategory = (type: 'uscite' | 'entrate', categoryName: string, subcategoryToDelete: Subcategory) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
-        currentCats[categoryName].subcategories = currentCats[categoryName].subcategories.filter(s => s !== subcategoryName);
+        currentCats[categoryName].subcategories = currentCats[categoryName].subcategories.filter(s => s.name !== subcategoryToDelete.name);
         handleUpdate(type, currentCats);
     }
     
@@ -272,6 +283,17 @@ export default function SettingsPage() {
         currentCats[categoryName].forecastType = forecastType;
         handleUpdate('uscite', currentCats);
     }
+
+    const handleSubcategoryFlagChange = (type: 'uscite' | 'entrate', categoryName: string, subcategory: Subcategory, checked: boolean) => {
+        const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
+        const category = currentCats[categoryName];
+        if (category) {
+            category.subcategories = category.subcategories.map(sub => 
+                sub.name === subcategory.name ? { ...sub, showInForecast: checked } : sub
+            );
+            handleUpdate(type, currentCats);
+        }
+    };
 
     return (
         <>
@@ -315,6 +337,7 @@ export default function SettingsPage() {
                                         onSubcategoryUpdate={(cat, oldSub, newSub) => handleUpdateSubcategory('uscite', cat, oldSub, newSub)}
                                         onSubcategoryDelete={(cat, sub) => handleDeleteSubcategory('uscite', cat, sub)}
                                         onForecastTypeChange={handleForecastTypeChange}
+                                        onSubcategoryFlagChange={(cat, sub, checked) => handleSubcategoryFlagChange('uscite', cat, sub, checked)}
                                     />
                                 ))}
                             </Accordion>
@@ -351,6 +374,7 @@ export default function SettingsPage() {
                                         onSubcategoryUpdate={(cat, oldSub, newSub) => handleUpdateSubcategory('entrate', cat, oldSub, newSub)}
                                         onSubcategoryDelete={(cat, sub) => handleDeleteSubcategory('entrate', cat, sub)}
                                         onForecastTypeChange={() => {}} // No-op for income
+                                        onSubcategoryFlagChange={(cat, sub, checked) => handleSubcategoryFlagChange('entrate', cat, sub, checked)}
                                     />
                                 ))}
                             </Accordion>
@@ -372,5 +396,3 @@ export default function SettingsPage() {
         </>
     );
 }
-
-    
