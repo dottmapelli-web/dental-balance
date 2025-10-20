@@ -5,16 +5,15 @@ export type ForecastItemKey =
   | 'altre_fonti_reddito'
   // Costi di Produzione
   | 'materiali_uso'
-  | 'compensi_medici' // Modificato per includere tutto il personale
   | 'laboratorio'
   | 'regali'
   | 'corsi_congressi'
   | 'campagne_web'
   // Costi Produttivi
+  | 'costi_personale'
   | 'affitto_sede'
   | 'spese_condominiali'
   | 'utenze'
-  | 'emolumento_amministratori'
   | 'manutenzione'
   | 'assicurazione'
   | 'software_gestionale'
@@ -23,13 +22,11 @@ export type ForecastItemKey =
   | 'marketing'
   | 'apm_dvr'
   | 'web_agency'
-  | 'consulenti_lavoro'
+  | 'consulenti'
   | 'tasse'
-  | 'finanziamenti'
-  | 'prestiti'
-  | 'leasing'
-  | 'marche_da_bollo'
+  | 'finanziamenti_prestiti_leasing'
   | 'servizi_finanziari'
+  | 'marche_da_bollo'
   | 'obblighi_legge'
   | 'andi'
   | 'banca_oneri'
@@ -91,11 +88,10 @@ export const forecastStructure: ForecastRow[] = [
 
   // --- COSTI PRODUTTIVI ---
   { label: 'COSTI PRODUTTIVI', type: 'header' },
-  { key: 'compensi_medici', label: 'Costi del Personale (Compensi, Stipendi, TFR)', type: 'row', mappable: true, transactionCategory: 'Personale' },
+  { key: 'costi_personale', label: 'Costi del Personale (Compensi, Stipendi, TFR)', type: 'row', mappable: true, transactionCategory: 'Personale' },
   { key: 'affitto_sede', label: 'Affitto Sede', type: 'row', mappable: true, transactionSubCategory: 'Affitto' },
   { key: 'spese_condominiali', label: 'Spese Condominiali', type: 'row', mappable: true, transactionSubCategory: 'Spese condominiali' },
   { key: 'utenze', label: 'Utenze', type: 'row', mappable: true, transactionSubCategory: ['Elettricità', 'Rifiuti', 'Internet/Telefono'] },
-  { key: 'emolumento_amministratori', label: 'Emolumento Amministratori', type: 'row', mappable: true, transactionSubCategory: 'Emolumento Amministratori' },
   { key: 'manutenzione', label: 'Manutenzione', type: 'row', mappable: true, transactionSubCategory: 'Manutenzione' },
   { key: 'assicurazione', label: 'Assicurazione', type: 'row', mappable: true, transactionSubCategory: 'Assicurazione' },
   { key: 'software_gestionale', label: 'Software Gestionale', type: 'row', mappable: true, transactionSubCategory: 'Software Gestionale' },
@@ -104,11 +100,9 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'marketing', label: 'Marketing', type: 'row', mappable: true, transactionSubCategory: 'Marketing' },
   { key: 'apm_dvr', label: 'APM / DVR + aggiornamenti', type: 'row', mappable: true, transactionSubCategory: 'APM (DVR + aggiornamente)' },
   { key: 'web_agency', label: 'Web Agency', type: 'row', mappable: true, transactionSubCategory: 'Web Agency' },
-  { key: 'consulenti_lavoro', label: 'Commercialista/Consulenti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
+  { key: 'consulenti', label: 'Commercialista/Consulenti', type: 'row', mappable: true, transactionSubCategory: ['Commercialista', 'Consulente del Lavoro'] },
   { key: 'tasse', label: 'Tasse', type: 'row', mappable: true, transactionSubCategory: 'Tasse' },
-  { key: 'finanziamenti', label: 'Finanziamenti', type: 'row', mappable: true, transactionSubCategory: 'Finanziamenti' },
-  { key: 'prestiti', label: 'Prestiti', type: 'row', mappable: true, transactionSubCategory: 'Prestiti' },
-  { key: 'leasing', label: 'Leasing', type: 'row', mappable: true, transactionSubCategory: 'Leasing' },
+  { key: 'finanziamenti_prestiti_leasing', label: 'Finanziamenti/Prestiti/Leasing', type: 'row', mappable: true, transactionSubCategory: ['Finanziamenti', 'Prestiti', 'Leasing'] },
   { key: 'servizi_finanziari', label: 'Servizi Finanziari (Pagodil)', type: 'row', mappable: true, transactionSubCategory: 'Servizi Finanziari (Pagodil)' },
   { key: 'marche_da_bollo', label: 'Marche da bollo', type: 'row', mappable: true, transactionSubCategory: 'Marche da Bollo' },
   { key: 'obblighi_legge', label: 'Obblighi di Legge', type: 'row', mappable: true, transactionSubCategory: 'Obbligo di legge' },
@@ -117,10 +111,10 @@ export const forecastStructure: ForecastRow[] = [
   { key: 'rimborso_trasferte', label: 'Rimborso Trasferte', type: 'row', mappable: true, transactionSubCategory: 'Rimborso Trasferte' },
   { key: 'varie_eventuali', label: 'Varie ed Eventuali', type: 'row', mappable: true, transactionCategory: 'Altre spese'},
   { label: 'TOTALE COSTI PRODUTTIVI', type: 'total', calculate: [
-    'compensi_medici', 'affitto_sede', 'spese_condominiali', 'utenze', 
-    'emolumento_amministratori', 'manutenzione', 'assicurazione', 'software_gestionale', 
+    'costi_personale', 'affitto_sede', 'spese_condominiali', 'utenze', 
+    'manutenzione', 'assicurazione', 'software_gestionale', 
     'licenze_uso', 'forniture_ufficio', 'marketing', 'apm_dvr', 'web_agency', 
-    'consulenti_lavoro', 'tasse', 'finanziamenti', 'prestiti', 'leasing', 'servizi_finanziari', 
+    'consulenti', 'tasse', 'finanziamenti_prestiti_leasing', 'servizi_finanziari', 
     'marche_da_bollo', 'obblighi_legge', 'andi', 'banca_oneri', 'rimborso_trasferte',
     'varie_eventuali'
   ] },
@@ -129,5 +123,3 @@ export const forecastStructure: ForecastRow[] = [
   { label: 'TOTALE COSTI', type: 'total', calculate: ['total_totale_costi_di_produzione', 'total_totale_costi_produttivi'] },
   { label: 'EBITDA', type: 'margin', calculate: { from: ['margin_margine_di_contribuzione'], subtract: ['total_totale_costi_produttivi'] } },
 ];
-
-    
