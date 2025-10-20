@@ -3,7 +3,7 @@
 // The source of truth for categories is now Firestore in the 'transactionCategories' collection.
 // This data is used once to populate Firestore if it's empty.
 
-export const initialExpenseCategories = {
+export const initialExpenseCategories: { [key: string]: string[] } = {
   "Spese Fisse": ["Affitto", "Spese condominiali", "Elettricità", "Rifiuti", "Internet/Telefono"],
   "Spesa Studio": ["Manutenzione", "Assicurazione", "Software Gestionale", "Licenze d’uso", "Forniture D’Ufficio"],
   "Materiali": ["Materiali di Consumo Odontoiatrico", "Materiale Conservativa", "Materiale Chirurgia", "Materiale Impianti", "Materiali Endo", "Materiale Protesi", "Materiale Ortodonzia", "Materiale Igiene", "Materiale Estetica"],
@@ -14,7 +14,7 @@ export const initialExpenseCategories = {
   "Altre spese": ["Varie ed Eventuali"],
 };
 
-export const initialIncomeCategories = {
+export const initialIncomeCategories: { [key: string]: string[] } = {
   "Pazienti": [],
   "Altre fonti di reddito": [],
 };

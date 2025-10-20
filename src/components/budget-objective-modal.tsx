@@ -46,7 +46,6 @@ interface BudgetObjectiveModalProps {
   modalType: 'budget' | 'objective';
   editingItem?: (BudgetListItem & { type?: 'budget' }) | (ObjectiveListItem & { type?: 'objective' }) | null; // editingItem can be BudgetListItem or ObjectiveListItem
   onSave: (data: BudgetObjectiveFormData) => void;
-  allExpenseCategories: string[]; // This will now come from the context
 }
 
 export default function BudgetObjectiveModal({
@@ -55,7 +54,7 @@ export default function BudgetObjectiveModal({
   modalType,
   editingItem,
   onSave,
-}: Omit<BudgetObjectiveModalProps, 'allExpenseCategories'> & { allExpenseCategories: string[] }) {
+}: BudgetObjectiveModalProps) {
   
   const { expenseCategories, loading: loadingCategories } = useCategories();
   const allExpenseCategoryNames = useMemo(() => Object.keys(expenseCategories), [expenseCategories]);
@@ -221,3 +220,5 @@ export default function BudgetObjectiveModal({
     </Dialog>
   );
 }
+
+    

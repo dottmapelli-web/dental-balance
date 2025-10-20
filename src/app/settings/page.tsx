@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useCategories, type CategoryDefinition } from '@/contexts/category-context';
+import { useCategories, type CategoryDefinition, type ForecastType } from '@/contexts/category-context';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Accordion,
@@ -15,7 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,24 +27,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
+const forecastTypes: ForecastType[] = ['Costi di Produzione', 'Costi Produttivi'];
 
 const EditableCategoryItem = ({ 
     categoryName, 
-    subcategories,
+    categoryData,
+    isExpense,
     onCategoryUpdate,
     onCategoryDelete,
     onSubcategoryAdd,
     onSubcategoryUpdate,
-    onSubcategoryDelete
+    onSubcategoryDelete,
+    onForecastTypeChange
 }: {
     categoryName: string;
-    subcategories: string[];
+    categoryData: CategoryDefinition[string];
+    isExpense: boolean;
     onCategoryUpdate: (oldName: string, newName: string) => void;
     onCategoryDelete: (name: string) => void;
     onSubcategoryAdd: (category: string, subcategory: string) => void;
     onSubcategoryUpdate: (category: string, oldSub: string, newSub: string) => void;
     onSubcategoryDelete: (category: string, subcategory: string) => void;
+    onForecastTypeChange: (category: string, forecastType: ForecastType) => void;
 }) => {
     const [isEditingCategory, setIsEditingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState(categoryName);
@@ -119,7 +126,25 @@ const EditableCategoryItem = ({
             </AccordionTrigger>
             <AccordionContent>
                 <div className="pl-4 space-y-2">
-                    {subcategories.map(sub => (
+                    {isExpense && (
+                        <div className="flex items-center gap-2 pb-2" onClick={e => e.stopPropagation()}>
+                            <label className="text-sm font-medium text-muted-foreground">Tipo Previsione:</label>
+                            <Select 
+                                value={categoryData.forecastType || 'Costi Produttivi'} 
+                                onValueChange={(value) => onForecastTypeChange(categoryName, value as ForecastType)}
+                            >
+                                <SelectTrigger className="w-[200px] h-8 text-xs">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {forecastTypes.map(type => (
+                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    {categoryData.subcategories.map(sub => (
                          <div key={sub} className="flex items-center justify-between group">
                            {editingSub === sub ? (
                                <div className="flex items-center gap-2 flex-grow">
@@ -188,7 +213,10 @@ export default function SettingsPage() {
             return;
         }
 
-        currentCats[newCategoryName.trim()] = [];
+        currentCats[newCategoryName.trim()] = {
+            subcategories: [],
+            forecastType: 'Costi Produttivi' // Default per nuove categorie di spesa
+        };
         handleUpdate(type, currentCats);
         setNewCategoryName('');
         setAddingCategoryType(null);
@@ -200,9 +228,9 @@ export default function SettingsPage() {
             toast({ title: 'Errore', description: 'Una categoria con questo nome esiste già.', variant: 'destructive'});
             return;
         }
-        const subcategories = currentCats[oldName];
+        const categoryData = currentCats[oldName];
         delete currentCats[oldName];
-        currentCats[newName] = subcategories;
+        currentCats[newName] = categoryData;
         handleUpdate(type, currentCats);
     }
 
@@ -214,36 +242,42 @@ export default function SettingsPage() {
     
     const handleAddSubcategory = (type: 'uscite' | 'entrate', categoryName: string, subcategoryName: string) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
-        if (currentCats[categoryName].includes(subcategoryName.trim())) {
+        if (currentCats[categoryName].subcategories.includes(subcategoryName.trim())) {
              toast({ title: 'Errore', description: 'Questa sottocategoria esiste già.', variant: 'destructive'});
             return;
         }
-        currentCats[categoryName] = [...currentCats[categoryName], subcategoryName.trim()];
+        currentCats[categoryName].subcategories = [...currentCats[categoryName].subcategories, subcategoryName.trim()];
         handleUpdate(type, currentCats);
     }
 
     const handleUpdateSubcategory = (type: 'uscite' | 'entrate', categoryName: string, oldSub: string, newSub: string) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
-        const subs = currentCats[categoryName];
+        const subs = currentCats[categoryName].subcategories;
         if (subs.includes(newSub)) {
              toast({ title: 'Errore', description: 'Una sottocategoria con questo nome esiste già in questa categoria.', variant: 'destructive'});
             return;
         }
-        currentCats[categoryName] = subs.map(s => s === oldSub ? newSub : s);
+        currentCats[categoryName].subcategories = subs.map(s => s === oldSub ? newSub : s);
         handleUpdate(type, currentCats);
     }
     
     const handleDeleteSubcategory = (type: 'uscite' | 'entrate', categoryName: string, subcategoryName: string) => {
         const currentCats = type === 'uscite' ? { ...expenseCategories } : { ...incomeCategories };
-        currentCats[categoryName] = currentCats[categoryName].filter(s => s !== subcategoryName);
+        currentCats[categoryName].subcategories = currentCats[categoryName].subcategories.filter(s => s !== subcategoryName);
         handleUpdate(type, currentCats);
+    }
+    
+    const handleForecastTypeChange = (categoryName: string, forecastType: ForecastType) => {
+        const currentCats = { ...expenseCategories };
+        currentCats[categoryName].forecastType = forecastType;
+        handleUpdate('uscite', currentCats);
     }
 
     return (
         <>
             <PageHeader 
                 title="Impostazioni"
-                description="Gestisci le categorie e sottocategorie per le tue transazioni."
+                description="Gestisci le categorie e sottocategorie per le tue transazioni e la loro classificazione nelle previsioni."
             />
             
             {loading && (
@@ -265,20 +299,22 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Categorie di Uscita</CardTitle>
-                            <CardDescription>Gestisci le categorie e sottocategorie per le spese.</CardDescription>
+                            <CardDescription>Gestisci le categorie e sottocategorie per le spese e il loro tipo per le previsioni.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <Accordion type="multiple" className="w-full">
-                                {Object.entries(expenseCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).map(([category, subcategories]) => (
+                                {Object.entries(expenseCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).map(([category, catData]) => (
                                     <EditableCategoryItem 
                                         key={category}
                                         categoryName={category}
-                                        subcategories={subcategories}
+                                        categoryData={catData}
+                                        isExpense={true}
                                         onCategoryUpdate={(oldName, newName) => handleUpdateCategory('uscite', oldName, newName)}
                                         onCategoryDelete={(name) => handleDeleteCategory('uscite', name)}
                                         onSubcategoryAdd={(cat, sub) => handleAddSubcategory('uscite', cat, sub)}
                                         onSubcategoryUpdate={(cat, oldSub, newSub) => handleUpdateSubcategory('uscite', cat, oldSub, newSub)}
                                         onSubcategoryDelete={(cat, sub) => handleDeleteSubcategory('uscite', cat, sub)}
+                                        onForecastTypeChange={handleForecastTypeChange}
                                     />
                                 ))}
                             </Accordion>
@@ -303,16 +339,18 @@ export default function SettingsPage() {
                         </CardHeader>
                         <CardContent>
                              <Accordion type="multiple" className="w-full">
-                                {Object.entries(incomeCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).map(([category, subcategories]) => (
+                                {Object.entries(incomeCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).map(([category, catData]) => (
                                      <EditableCategoryItem 
                                         key={category}
                                         categoryName={category}
-                                        subcategories={subcategories}
+                                        categoryData={catData}
+                                        isExpense={false}
                                         onCategoryUpdate={(oldName, newName) => handleUpdateCategory('entrate', oldName, newName)}
                                         onCategoryDelete={(name) => handleDeleteCategory('entrate', name)}
                                         onSubcategoryAdd={(cat, sub) => handleAddSubcategory('entrate', cat, sub)}
                                         onSubcategoryUpdate={(cat, oldSub, newSub) => handleUpdateSubcategory('entrate', cat, oldSub, newSub)}
                                         onSubcategoryDelete={(cat, sub) => handleDeleteSubcategory('entrate', cat, sub)}
+                                        onForecastTypeChange={() => {}} // No-op for income
                                     />
                                 ))}
                             </Accordion>
@@ -334,3 +372,5 @@ export default function SettingsPage() {
         </>
     );
 }
+
+    
