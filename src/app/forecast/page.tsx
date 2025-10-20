@@ -6,11 +6,11 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, AlertCircle, TrendingUp, Percent, Banknote, Landmark, ChevronDown } from "lucide-react";
+import { Loader2, AlertCircle, TrendingUp, Percent, Banknote, Landmark, ChevronDown, Wand2 } from "lucide-react";
 import { getYear, getMonth, parseISO, isValid, format } from "date-fns";
 import { it } from "date-fns/locale";
 import type { Transaction } from '@/data/transactions-data';
-import { useCategories, type CategoryDefinition } from '@/contexts/category-context';
+import { useCategories } from '@/contexts/category-context';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
@@ -18,6 +18,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from '@/components/ui/input';
+
 
 const generateYears = (transactions: Transaction[]): string[] => {
     const years = new Set<string>();
@@ -73,9 +76,80 @@ export default function ForecastPage() {
 
     const availableYears = useMemo(() => generateYears(transactions), [transactions]);
     const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
-    const [selectedPeriod, setSelectedPeriod] = useState<string>(new Date().getMonth().toString()); // month index or 'total'
+    const [selectedPeriod, setSelectedPeriod] = useState<string>(new Date().getMonth().toString());
 
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    const [budgetData, setBudgetData] = useState<Record<string, number[]>>({});
+    const [editingCell, setEditingCell] = useState<{ label: string; period: number | 'total' } | null>(null);
+    const [editingValue, setEditingValue] = useState<string>('');
+
+
+    const handleBudgetChange = (label: string, period: number, value: number) => {
+        setBudgetData(prev => {
+            const newBudgetData = { ...prev };
+            if (!newBudgetData[label]) {
+                newBudgetData[label] = Array(12).fill(0);
+            }
+            newBudgetData[label][period] = value;
+            return newBudgetData;
+        });
+    };
+
+    const handleSaveEdit = () => {
+        if (editingCell) {
+            const { label, period } = editingCell;
+            const numericValue = parseFloat(editingValue);
+            if (!isNaN(numericValue) && period !== 'total') {
+                handleBudgetChange(label, period, numericValue);
+            }
+        }
+        setEditingCell(null);
+        setEditingValue('');
+    };
+    
+    const getBudgetValue = (label: string, periodIndex: number): number => {
+        if (periodIndex === -1) { // Total column
+            return budgetData[label]?.reduce((a, b) => a + b, 0) || 0;
+        }
+        return budgetData[label]?.[periodIndex] || 0;
+    };
+
+
+    const generateBudget = (method: 'lastYearMonthly' | 'lastYearAverage') => {
+        const lastYear = parseInt(selectedYear) - 1;
+        const lastYearTransactions = transactions.filter(t => isValid(parseISO(t.date)) && getYear(parseISO(t.date)) === lastYear);
+
+        const newBudgetData: Record<string, number[]> = {};
+
+        const allLabels = new Set([
+            ...Object.keys(incomeCategories),
+            ...Object.keys(expenseCategories).flatMap(cat => [cat, ...(expenseCategories[cat]?.subcategories.map(sub => `${cat}__${sub.name}`) || [])]),
+        ]);
+
+        if (method === 'lastYearMonthly') {
+            allLabels.forEach(label => {
+                const [cat, sub] = label.split('__');
+                newBudgetData[label] = Array(12).fill(0).map((_, monthIndex) => {
+                    return lastYearTransactions
+                        .filter(t => getMonth(parseISO(t.date)) === monthIndex && t.category === cat && (!sub || t.subcategory === sub))
+                        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                });
+            });
+        } else { // lastYearAverage
+            allLabels.forEach(label => {
+                const [cat, sub] = label.split('__');
+                const totalYearlyAmount = lastYearTransactions
+                    .filter(t => t.category === cat && (!sub || t.subcategory === sub))
+                    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                const monthlyAverage = totalYearlyAmount / 12;
+                newBudgetData[label] = Array(12).fill(monthlyAverage);
+            });
+        }
+
+        setBudgetData(newBudgetData);
+        toast({ title: 'Budget Generato', description: 'I valori di budget sono stati popolati automaticamente.' });
+    };
 
     const toggleCategoryExpansion = (categoryLabel: string) => {
         setExpandedCategories(prev => {
@@ -121,9 +195,9 @@ export default function ForecastPage() {
                     });
                 });
                 setTransactions(fetchedTransactions);
-            } catch (error: any) {
+            } catch (error) {
                 console.error("Errore caricamento transazioni (Forecast):", error);
-                setTransactionsError(`Impossibile caricare le transazioni: ${error.message}`);
+                setTransactionsError(`Impossibile caricare le transazioni: ${(error as any).message}`);
             } finally {
                 setIsLoadingTransactions(false);
             }
@@ -136,96 +210,110 @@ export default function ForecastPage() {
 
         const year = parseInt(selectedYear);
         const month = selectedPeriod !== 'total' ? parseInt(selectedPeriod) : -1;
+        
+        const getActualValue = (filterFn: (t: Transaction) => boolean): number => {
+            return transactions
+                .filter(t => {
+                    const date = parseISO(t.date);
+                    const isInYear = isValid(date) && getYear(date) === year;
+                    if (!isInYear) return false;
+                    const isInMonth = month === -1 ? true : getMonth(date) === month;
+                    return isInMonth && t.status === 'Completato' && filterFn(t);
+                })
+                .reduce((s, t) => s + Math.abs(t.amount), 0);
+        };
 
-        const periodTransactions = transactions.filter(t => {
-            const date = parseISO(t.date);
-            const isInYear = isValid(date) && getYear(date) === year;
-            if (!isInYear) return false;
-            if (month === -1) return t.status === 'Completato'; // All year for total
-            return getMonth(date) === month && t.status === 'Completato';
-        });
 
         let tableRows: ForecastRowData[] = [];
         
         // --- RICAVI ---
         tableRows.push({ label: 'RICAVI', isMainSection: true, actual: 0, budget: 0 });
         let totalRicaviActual = 0;
+        let totalRicaviBudget = 0;
+
         Object.keys(incomeCategories).sort().forEach(cat => {
-            const actual = periodTransactions
-                .filter(t => t.type === 'Entrata' && t.category === cat)
-                .reduce((s, t) => s + Math.abs(t.amount), 0);
+            const actual = getActualValue(t => t.type === 'Entrata' && t.category === cat);
+            const budget = getBudgetValue(cat, month);
             totalRicaviActual += actual;
-            tableRows.push({ label: cat, actual, budget: 0 });
+            totalRicaviBudget += budget;
+            tableRows.push({ label: cat, actual, budget });
         });
-        tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, actual: totalRicaviActual, budget: 0, isHighlighted: true });
+        tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, actual: totalRicaviActual, budget: totalRicaviBudget, isHighlighted: true });
 
         // --- COSTI DI PRODUZIONE (variabili) ---
         tableRows.push({ label: 'COSTI DI PRODUZIONE (variabili)', isMainSection: true, actual: 0, budget: 0 });
         let totalCostiProduzioneActual = 0;
+        let totalCostiProduzioneBudget = 0;
+
         Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
-            const catActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0);
+            const catActual = getActualValue(t => t.type === 'Uscita' && t.category === cat);
+            const catBudget = getBudgetValue(cat, month);
             totalCostiProduzioneActual += catActual;
+            totalCostiProduzioneBudget += catBudget;
 
             let subRows: ForecastRowData[] = [];
-            if (catData?.subcategories?.some(s => s.showInForecast)) {
-                catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
-                     const subActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0);
-                     subRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
+            if (catData?.subcategories?.length > 0) {
+                catData.subcategories.sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
+                     const subActual = getActualValue(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name);
+                     const subBudget = getBudgetValue(`${cat}__${sub.name}`, month);
+                     subRows.push({ label: sub.name, actual: subActual, budget: subBudget, isSubcategory: true });
                 });
             }
 
-            tableRows.push({ label: cat, actual: catActual, budget: 0, isExpandable: subRows.length > 0, subRows });
+            tableRows.push({ label: cat, actual: catActual, budget: catBudget, isExpandable: subRows.length > 0, subRows });
         });
-        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE (variabili)', isTotal: true, actual: totalCostiProduzioneActual, budget: 0, isHighlighted: true });
+        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE (variabili)', isTotal: true, actual: totalCostiProduzioneActual, budget: totalCostiProduzioneBudget, isHighlighted: true });
 
 
         // --- MARGINE ---
         const margineActual = totalRicaviActual - totalCostiProduzioneActual;
+        const margineBudget = totalRicaviBudget - totalCostiProduzioneBudget;
         const mocActual = totalRicaviActual > 0 ? (margineActual / totalRicaviActual) * 100 : 0;
-        tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: 0, isHighlighted: true });
-        tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: 0 });
+        const mocBudget = totalRicaviBudget > 0 ? (margineBudget / totalRicaviBudget) * 100 : 0;
+        tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: margineBudget, isHighlighted: true });
+        tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: mocBudget });
 
         // --- COSTI PRODUTTIVI (fissi) ---
         tableRows.push({ label: 'COSTI PRODUTTIVI (fissi)', isMainSection: true, actual: 0, budget: 0 });
         let totalCostiProduttiviActual = 0;
+        let totalCostiProduttiviBudget = 0;
         Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
-            const catActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0);
+            const catActual = getActualValue(t => t.type === 'Uscita' && t.category === cat);
+            const catBudget = getBudgetValue(cat, month);
             totalCostiProduttiviActual += catActual;
+            totalCostiProduttiviBudget += catBudget;
             
             let subRows: ForecastRowData[] = [];
-            if (catData?.subcategories?.some(s => s.showInForecast)) {
-                catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
-                    const subActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0);
-                    subRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
+            if (catData?.subcategories?.length > 0) {
+                catData.subcategories.sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
+                    const subActual = getActualValue(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name);
+                    const subBudget = getBudgetValue(`${cat}__${sub.name}`, month);
+                    subRows.push({ label: sub.name, actual: subActual, budget: subBudget, isSubcategory: true });
                 });
             }
 
-            tableRows.push({ label: cat, actual: catActual, budget: 0, isExpandable: subRows.length > 0, subRows });
+            tableRows.push({ label: cat, actual: catActual, budget: catBudget, isExpandable: subRows.length > 0, subRows });
         });
-        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI (fissi)', isTotal: true, actual: totalCostiProduttiviActual, budget: 0, isHighlighted: true });
+        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI (fissi)', isTotal: true, actual: totalCostiProduttiviActual, budget: totalCostiProduttiviBudget, isHighlighted: true });
 
 
         // --- FINAL METRICS ---
         const bepActual = mocActual > 0 ? totalCostiProduttiviActual / (mocActual / 100) : 0;
+        const bepBudget = mocBudget > 0 ? totalCostiProduttiviBudget / (mocBudget / 100) : 0;
+
         const totalCostiActual = totalCostiProduzioneActual + totalCostiProduttiviActual;
+        const totalCostiBudget = totalCostiProduzioneBudget + totalCostiProduttiviBudget;
+        
         const ebitdaActual = margineActual - totalCostiProduttiviActual;
-        tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, actual: bepActual, budget: 0 });
-        tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: 0, isHighlighted: true });
-        tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: 0, isHighlighted: true });
+        const ebitdaBudget = margineBudget - totalCostiProduttiviBudget;
 
-        // Filter out empty sections
-        return tableRows.filter(row => {
-            if (row.isMainSection && row.label !== 'RICAVI') {
-                const sectionIndex = tableRows.findIndex(r => r.label === row.label);
-                const nextSectionIndex = tableRows.findIndex((r, i) => i > sectionIndex && r.isMainSection);
-                const sectionRows = tableRows.slice(sectionIndex + 1, nextSectionIndex !== -1 ? nextSectionIndex : tableRows.length);
-                const hasData = sectionRows.some(r => !r.isTotal && !r.isFinancialMetric && r.actual > 0);
-                return hasData;
-            }
-            return true;
-        });
+        tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, actual: bepActual, budget: bepBudget });
+        tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: totalCostiBudget, isHighlighted: true });
+        tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: ebitdaBudget, isHighlighted: true });
 
-    }, [selectedYear, selectedPeriod, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions]);
+        return tableRows;
+
+    }, [selectedYear, selectedPeriod, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions, budgetData]);
 
     if (isLoadingTransactions || loadingCategories) {
         return (
@@ -249,6 +337,10 @@ export default function ForecastPage() {
     const pageTitle = selectedPeriod === 'total' ? `Previsioni Totali ${selectedYear}` : `Previsioni ${format(new Date(parseInt(selectedYear), parseInt(selectedPeriod)), "MMMM yyyy", { locale: it })}`;
 
     const renderRow = (row: ForecastRowData, index: number) => {
+        if (row.isMainSection && !calculatedForecastData.slice(index + 1).some(r => !r.isMainSection && r.actual > 0)) {
+            return null; // Don't render empty main sections
+        }
+
         if (row.isMainSection) {
             return (
                 <TableRow key={index} className="hover:bg-transparent">
@@ -259,19 +351,24 @@ export default function ForecastPage() {
             );
         }
 
-        const variance = row.actual - row.budget;
-        const variancePerc = row.budget !== 0 ? (variance / row.budget) * 100 : (row.actual > 0 ? 100 : 0);
+        const isCost = (row.label.toLowerCase().includes('costi') && !row.label.toLowerCase().includes('ricavi')) || row.isSubcategory;
+        const isEbitdaOrMargine = row.label === 'EBITDA' || row.label === 'MARGINE DI CONTRIBUZIONE';
 
-        const isPositiveVarianceGood = !row.label.toLowerCase().includes('costi') && row.label !== 'TOTALE COSTI' && !row.isSubcategory;
+        const variance = row.actual - row.budget;
+        const variancePerc = row.budget !== 0 ? (variance / Math.abs(row.budget)) * 100 : (row.actual !== 0 ? 100 : 0);
+
+        const isPositiveVarianceGood = !isCost || isEbitdaOrMargine;
         
         const isExpanded = expandedCategories.has(row.label);
+
+        const currentPeriodIndex = selectedPeriod === 'total' ? -1 : parseInt(selectedPeriod);
 
         return (
             <React.Fragment key={index}>
                 <TableRow 
                     className={cn(
                         row.label.includes('TOTALE') && "bg-yellow-50 dark:bg-yellow-900/20",
-                        (row.label === "MARGINE DI CONTRIBUZIONE" || row.label === "EBITDA") && "bg-green-50 dark:bg-green-900/20",
+                        (isEbitdaOrMargine) && "bg-green-50 dark:bg-green-900/20",
                         row.isExpandable && "cursor-pointer"
                     )}
                     onClick={row.isExpandable ? () => toggleCategoryExpansion(row.label) : undefined}
@@ -286,21 +383,43 @@ export default function ForecastPage() {
                             {row.isExpandable && <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform", isExpanded && "rotate-180")} />}
                         </div>
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
+                    <TableCell 
+                        className="text-right"
+                        onClick={() => {
+                            if (!row.isFinancialMetric && !row.isTotal && currentPeriodIndex !== -1) {
+                                setEditingCell({ label: row.isSubcategory ? `${calculatedForecastData.find(r => r.subRows?.some(sr => sr.label === row.label))?.label}__${row.label}` : row.label, period: currentPeriodIndex });
+                                setEditingValue(row.budget.toString());
+                            }
+                        }}
+                    >
+                        {editingCell?.label === (row.isSubcategory ? `${calculatedForecastData.find(r => r.subRows?.some(sr => sr.label === row.label))?.label}__${row.label}` : row.label) && editingCell?.period === currentPeriodIndex ? (
+                            <Input
+                                type="text"
+                                value={editingValue}
+                                onChange={(e) => setEditingValue(e.target.value)}
+                                onBlur={handleSaveEdit}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); }}
+                                autoFocus
+                                className="h-8 text-right"
+                            />
+                        ) : (
+                            formatCurrency(row.budget)
+                        )}
+                    </TableCell>
                     <TableCell className="text-right">{row.label.includes('%') ? formatPercentage(row.actual) : formatCurrency(row.actual)}</TableCell>
                     <TableCell className={cn(
                         "text-right",
-                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                        (variance > 0 && isPositiveVarianceGood) && "text-green-600 dark:text-green-400",
+                        (variance < 0 && isPositiveVarianceGood) && "text-red-600 dark:text-red-400",
+                        (variance > 0 && !isPositiveVarianceGood) && "text-red-600 dark:text-red-400",
+                        (variance < 0 && !isPositiveVarianceGood) && "text-green-600 dark:text-green-400"
                     )}>{row.label.includes('%') ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
                     <TableCell className={cn(
                         "text-right font-bold",
-                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                        (variance > 0 && isPositiveVarianceGood) && "text-green-600 dark:text-green-400",
+                        (variance < 0 && isPositiveVarianceGood) && "text-red-600 dark:text-red-400",
+                        (variance > 0 && !isPositiveVarianceGood) && "text-red-600 dark:text-red-400",
+                        (variance < 0 && !isPositiveVarianceGood) && "text-green-600 dark:text-green-400"
                     )}>{formatPercentage(variancePerc)}</TableCell>
                 </TableRow>
                 {isExpanded && row.subRows?.map((subRow, subIndex) => renderRow(subRow, `${index}-${subIndex}` as any))}
@@ -314,7 +433,19 @@ export default function ForecastPage() {
                 title="Previsioni"
                 description={pageTitle}
                 actions={
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <Wand2 className="mr-2 h-4 w-4" />
+                                    Genera Budget
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onSelect={() => generateBudget('lastYearMonthly')}>Da Mesi Anno Precedente</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => generateBudget('lastYearAverage')}>Da Media Anno Precedente</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}
@@ -372,12 +503,15 @@ export default function ForecastPage() {
                                 <TableHead className="w-[40%] font-bold">Voce</TableHead>
                                 <TableHead className="text-right font-bold">Budget</TableHead>
                                 <TableHead className="text-right font-bold">Actual</TableHead>
-                                <TableHead className="text-right font-bold">Scostamento</TableHead>
+                                <TableHead className="text-right font-bold">Scostamento (€)</TableHead>
                                 <TableHead className="text-right font-bold">% Scostamento</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {calculatedForecastData.map((row, index) => renderRow(row, index))}
+                            {calculatedForecastData.length > 0 ? 
+                                calculatedForecastData.map((row, index) => renderRow(row, index)) :
+                                <TableRow><TableCell colSpan={5} className="text-center h-24">Nessun dato da visualizzare per il periodo selezionato.</TableCell></TableRow>
+                            }
                         </TableBody>
                     </Table>
                 </CardContent>
