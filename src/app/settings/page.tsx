@@ -91,43 +91,45 @@ const EditableCategoryItem = ({
 
     return (
         <AccordionItem value={categoryName}>
-            <AccordionTrigger>
-                <div className="flex items-center justify-between w-full pr-2">
-                    {isEditingCategory ? (
-                        <div className="flex items-center gap-2 flex-grow" onClick={(e) => e.stopPropagation()}>
-                           <Input 
-                                value={newCategoryName}
-                                onChange={(e) => setNewCategoryName(e.target.value)}
-                                className="h-8"
-                           />
-                           <Button size="icon" variant="ghost" onClick={handleCategoryUpdate} className="h-8 w-8 text-green-600 hover:text-green-700"><Save className="h-4 w-4"/></Button>
-                           <Button size="icon" variant="ghost" onClick={() => setIsEditingCategory(false)} className="h-8 w-8"><X className="h-4 w-4"/></Button>
+            <div className="flex items-center w-full">
+                {isEditingCategory ? (
+                     <div className="flex items-center gap-2 flex-grow py-4 pl-4 pr-2" onClick={(e) => e.stopPropagation()}>
+                        <Input 
+                             value={newCategoryName}
+                             onChange={(e) => setNewCategoryName(e.target.value)}
+                             className="h-8"
+                        />
+                        <Button size="icon" variant="ghost" onClick={handleCategoryUpdate} className="h-8 w-8 text-green-600 hover:text-green-700"><Save className="h-4 w-4"/></Button>
+                        <Button size="icon" variant="ghost" onClick={() => setIsEditingCategory(false)} className="h-8 w-8"><X className="h-4 w-4"/></Button>
+                     </div>
+                ) : (
+                    <>
+                        <AccordionTrigger className="pl-4">
+                            <span className="font-medium">{categoryName}</span>
+                        </AccordionTrigger>
+                        <div className="flex items-center gap-1 pr-2" onClick={e => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingCategory(true)}><Edit className="h-4 w-4"/></Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Stai per eliminare la categoria "{categoryName}" e tutte le sue sottocategorie. Questa azione è irreversibile.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onCategoryDelete(categoryName)}>Elimina</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
-                    ) : (
-                        <span className="font-medium">{categoryName}</span>
-                    )}
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        {!isEditingCategory && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingCategory(true)}><Edit className="h-4 w-4"/></Button>}
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Stai per eliminare la categoria "{categoryName}" e tutte le sue sottocategorie. Questa azione è irreversibile.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Annulla</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onCategoryDelete(categoryName)}>Elimina</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-                </div>
-            </AccordionTrigger>
+                    </>
+                )}
+            </div>
             <AccordionContent>
                 <div className="pl-4 space-y-2">
                     {isExpense && (
