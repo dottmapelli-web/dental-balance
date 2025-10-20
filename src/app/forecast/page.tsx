@@ -6,7 +6,7 @@ import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, AlertCircle, TrendingUp, Percent, Banknote, Landmark } from "lucide-react";
+import { Loader2, AlertCircle, TrendingUp, Percent, Banknote, Landmark, ChevronDown } from "lucide-react";
 import { getYear, getMonth, parseISO, isValid, format } from "date-fns";
 import { it } from "date-fns/locale";
 import type { Transaction } from '@/data/transactions-data';
@@ -50,6 +50,8 @@ interface ForecastRowData {
     isMainSection?: boolean;
     isFinancialMetric?: boolean;
     isHighlighted?: boolean;
+    isExpandable?: boolean;
+    subRows?: ForecastRowData[];
 }
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -72,6 +74,20 @@ export default function ForecastPage() {
     const availableYears = useMemo(() => generateYears(transactions), [transactions]);
     const [selectedYear, setSelectedYear] = useState<string>(availableYears[0] || new Date().getFullYear().toString());
     const [selectedPeriod, setSelectedPeriod] = useState<string>(new Date().getMonth().toString()); // month index or 'total'
+
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    const toggleCategoryExpansion = (categoryLabel: string) => {
+        setExpandedCategories(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(categoryLabel)) {
+                newSet.delete(categoryLabel);
+            } else {
+                newSet.add(categoryLabel);
+            }
+            return newSet;
+        });
+    };
 
     useEffect(() => {
         if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
@@ -143,22 +159,25 @@ export default function ForecastPage() {
         });
         tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, actual: totalRicaviActual, budget: 0, isHighlighted: true });
 
-        // --- COSTI DI PRODUZIONE ---
-        tableRows.push({ label: 'COSTI DI PRODUZIONE', isMainSection: true, actual: 0, budget: 0 });
+        // --- COSTI DI PRODUZIONE (variabili) ---
+        tableRows.push({ label: 'COSTI DI PRODUZIONE (variabili)', isMainSection: true, actual: 0, budget: 0 });
         let totalCostiProduzioneActual = 0;
         Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
             const catActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0);
             totalCostiProduzioneActual += catActual;
-            tableRows.push({ label: cat, actual: catActual, budget: 0 });
-            
+
+            let subRows: ForecastRowData[] = [];
             if (catData?.subcategories?.some(s => s.showInForecast)) {
                 catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
                      const subActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0);
-                     tableRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
+                     subRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
                 });
             }
+
+            tableRows.push({ label: cat, actual: catActual, budget: 0, isExpandable: subRows.length > 0, subRows });
         });
-        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE', isTotal: true, actual: totalCostiProduzioneActual, budget: 0, isHighlighted: true });
+        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE (variabili)', isTotal: true, actual: totalCostiProduzioneActual, budget: 0, isHighlighted: true });
+
 
         // --- MARGINE ---
         const margineActual = totalRicaviActual - totalCostiProduzioneActual;
@@ -166,22 +185,25 @@ export default function ForecastPage() {
         tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: 0, isHighlighted: true });
         tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: 0 });
 
-        // --- COSTI PRODUTTIVI ---
-        tableRows.push({ label: 'COSTI PRODUTTIVI', isMainSection: true, actual: 0, budget: 0 });
+        // --- COSTI PRODUTTIVI (fissi) ---
+        tableRows.push({ label: 'COSTI PRODUTTIVI (fissi)', isMainSection: true, actual: 0, budget: 0 });
         let totalCostiProduttiviActual = 0;
         Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
             const catActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat).reduce((s, t) => s + Math.abs(t.amount), 0);
             totalCostiProduttiviActual += catActual;
-            tableRows.push({ label: cat, actual: catActual, budget: 0 });
             
+            let subRows: ForecastRowData[] = [];
             if (catData?.subcategories?.some(s => s.showInForecast)) {
                 catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
                     const subActual = periodTransactions.filter(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name).reduce((s, t) => s + Math.abs(t.amount), 0);
-                    tableRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
+                    subRows.push({ label: sub.name, actual: subActual, budget: 0, isSubcategory: true });
                 });
             }
+
+            tableRows.push({ label: cat, actual: catActual, budget: 0, isExpandable: subRows.length > 0, subRows });
         });
-        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI', isTotal: true, actual: totalCostiProduttiviActual, budget: 0, isHighlighted: true });
+        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI (fissi)', isTotal: true, actual: totalCostiProduttiviActual, budget: 0, isHighlighted: true });
+
 
         // --- FINAL METRICS ---
         const bepActual = mocActual > 0 ? totalCostiProduttiviActual / (mocActual / 100) : 0;
@@ -191,7 +213,17 @@ export default function ForecastPage() {
         tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: 0, isHighlighted: true });
         tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: 0, isHighlighted: true });
 
-        return tableRows.filter(row => !(row.isMainSection && row.label !== 'RICAVI' && !tableRows.slice(tableRows.findIndex(r => r.label === row.label) + 1).some(r => !r.isMainSection && !r.isTotal && !r.isFinancialMetric && r.actual > 0)));
+        // Filter out empty sections
+        return tableRows.filter(row => {
+            if (row.isMainSection && row.label !== 'RICAVI') {
+                const sectionIndex = tableRows.findIndex(r => r.label === row.label);
+                const nextSectionIndex = tableRows.findIndex((r, i) => i > sectionIndex && r.isMainSection);
+                const sectionRows = tableRows.slice(sectionIndex + 1, nextSectionIndex !== -1 ? nextSectionIndex : tableRows.length);
+                const hasData = sectionRows.some(r => !r.isTotal && !r.isFinancialMetric && r.actual > 0);
+                return hasData;
+            }
+            return true;
+        });
 
     }, [selectedYear, selectedPeriod, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions]);
 
@@ -215,6 +247,66 @@ export default function ForecastPage() {
     }
     
     const pageTitle = selectedPeriod === 'total' ? `Previsioni Totali ${selectedYear}` : `Previsioni ${format(new Date(parseInt(selectedYear), parseInt(selectedPeriod)), "MMMM yyyy", { locale: it })}`;
+
+    const renderRow = (row: ForecastRowData, index: number) => {
+        if (row.isMainSection) {
+            return (
+                <TableRow key={index} className="hover:bg-transparent">
+                    <TableCell colSpan={5} className="pt-6 pb-2">
+                        <h3 className="font-bold text-md text-foreground">{row.label}</h3>
+                    </TableCell>
+                </TableRow>
+            );
+        }
+
+        const variance = row.actual - row.budget;
+        const variancePerc = row.budget !== 0 ? (variance / row.budget) * 100 : (row.actual > 0 ? 100 : 0);
+
+        const isPositiveVarianceGood = !row.label.toLowerCase().includes('costi') && row.label !== 'TOTALE COSTI' && !row.isSubcategory;
+        
+        const isExpanded = expandedCategories.has(row.label);
+
+        return (
+            <React.Fragment key={index}>
+                <TableRow 
+                    className={cn(
+                        row.label.includes('TOTALE') && "bg-yellow-50 dark:bg-yellow-900/20",
+                        (row.label === "MARGINE DI CONTRIBUZIONE" || row.label === "EBITDA") && "bg-green-50 dark:bg-green-900/20",
+                        row.isExpandable && "cursor-pointer"
+                    )}
+                    onClick={row.isExpandable ? () => toggleCategoryExpansion(row.label) : undefined}
+                >
+                    <TableCell className={cn(
+                        "font-medium",
+                        row.isSubcategory && "pl-10 text-muted-foreground",
+                        (row.isTotal || row.isFinancialMetric) && "font-bold",
+                    )}>
+                        <div className="flex items-center">
+                            {row.label}
+                            {row.isExpandable && <ChevronDown className={cn("ml-2 h-4 w-4 transition-transform", isExpanded && "rotate-180")} />}
+                        </div>
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
+                    <TableCell className="text-right">{row.label.includes('%') ? formatPercentage(row.actual) : formatCurrency(row.actual)}</TableCell>
+                    <TableCell className={cn(
+                        "text-right",
+                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
+                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
+                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                    )}>{row.label.includes('%') ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
+                    <TableCell className={cn(
+                        "text-right font-bold",
+                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
+                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
+                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
+                    )}>{formatPercentage(variancePerc)}</TableCell>
+                </TableRow>
+                {isExpanded && row.subRows?.map((subRow, subIndex) => renderRow(subRow, `${index}-${subIndex}` as any))}
+            </React.Fragment>
+        );
+    };
 
     return (
         <>
@@ -285,54 +377,7 @@ export default function ForecastPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {calculatedForecastData.map((row, index) => {
-                                if (row.isMainSection) {
-                                    return (
-                                        <TableRow key={index} className="hover:bg-transparent">
-                                            <TableCell colSpan={5} className="pt-6 pb-2">
-                                                <h3 className="font-bold text-md text-foreground">{row.label}</h3>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                }
-                                
-                                const variance = row.actual - row.budget;
-                                const variancePerc = row.budget !== 0 ? (variance / row.budget) * 100 : (row.actual > 0 ? 100 : 0);
-
-                                const isPositiveVarianceGood = !row.label.toLowerCase().includes('costi') && row.label !== 'TOTALE COSTI';
-
-                                return (
-                                <TableRow key={index} className={cn(
-                                    row.label.includes('TOTALE') && "bg-yellow-50 dark:bg-yellow-900/20",
-                                    row.label === "MARGINE DI CONTRIBUZIONE" && "bg-green-50 dark:bg-green-900/20",
-                                    row.label === "EBITDA" && "bg-green-50 dark:bg-green-900/20",
-                                )}>
-                                    <TableCell className={cn(
-                                        "font-medium",
-                                        row.isSubcategory && "pl-10 text-muted-foreground",
-                                        (row.isTotal || row.isFinancialMetric) && "font-bold",
-                                    )}>
-                                        {row.label}
-                                    </TableCell>
-                                    <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
-                                    <TableCell className="text-right">{row.label.includes('%') ? formatPercentage(row.actual) : formatCurrency(row.actual)}</TableCell>
-                                    <TableCell className={cn(
-                                        "text-right",
-                                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                                    )}>{row.label.includes('%') ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
-                                    <TableCell className={cn(
-                                        "text-right font-bold",
-                                        variance > 0 && isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                                        variance < 0 && isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                                        variance > 0 && !isPositiveVarianceGood && "text-red-600 dark:text-red-400",
-                                        variance < 0 && !isPositiveVarianceGood && "text-green-600 dark:text-green-400",
-                                    )}>{formatPercentage(variancePerc)}</TableCell>
-                                </TableRow>
-                                )
-                            })}
+                            {calculatedForecastData.map((row, index) => renderRow(row, index))}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -358,7 +403,7 @@ export default function ForecastPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {formatCurrency(calculatedForecastData.find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actual)}
+                            {formatCurrency(calculatedForecastDatanpm .find(r => r.label === 'MARGINE DI CONTRIBUZIONE')?.actual)}
                         </div>
                         <p className="text-xs text-muted-foreground">Ricavi meno costi variabili diretti.</p>
                     </CardContent>
@@ -382,7 +427,7 @@ export default function ForecastPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                             {formatCurrency(calculatedForecastData.find(r => r.label === 'TOTALE COSTI PRODUTTIVI')?.actual)}
+                             {formatCurrency(calculatedForecastData.find(r => r.label === 'TOTALE COSTI PRODUTTIVI (fissi)')?.actual)}
                         </div>
                         <p className="text-xs text-muted-foreground">Costi che non variano con il volume.</p>
                     </CardContent>
