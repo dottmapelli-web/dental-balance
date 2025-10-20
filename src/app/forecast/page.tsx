@@ -31,8 +31,8 @@ type CalculatedValues = {
   actual: number;
   scostamento: number;
   percScostamento: number;
-  // Per il drill-down
-  breakdown?: Record<string, { budget: number, actual: number }>;
+  // Per il drill-down: le chiavi sono le sottocategorie
+  breakdown?: Record<string, { budget: number, actual: number }>; 
 };
 
 type MonthlyData = Record<string, CalculatedValues>;
@@ -134,16 +134,20 @@ export default function ForecastPage() {
 
     const allCategories = { ...incomeCategories, ...expenseCategories };
 
-    // Step 1: Initialize all rows and calculate 'actuals'
+    // Step 1: Initialize all rows and sub-rows, then calculate 'actuals'
     for (let i = 0; i < 12; i++) {
         for (const category in allCategories) {
             monthlyResults[i][category] = {
                 budget: budgetData[`${i}_${category}`] || 0,
-                actual: 0,
-                scostamento: 0,
-                percScostamento: 0,
+                actual: 0, scostamento: 0, percScostamento: 0,
                 breakdown: {}
             };
+            const subcategories = allCategories[category]?.subcategories || [];
+            if (subcategories.length > 0) {
+              for (const subcat of subcategories) {
+                  monthlyResults[i][category].breakdown![subcat] = { budget: 0, actual: 0 };
+              }
+            }
         }
     }
 
@@ -152,7 +156,7 @@ export default function ForecastPage() {
       if (!isValid(transactionDate)) return;
       
       const month = getMonth(transactionDate);
-      if (monthlyResults[month] && monthlyResults[month][t.category]) {
+      if (monthlyResults[month]?.[t.category]) {
           const amount = Math.abs(t.amount);
           monthlyResults[month][t.category].actual += amount;
 
@@ -197,48 +201,18 @@ export default function ForecastPage() {
             }
         }
         
-        const scostamentoRicavi = totaleRicavi.actual - totaleRicavi.budget;
-        const percScostamentoRicavi = totaleRicavi.budget !== 0 ? (scostamentoRicavi / Math.abs(totaleRicavi.budget)) * 100 : (totaleRicavi.actual > 0 ? 100 : 0);
-        monthData['totale_ricavi'] = { ...totaleRicavi, scostamento: scostamentoRicavi, percScostamento: percScostamentoRicavi };
+        monthData['totale_ricavi'] = { budget: totaleRicavi.budget, actual: totaleRicavi.actual, scostamento: 0, percScostamento: 0, breakdown: totaleRicavi.breakdown };
+        monthData['totale_costi_di_produzione'] = { budget: totaleCostiProduzione.budget, actual: totaleCostiProduzione.actual, scostamento: 0, percScostamento: 0, breakdown: totaleCostiProduzione.breakdown };
+        monthData['totale_costi_produttivi'] = { budget: totaleCostiProduttivi.budget, actual: totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: totaleCostiProduttivi.breakdown };
 
-        const scostamentoCostiProduzione = totaleCostiProduzione.actual - totaleCostiProduzione.budget;
-        const percScostamentoCostiProduzione = totaleCostiProduzione.budget !== 0 ? (scostamentoCostiProduzione / Math.abs(totaleCostiProduzione.budget)) * 100 : (totaleCostiProduzione.actual > 0 ? 100 : 0);
-        monthData['totale_costi_di_produzione'] = { ...totaleCostiProduzione, scostamento: scostamentoCostiProduzione, percScostamento: percScostamentoCostiProduzione };
-        
-        const scostamentoCostiProduttivi = totaleCostiProduttivi.actual - totaleCostiProduttivi.budget;
-        const percScostamentoCostiProduttivi = totaleCostiProduttivi.budget !== 0 ? (scostamentoCostiProduttivi / Math.abs(totaleCostiProduttivi.budget)) * 100 : (totaleCostiProduttivi.actual > 0 ? 100 : 0);
-        monthData['totale_costi_produttivi'] = { ...totaleCostiProduttivi, scostamento: scostamentoCostiProduttivi, percScostamento: percScostamentoCostiProduttivi };
-
-        const margineContribuzione = {
-            budget: totaleRicavi.budget - totaleCostiProduzione.budget,
-            actual: totaleRicavi.actual - totaleCostiProduzione.actual,
-        };
-        const scostamentoMargine = margineContribuzione.actual - margineContribuzione.budget;
-        const percScostamentoMargine = margineContribuzione.budget !== 0 ? (scostamentoMargine / Math.abs(margineContribuzione.budget)) * 100 : (margineContribuzione.actual !== 0 ? 100 : 0);
-        monthData['margine_di_contribuzione'] = { ...margineContribuzione, scostamento: scostamentoMargine, percScostamento: percScostamentoMargine, breakdown: {} };
-
-        const totaleCosti = {
-            budget: totaleCostiProduzione.budget + totaleCostiProduttivi.budget,
-            actual: totaleCostiProduzione.actual + totaleCostiProduttivi.actual,
-        };
-        const scostamentoCosti = totaleCosti.actual - totaleCosti.budget;
-        const percScostamentoCosti = totaleCosti.budget !== 0 ? (scostamentoCosti / Math.abs(totaleCosti.budget)) * 100 : (totaleCosti.actual > 0 ? 100 : 0);
-        monthData['totale_costi'] = { ...totaleCosti, scostamento: scostamentoCosti, percScostamento: percScostamentoCosti, breakdown: {} };
-        
-        const ebitda = {
-            budget: margineContribuzione.budget - totaleCostiProduttivi.budget,
-            actual: margineContribuzione.actual - totaleCostiProduttivi.actual,
-        };
-        const scostamentoEbitda = ebitda.actual - ebitda.budget;
-        const percScostamentoEbitda = ebitda.budget !== 0 ? (scostamentoEbitda / Math.abs(ebitda.budget)) * 100 : (ebitda.actual !== 0 ? 100 : 0);
-        monthData['ebitda'] = { ...ebitda, scostamento: scostamentoEbitda, percScostamento: percScostamentoEbitda, breakdown: {} };
+        monthData['margine_di_contribuzione'] = { budget: totaleRicavi.budget - totaleCostiProduzione.budget, actual: totaleRicavi.actual - totaleCostiProduzione.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
+        monthData['totale_costi'] = { budget: totaleCostiProduzione.budget + totaleCostiProduttivi.budget, actual: totaleCostiProduzione.actual + totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
+        monthData['ebitda'] = { budget: (totaleRicavi.budget - totaleCostiProduzione.budget) - totaleCostiProduttivi.budget, actual: (totaleRicavi.actual - totaleCostiProduzione.actual) - totaleCostiProduttivi.actual, scostamento: 0, percScostamento: 0, breakdown: {} };
 
         // Final pass for individual items scostamento
         Object.values(monthData).forEach(values => {
-           if (values.scostamento === 0 && (values.budget !== 0 || values.actual !== 0)) {
-               values.scostamento = values.actual - values.budget;
-               values.percScostamento = values.budget !== 0 ? (values.scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
-           }
+           values.scostamento = values.actual - values.budget;
+           values.percScostamento = values.budget !== 0 ? (values.scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
         });
     }
 
@@ -249,15 +223,32 @@ export default function ForecastPage() {
     const totals: Record<string, CalculatedValues> = {};
     if (calculatedMonthlyData.length === 0) return totals;
 
-    const keysToSum = [
+    const allMainCategories = [
         ...Object.keys(incomeCategories),
         ...Object.keys(expenseCategories),
+    ];
+    
+    const allSubCategories: Record<string, string[]> = {};
+    Object.entries(expenseCategories).forEach(([cat, data]) => {
+        allSubCategories[cat] = data.subcategories || [];
+    });
+     Object.entries(incomeCategories).forEach(([cat, data]) => {
+        allSubCategories[cat] = data.subcategories || [];
+    });
+
+    const keysToSum = [
+        ...allMainCategories,
         'totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi',
         'margine_di_contribuzione', 'totale_costi', 'ebitda'
     ];
 
     keysToSum.forEach(key => {
         totals[key] = { budget: 0, actual: 0, scostamento: 0, percScostamento: 0, breakdown: {} };
+        if (allSubCategories[key]) {
+            allSubCategories[key].forEach(subcat => {
+                totals[key].breakdown![subcat] = { budget: 0, actual: 0 };
+            });
+        }
     });
     
     calculatedMonthlyData.forEach(monthData => {
@@ -271,8 +262,13 @@ export default function ForecastPage() {
                         if (!totals[key].breakdown![breakKey]) {
                             totals[key].breakdown![breakKey] = { budget: 0, actual: 0 };
                         }
-                        totals[key].breakdown![breakKey].budget += monthData[key].breakdown![breakKey].budget;
-                        totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual;
+                        // This part is for Total rows breakdown (main categories)
+                        if (['totale_ricavi', 'totale_costi_di_produzione', 'totale_costi_produttivi'].includes(key)){
+                             totals[key].breakdown![breakKey].budget += monthData[key].breakdown![breakKey].budget;
+                             totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual;
+                        } else { // This is for main category breakdown (subcategories)
+                             totals[key].breakdown![breakKey].actual += monthData[key].breakdown![breakKey].actual;
+                        }
                     }
                 }
             }
@@ -305,19 +301,22 @@ export default function ForecastPage() {
     });
   };
 
-  const renderBreakdownRows = (breakdown: Record<string, { budget: number, actual: number }> | undefined, isPositiveGood: boolean) => {
-      if (!breakdown) return null;
+  const renderBreakdownRows = (breakdown: Record<string, { budget: number, actual: number }> | undefined, isPositiveGood: boolean, isSubcategory: boolean) => {
+      if (!breakdown || Object.keys(breakdown).length === 0) return null;
       return Object.entries(breakdown).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([key, values]) => {
           const scostamento = values.actual - values.budget;
+          // For subcategories, budget is often 0, so we just compare actual vs category budget portion
+          // The calculation here is simplified for display
           const percScostamento = values.budget !== 0 ? (scostamento / Math.abs(values.budget)) * 100 : (values.actual > 0 ? 100 : 0);
           const scostamentoClass = scostamento === 0 ? '' : (isPositiveGood ? (scostamento > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : (scostamento > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'));
+          
           return (
               <TableRow key={`break-${key}`} className="bg-muted/30 hover:bg-muted/50">
-                  <TableCell className="pl-12 font-light italic">{key}</TableCell>
-                  <TableCell>{isClient ? renderValue(values.budget) : '€0.00'}</TableCell>
+                  <TableCell className={cn("font-light", isSubcategory ? "pl-12 italic" : "pl-8")}>{key}</TableCell>
+                  <TableCell>{isClient && !isSubcategory ? renderValue(values.budget) : (isSubcategory ? "" : "€0.00")}</TableCell>
                   <TableCell>{isClient ? renderValue(values.actual) : '€0.00'}</TableCell>
-                  <TableCell className={scostamentoClass}>{isClient ? renderValue(scostamento) : '€0.00'}</TableCell>
-                  <TableCell className={scostamentoClass}>{isClient ? renderPercentage(percScostamento) : '0.00%'}</TableCell>
+                  <TableCell className={scostamentoClass}>{isClient && !isSubcategory ? renderValue(scostamento) : ""}</TableCell>
+                  <TableCell className={scostamentoClass}>{isClient && !isSubcategory ? renderPercentage(percScostamento) : ""}</TableCell>
               </TableRow>
           );
       });
@@ -326,7 +325,7 @@ export default function ForecastPage() {
   const renderTableRows = (data: MonthlyData | Record<string, CalculatedValues>, monthIndex: number | 'annual') => {
       const isAnnual = monthIndex === 'annual';
       
-      const renderRow = (key: string, label: string, values: CalculatedValues | undefined, rowClass: string, isExpandable: boolean, isPositiveGood: boolean) => {
+      const renderRow = (key: string, label: string, values: CalculatedValues | undefined, rowClass: string, isExpandable: boolean, isPositiveGood: boolean, isMainCategory: boolean = false) => {
           if (!values) return null;
           const isExpanded = expandedRows.has(key);
           const scostamentoClass = values.scostamento === 0 ? '' : (isPositiveGood ? (values.scostamento > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400') : (values.scostamento > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'));
@@ -339,7 +338,7 @@ export default function ForecastPage() {
                     {label}
                   </TableCell>
                   <TableCell>
-                      {isAnnual ? (isClient ? renderValue(values.budget) : '€0.00') : (
+                      {isAnnual || !isMainCategory ? (isClient ? renderValue(values.budget) : '€0.00') : (
                         <Input type="number" step="0.01"
                             defaultValue={values.budget.toFixed(2)}
                             onChange={(e) => handleBudgetChange(monthIndex as number, key, e.target.value)}
@@ -352,7 +351,10 @@ export default function ForecastPage() {
                   <TableCell className={scostamentoClass}>{isClient ? renderValue(values.scostamento) : '€0.00'}</TableCell>
                   <TableCell className={scostamentoClass}>{isClient ? renderPercentage(values.percScostamento) : '0.00%'}</TableCell>
               </TableRow>
-              {isExpanded && values.breakdown && renderBreakdownRows(values.breakdown, isPositiveGood)}
+              {isExpanded && values.breakdown && (isMainCategory 
+                ? renderBreakdownRows(values.breakdown, isPositiveGood, true) // Breakdown of a main category shows subcategories
+                : renderBreakdownRows(values.breakdown, isPositiveGood, false) // Breakdown of a total shows main categories
+              )}
             </React.Fragment>
           );
       };
@@ -360,18 +362,18 @@ export default function ForecastPage() {
       return (
         <>
             <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>RICAVI</TableCell></TableRow>
-            {Object.keys(incomeCategories).sort().map(cat => renderRow(cat, cat, data[cat], '', false, true))}
-            {renderRow('totale_ricavi', 'TOTALE RICAVI', data['totale_ricavi'], 'bg-muted/50 font-bold', true, true)}
+            {Object.keys(incomeCategories).sort().map(cat => renderRow(cat, cat, data[cat], '', true, true, true))}
+            {renderRow('totale_ricavi', 'TOTALE RICAVI', data['totale_ricavi'], 'bg-muted/50 font-bold', true, true, false)}
 
             <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>COSTI DI PRODUZIONE</TableCell></TableRow>
-            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType === 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', false, false))}
-            {renderRow('totale_costi_di_produzione', 'TOTALE COSTI DI PRODUZIONE', data['totale_costi_di_produzione'], 'bg-muted/50 font-bold', true, false)}
+            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType === 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', true, false, true))}
+            {renderRow('totale_costi_di_produzione', 'TOTALE COSTI DI PRODUZIONE', data['totale_costi_di_produzione'], 'bg-muted/50 font-bold', true, false, false)}
 
             {renderRow('margine_di_contribuzione', 'MARGINE DI CONTRIBUZIONE', data['margine_di_contribuzione'], 'bg-green-100 dark:bg-green-900/50 font-bold', false, true)}
             
             <TableRow className="bg-background font-semibold text-foreground hover:bg-background"><TableCell colSpan={5}>COSTI PRODUTTIVI</TableCell></TableRow>
-            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType !== 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', false, false))}
-            {renderRow('totale_costi_produttivi', 'TOTALE COSTI PRODUTTIVI', data['totale_costi_produttivi'], 'bg-muted/50 font-bold', true, false)}
+            {Object.entries(expenseCategories).filter(([,val]) => val.forecastType !== 'Costi di Produzione').sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([cat]) => renderRow(cat, cat, data[cat], '', true, false, true))}
+            {renderRow('totale_costi_produttivi', 'TOTALE COSTI PRODUTTIVI', data['totale_costi_produttivi'], 'bg-muted/50 font-bold', true, false, false)}
 
             {renderRow('totale_costi', 'TOTALE COSTI', data['totale_costi'], 'bg-yellow-100 dark:bg-yellow-900/50 font-bold', false, false)}
             {renderRow('ebitda', 'EBITDA', data['ebitda'], 'bg-green-200 dark:bg-green-800/60 font-extrabold text-lg', false, true)}
@@ -470,3 +472,5 @@ export default function ForecastPage() {
     </>
   );
 }
+
+    
