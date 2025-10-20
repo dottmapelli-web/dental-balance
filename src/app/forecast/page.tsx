@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Subcategory } from '@/contexts/category-context';
 
 
 const months = Array.from({ length: 12 }, (_, i) => format(new Date(2000, i), "MMMM", { locale: it }));
@@ -64,6 +65,7 @@ interface ForecastRow {
 }
 
 const formatCurrency = (value: number) => {
+    if (isNaN(value) || !isFinite(value)) return "€0,00";
     return `€${value.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 const formatPercentage = (value: number) => {
@@ -119,7 +121,7 @@ export default function ForecastPage() {
                     });
                 });
                 setTransactions(fetchedTransactions);
-            } catch (error: any) {
+            } catch (error: any) => {
                 console.error("Errore caricamento transazioni (Forecast):", error);
                 setTransactionsError(`Impossibile caricare le transazioni: ${error.message}`);
             } finally {
@@ -189,8 +191,10 @@ export default function ForecastPage() {
 
         Object.entries(incomeCategories).forEach(([cat, data]) => processCategory(cat, data, 'Entrata', 'RICAVI'));
         Object.entries(expenseCategories).forEach(([cat, data]) => {
-            const prefix = data.forecastType === 'Costi di Produzione' ? 'COSTI_DI_PRODUZIONE' : 'COSTI_PRODUTTIVI';
-            processCategory(cat, data, 'Uscita', prefix);
+            if (data && data.forecastType) {
+                const prefix = data.forecastType === 'Costi di Produzione' ? 'COSTI_DI_PRODUZIONE' : 'COSTI_PRODUTTIVI';
+                processCategory(cat, data, 'Uscita', prefix);
+            }
         });
 
         setBudgetData(newBudgetData);
@@ -223,6 +227,7 @@ export default function ForecastPage() {
     };
 
     const calculatedForecastData = useMemo((): ForecastRow[] => {
+        if (loadingCategories) return [];
         const year = parseInt(selectedYear);
         
         const actuals: Record<string, MonthlyValues> = {};
@@ -275,12 +280,12 @@ export default function ForecastPage() {
         // --- COSTI DI PRODUZIONE ---
         let costiProduzionePaths: string[] = [];
         tableRows.push({ label: 'COSTI DI PRODUZIONE', isMainSection: true, actualValues: [], budgetValues: [] });
-        Object.entries(expenseCategories).filter(([,data]) => data.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+        Object.entries(expenseCategories).filter(([,data]) => data && data.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
             const catPath = `COSTI_DI_PRODUZIONE.${cat}`;
             costiProduzionePaths.push(catPath);
             let subcatPathsForCat: string[] = [];
 
-            if (catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
+            if (catData && catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
                 catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
                     const subPath = `${catPath}.${sub.name}`;
                     subcatPathsForCat.push(subPath);
@@ -321,12 +326,12 @@ export default function ForecastPage() {
         // --- COSTI PRODUTTIVI ---
         let costiProduttiviPaths: string[] = [];
         tableRows.push({ label: 'COSTI PRODUTTIVI', isMainSection: true, actualValues: [], budgetValues: [] });
-        Object.entries(expenseCategories).filter(([,data]) => data.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+        Object.entries(expenseCategories).filter(([,data]) => data && data.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
             const catPath = `COSTI_PRODUTTIVI.${cat}`;
             costiProduttiviPaths.push(catPath);
             let subcatPathsForCat: string[] = [];
 
-            if (catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
+            if (catData && catData.subcategories && catData.subcategories.some(s => s.showInForecast)) {
                 catData.subcategories.filter(s => s.showInForecast).sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
                      const subPath = `${catPath}.${sub.name}`;
                      subcatPathsForCat.push(subPath);
@@ -367,7 +372,7 @@ export default function ForecastPage() {
         tableRows.push({ label: 'EBITDA', isFinancialMetric: true, isHighlighted: true, actualValues: actualEbitda, budgetValues: budgetEbitda });
 
         return tableRows;
-    }, [selectedYear, transactions, expenseCategories, incomeCategories, budgetData]);
+    }, [selectedYear, transactions, expenseCategories, incomeCategories, budgetData, loadingCategories]);
 
 
     if (isLoadingTransactions || loadingCategories) {
@@ -444,35 +449,31 @@ export default function ForecastPage() {
                         <Table className="min-w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="sticky left-0 bg-background/95 backdrop-blur-sm min-w-[250px] font-bold z-20">Voce</TableHead>
-                                    {months.map((month, monthIndex) => (
-                                        <TableHead key={month} className="text-center border-l w-80">
+                                    <TableHead rowSpan={2} className="sticky left-0 bg-background/95 backdrop-blur-sm min-w-[250px] font-bold z-20 align-bottom">Voce</TableHead>
+                                    {months.map((month) => (
+                                        <TableHead key={month} colSpan={4} className="text-center border-l">
                                             {month}
-                                            <TableRow className="text-xs font-medium text-muted-foreground">
-                                                <TableHead className="text-right w-1/4">Budget</TableHead>
-                                                <TableHead className="text-right w-1/4">Actual</TableHead>
-                                                <TableHead className="text-right w-1/4">Scost. €</TableHead>
-                                                <TableHead className="text-right w-1/4">Scost. %</TableHead>
-                                            </TableRow>
                                         </TableHead>
                                     ))}
-                                    <TableHead className="text-center sticky right-0 bg-background/95 backdrop-blur-sm border-l z-20 w-80">
+                                    <TableHead colSpan={4} className="text-center sticky right-0 bg-background/95 backdrop-blur-sm border-l z-20">
                                         Totale {selectedYear}
-                                        <TableRow className="text-xs font-medium text-muted-foreground">
-                                            <TableHead className="text-right w-1/4">Budget</TableHead>
-                                            <TableHead className="text-right w-1/4">Actual</TableHead>
-                                            <TableHead className="text-right w-1/4">Scost. €</TableHead>
-                                            <TableHead className="text-right w-1/4">Scost. %</TableHead>
-                                        </TableRow>
                                     </TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    {Array(13).fill(0).map((_, i) => (
+                                        <React.Fragment key={i}>
+                                            <TableHead className={cn("text-right font-medium text-muted-foreground w-[100px]", i===0 ? "border-l" : "")}>Budget</TableHead>
+                                            <TableHead className="text-right font-medium text-muted-foreground w-[100px]">Actual</TableHead>
+                                            <TableHead className="text-right font-medium text-muted-foreground w-[100px]">Scost. €</TableHead>
+                                            <TableHead className={cn("text-right font-medium text-muted-foreground w-[100px]", i===12 ? "sticky right-0 bg-background/95 backdrop-blur-sm z-10" : "")}>Scost. %</TableHead>
+                                        </React.Fragment>
+                                    ))}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {calculatedForecastData.map((row, rowIndex) => {
                                     const totalActual = row.actualValues.reduce((a, b) => a + b, 0);
                                     const totalBudget = row.budgetValues.reduce((a, b) => a + b, 0);
-                                    const totalVariance = totalActual - totalBudget;
-                                    const totalVariancePerc = totalBudget !== 0 ? (totalVariance / totalBudget) * 100 : 0;
                                     
                                     const isMocRow = row.label === 'MOC %';
                                     
@@ -491,8 +492,16 @@ export default function ForecastPage() {
                                         })()
                                     ) : totalBudget;
                                     const finalTotalVariance = finalTotalActual - finalTotalBudget;
-                                    const finalTotalVariancePerc = finalTotalBudget !== 0 ? (finalTotalVariance / finalTotalBudget) * 100 : 0;
+                                    const finalTotalVariancePerc = finalTotalBudget !== 0 && isFinite(finalTotalBudget) && finalTotalBudget !== null ? (finalTotalVariance / finalTotalBudget) * 100 : 0;
 
+
+                                    if (row.isMainSection) {
+                                      return (
+                                        <TableRow key={rowIndex} className="bg-muted/20 hover:bg-muted/20">
+                                          <TableCell colSpan={53} className="sticky left-0 bg-muted/20 font-extrabold text-lg pt-6 text-primary z-10">{row.label}</TableCell>
+                                        </TableRow>
+                                      );
+                                    }
 
                                     return (
                                     <TableRow key={rowIndex} className={cn(
@@ -502,7 +511,6 @@ export default function ForecastPage() {
                                         <TableCell className={cn(
                                             "sticky left-0 bg-background/95 backdrop-blur-sm font-medium z-10",
                                             row.isTotal && "font-bold",
-                                            row.isMainSection && "font-extrabold text-lg pt-6 text-primary",
                                             row.isSubcategory && "pl-8 text-muted-foreground",
                                             row.isFinancialMetric && "font-semibold"
                                         )}>
@@ -515,49 +523,41 @@ export default function ForecastPage() {
                                             const variance = actual - budget;
                                             const variancePerc = budget !== 0 ? (variance / budget) * 100 : 0;
                                             const isEditing = editingCell?.path === row.path && editingCell?.month === monthIndex;
-
-                                            if (row.isMainSection) return <TableCell key={monthIndex} colSpan={4} className="border-l"></TableCell>
                                             
                                             return(
-                                            <TableCell key={monthIndex} className="text-right font-mono border-l p-0">
-                                                <TableRow className="hover:bg-transparent">
-                                                    <TableCell className="w-1/4 p-2 text-right">
-                                                        {row.isEditable ? (
-                                                            isEditing ? (
-                                                                <Input 
-                                                                    type="text"
-                                                                    value={editingValue}
-                                                                    onChange={(e) => setEditingValue(e.target.value)}
-                                                                    onBlur={handleEditBlur}
-                                                                    onKeyDown={handleEditKeyDown}
-                                                                    onBlurCapture={() => handleBudgetChange(row.path!, monthIndex, editingValue)}
-                                                                    autoFocus
-                                                                    className="h-6 text-right p-1"
-                                                                />
-                                                            ) : (
-                                                                <div className="h-6 cursor-pointer" onClick={() => { setEditingCell({ path: row.path!, month: monthIndex }); setEditingValue(budget.toString());}}>
-                                                                    {isMocRow ? formatPercentage(budget) : formatCurrency(budget)}
-                                                                </div>
-                                                            )
-                                                        ) : ( isMocRow ? formatPercentage(budget) : formatCurrency(budget) )}
-                                                    </TableCell>
-                                                    <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(actual) : formatCurrency(actual)}</TableCell>
-                                                    <TableCell className={cn("w-1/4 p-2 text-right", variance > 0 && !isMocRow ? "text-green-600" : variance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
-                                                    <TableCell className={cn("w-1/4 p-2 text-right", variancePerc > 0 && !isMocRow ? "text-green-600" : variancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(variancePerc)}</TableCell>
-                                                </TableRow>
-                                            </TableCell>
+                                            <React.Fragment key={monthIndex}>
+                                                <TableCell className={cn("text-right font-mono p-2", monthIndex === 0 ? "border-l" : "")}>
+                                                    {row.isEditable ? (
+                                                        isEditing ? (
+                                                            <Input 
+                                                                type="text"
+                                                                value={editingValue}
+                                                                onChange={(e) => setEditingValue(e.target.value)}
+                                                                onBlur={handleEditBlur}
+                                                                onKeyDown={handleEditKeyDown}
+                                                                onBlurCapture={() => handleBudgetChange(row.path!, monthIndex, editingValue)}
+                                                                autoFocus
+                                                                className="h-6 text-right p-1"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-6 cursor-pointer" onClick={() => { setEditingCell({ path: row.path!, month: monthIndex }); setEditingValue(budget.toString());}}>
+                                                                {isMocRow ? formatPercentage(budget) : formatCurrency(budget)}
+                                                            </div>
+                                                        )
+                                                    ) : ( isMocRow ? formatPercentage(budget) : formatCurrency(budget) )}
+                                                </TableCell>
+                                                <TableCell className="font-mono text-right p-2">{isMocRow ? formatPercentage(actual) : formatCurrency(actual)}</TableCell>
+                                                <TableCell className={cn("font-mono text-right p-2", variance > 0 && !isMocRow ? "text-green-600" : variance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(variance) : formatCurrency(variance)}</TableCell>
+                                                <TableCell className={cn("font-mono text-right p-2 border-r", variancePerc > 0 && !isMocRow ? "text-green-600" : variancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(variancePerc)}</TableCell>
+                                            </React.Fragment>
                                         )})}
 
-                                        <TableCell className="text-right font-bold font-mono sticky right-0 bg-background/95 backdrop-blur-sm z-10 border-l p-0">
-                                            {row.isMainSection ? <div colSpan={4}></div> : (
-                                            <TableRow className="hover:bg-transparent font-bold">
-                                                 <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(finalTotalBudget) : formatCurrency(finalTotalBudget)}</TableCell>
-                                                 <TableCell className="w-1/4 p-2 text-right">{isMocRow ? formatPercentage(finalTotalActual) : formatCurrency(finalTotalActual)}</TableCell>
-                                                 <TableCell className={cn("w-1/4 p-2 text-right", finalTotalVariance > 0 && !isMocRow ? "text-green-600" : finalTotalVariance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(finalTotalVariance) : formatCurrency(finalTotalVariance)}</TableCell>
-                                                 <TableCell className={cn("w-1/4 p-2 text-right", finalTotalVariancePerc > 0 && !isMocRow ? "text-green-600" : finalTotalVariancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(finalTotalVariancePerc)}</TableCell>
-                                            </TableRow>
-                                            )}
-                                        </TableCell>
+                                        
+                                        <TableCell className="font-mono text-right font-bold p-2 sticky right-[300px] sm:right-[320px] bg-background/95 z-10">{isMocRow ? formatPercentage(finalTotalBudget) : formatCurrency(finalTotalBudget)}</TableCell>
+                                        <TableCell className="font-mono text-right font-bold p-2 sticky right-[200px] sm:right-[240px] bg-background/95 z-10">{isMocRow ? formatPercentage(finalTotalActual) : formatCurrency(finalTotalActual)}</TableCell>
+                                        <TableCell className={cn("font-mono text-right font-bold p-2 sticky right-[100px] sm:right-[160px] bg-background/95 z-10", finalTotalVariance > 0 && !isMocRow ? "text-green-600" : finalTotalVariance < 0 ? "text-red-600" : "")}>{isMocRow ? formatPercentage(finalTotalVariance) : formatCurrency(finalTotalVariance)}</TableCell>
+                                        <TableCell className={cn("font-mono text-right font-bold p-2 sticky right-0 bg-background/95 z-10", finalTotalVariancePerc > 0 && !isMocRow ? "text-green-600" : finalTotalVariancePerc < 0 ? "text-red-600" : "")}>{formatPercentage(finalTotalVariancePerc)}</TableCell>
+                                        
                                     </TableRow>
                                 )})}
                             </TableBody>
@@ -625,3 +625,4 @@ export default function ForecastPage() {
     );
 }
 
+    
