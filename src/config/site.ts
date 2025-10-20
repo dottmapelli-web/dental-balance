@@ -31,11 +31,6 @@ export const siteConfig: SiteConfig = {
       icon: ArrowRightLeft,
     },
     {
-        title: "Previsioni",
-        href: "/forecast",
-        icon: Sheet,
-    },
-    {
       title: "Report Mensile",
       href: "/monthly-summary",
       icon: CalendarDays,
