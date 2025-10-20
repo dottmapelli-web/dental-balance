@@ -422,7 +422,7 @@ SidebarGroup.displayName = "SidebarGroup"
 
 const SidebarGroupLabel = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> & { asChild?: boolean }
+  React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
 >(({ className, asChild, ...props }, ref) => {
   const Comp = asChild ? Slot : "div"
 
@@ -535,7 +535,7 @@ export interface SidebarMenuButtonProps
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   SidebarMenuButtonProps
->(({ className, variant, size, asChild = false, isActive, tooltip, ...props }, ref) => {
+>(({ className, variant, size, asChild, isActive, tooltip, ...props }, ref) => {
   const { isMobile, state } = useSidebar()
   const Comp = asChild ? Slot : "button"
 
@@ -737,5 +737,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
