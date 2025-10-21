@@ -212,6 +212,7 @@ interface OrphanedTransactionGroup {
     parentCategory?: string; // Only for subcategory type
     count: number;
     transactionIds: string[];
+    transactionType: 'Entrata' | 'Uscita'; // To determine which categories to show
 }
 const MigrationUtility = () => {
     const { expenseCategories, incomeCategories, loading: loadingCategories } = useCategories();
@@ -224,9 +225,6 @@ const MigrationUtility = () => {
 
     const [selectedMigrationTarget, setSelectedMigrationTarget] = React.useState<Record<string, string>>({});
 
-    const allValidExpenseCats = React.useMemo(() => Object.keys(expenseCategories), [expenseCategories]);
-    const allValidIncomeCats = React.useMemo(() => Object.keys(incomeCategories), [incomeCategories]);
-
     const findOrphanedTransactions = React.useCallback(async () => {
         if (loadingCategories) return;
         setIsLoading(true);
@@ -234,6 +232,9 @@ const MigrationUtility = () => {
         try {
             const allTransactionsSnapshot = await getDocs(collection(db, 'transactions'));
             const allTransactions: Transaction[] = allTransactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+
+            const validExpenseCats = Object.keys(expenseCategories);
+            const validIncomeCats = Object.keys(incomeCategories);
 
             const validExpenseSubcats: Record<string, string[]> = {};
             for(const cat in expenseCategories) {
@@ -248,8 +249,9 @@ const MigrationUtility = () => {
 
             allTransactions.forEach(t => {
                 const isExpense = t.type === 'Uscita';
-                const validCategories = isExpense ? allValidExpenseCats : allValidIncomeCats;
+                const validCategories = isExpense ? validExpenseCats : validIncomeCats;
                 const validSubcategories = isExpense ? validExpenseSubcats : validIncomeSubcats;
+                const transactionType = isExpense ? 'Uscita' : 'Entrata';
 
                 let isOrphan = false;
                 let orphanKey = '';
@@ -258,13 +260,13 @@ const MigrationUtility = () => {
                 if (!t.category || !validCategories.includes(t.category)) {
                     isOrphan = true;
                     orphanKey = `cat|${t.category || 'Non Categoria'}`;
-                    if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'category', name: t.category || 'Non Categoria', count: 0, transactionIds: [] };
+                    if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'category', name: t.category || 'Non Categoria', count: 0, transactionIds: [], transactionType };
                 }
                 // Check for orphaned subcategory
                 else if (t.subcategory && !(validSubcategories[t.category] || []).includes(t.subcategory)) {
                      isOrphan = true;
                      orphanKey = `sub|${t.category}|${t.subcategory}`;
-                     if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'subcategory', name: t.subcategory, parentCategory: t.category, count: 0, transactionIds: [] };
+                     if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'subcategory', name: t.subcategory, parentCategory: t.category, count: 0, transactionIds: [], transactionType };
                 }
                 
                 if(isOrphan && orphans[orphanKey]){
@@ -280,7 +282,7 @@ const MigrationUtility = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [expenseCategories, incomeCategories, loadingCategories, allValidExpenseCats, allValidIncomeCats]);
+    }, [expenseCategories, incomeCategories, loadingCategories]);
 
     React.useEffect(() => {
         findOrphanedTransactions();
@@ -348,11 +350,7 @@ const MigrationUtility = () => {
     }
     
     const getTargetOptions = (group: OrphanedTransactionGroup) => {
-        // Determine if the original group belongs to expense or income
-        const isExpenseGroup = group.type === 'category' 
-            ? allValidExpenseCats.includes(group.name) // Check if old category was an expense
-            : allValidExpenseCats.includes(group.parentCategory!); // Check if parent was an expense
-
+        const isExpenseGroup = group.transactionType === 'Uscita';
         const source = isExpenseGroup ? expenseCategories : incomeCategories;
 
         let options: { value: string; label: string }[] = [];
@@ -377,7 +375,7 @@ const MigrationUtility = () => {
                             <div className="md:col-span-1">
                                 <p className="font-semibold text-destructive">{group.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {group.count} transazioni in {group.type === 'category' ? 'categoria obsoleta' : `sottocategoria obsoleta di "${group.parentCategory}"`}
+                                    {group.count} transazioni {group.transactionType === 'Uscita' ? 'di spesa' : 'di entrata'} in {group.type === 'category' ? 'categoria obsoleta' : `sottocategoria obsoleta di "${group.parentCategory}"`}
                                 </p>
                             </div>
                              <div className="md:col-span-2 flex items-center gap-2">
@@ -396,7 +394,7 @@ const MigrationUtility = () => {
                                 </Select>
                                  <Button onClick={() => handleMigration(group)} disabled={!selectedMigrationTarget[key]}>
                                     Correggi
-                                </Button>
+                                 </Button>
                              </div>
                          </div>
                     </div>
