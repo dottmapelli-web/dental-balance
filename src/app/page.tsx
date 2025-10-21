@@ -64,16 +64,6 @@ interface DetailCardData {
   colorClasses: { bg: string; text: string; border: string; textMuted?: string; bgAlt?: string };
 }
 
-const categoryCardColors = [
-  { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-700', textMuted: 'text-purple-600 dark:text-purple-400' },
-  { bg: 'bg-green-50 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-700', textMuted: 'text-green-600 dark:text-green-400' },
-  { bg: 'bg-pink-50 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-200 dark:border-pink-700', textMuted: 'text-pink-600 dark:text-pink-400' },
-  { bg: 'bg-yellow-50 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-300', border: 'border-yellow-200 dark:border-yellow-700', textMuted: 'text-yellow-600 dark:text-yellow-400' },
-  { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-200 dark:border-red-700', textMuted: 'text-red-600 dark:text-red-400' },
-  { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-700', textMuted: 'text-blue-600 dark:text-blue-400' },
-  { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-700', textMuted: 'text-orange-600 dark:text-orange-400' },
-];
-
 // Helper function to generate available periods (similar to monthly-summary)
 const generateAvailablePeriodsForCategories = (transactions: Transaction[]) => {
   const periods = new Set<string>();
@@ -505,29 +495,6 @@ export default function DashboardPage() {
       setIsLoadingInsight(false);
     }
   }, [currentMonthSummary, toast, isLoadingTransactions]); 
-  
-  useEffect(() => {
-    if (
-      isClient && 
-      !isLoadingTransactions &&
-      !transactionsError &&
-      (currentMonthSummary.income !== 0 || currentMonthSummary.expenses !== 0) &&
-      !dashboardInsight && 
-      !isLoadingInsight && 
-      !insightError        
-    ) {
-      handleGenerateInsight();
-    }
-  }, [
-    isClient,
-    currentMonthSummary,
-    dashboardInsight,
-    isLoadingInsight,
-    insightError,
-    handleGenerateInsight,
-    isLoadingTransactions,
-    transactionsError
-  ]);
   
   const mainContentLoading = isLoadingTransactions || isLoadingBankBalance;
 
