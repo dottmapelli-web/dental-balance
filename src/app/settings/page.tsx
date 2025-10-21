@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, 'react';
 import { useCategories, type CategoryDefinition, type ForecastType, type Subcategory } from '@/contexts/category-context';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Save, X, AlertCircle, WandSparkles, MoveRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Accordion,
@@ -30,6 +30,10 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import type { Transaction } from '@/data/transactions-data';
+import { useAuth } from '@/contexts/auth-context';
 
 
 const forecastTypes: ForecastType[] = ['Costi di Produzione', 'Costi Produttivi'];
@@ -57,14 +61,14 @@ const EditableCategoryItem = ({
     onForecastTypeChange: (category: string, forecastType: ForecastType) => void;
     onSubcategoryFlagChange: (category: string, subcategory: Subcategory, checked: boolean) => void;
 }) => {
-    const [isEditingCategory, setIsEditingCategory] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState(categoryName);
+    const [isEditingCategory, setIsEditingCategory] = React.useState(false);
+    const [newCategoryName, setNewCategoryName] = React.useState(categoryName);
     
-    const [editingSub, setEditingSub] = useState<Subcategory | null>(null);
-    const [newSubName, setNewSubName] = useState('');
+    const [editingSub, setEditingSub] = React.useState<Subcategory | null>(null);
+    const [newSubName, setNewSubName] = React.useState('');
 
-    const [addingSub, setAddingSub] = useState(false);
-    const [addingSubName, setAddingSubName] = useState('');
+    const [addingSub, setAddingSub] = React.useState(false);
+    const [addingSubName, setAddingSubName] = React.useState('');
 
     const handleCategoryUpdate = () => {
         if (newCategoryName.trim() && newCategoryName.trim() !== categoryName) {
@@ -201,12 +205,209 @@ const EditableCategoryItem = ({
 };
 
 
+// ----- Migration Utility Component -----
+interface OrphanedTransactionGroup {
+    type: 'category' | 'subcategory';
+    name: string;
+    parentCategory?: string; // Only for subcategory type
+    count: number;
+    transactionIds: string[];
+}
+const MigrationUtility = () => {
+    const { expenseCategories, incomeCategories, loading: loadingCategories } = useCategories();
+    const { toast } = useToast();
+    const { incrementTransactionsVersion } = useAuth();
+    
+    const [orphanedGroups, setOrphanedGroups] = React.useState<OrphanedTransactionGroup[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const [selectedMigrationTarget, setSelectedMigrationTarget] = React.useState<Record<string, string>>({});
+
+    const allValidExpenseCats = React.useMemo(() => Object.keys(expenseCategories), [expenseCategories]);
+    const allValidIncomeCats = React.useMemo(() => Object.keys(incomeCategories), [incomeCategories]);
+
+    const findOrphanedTransactions = React.useCallback(async () => {
+        if (loadingCategories) return;
+        setIsLoading(true);
+        setError(null);
+        try {
+            const allTransactionsSnapshot = await getDocs(collection(db, 'transactions'));
+            const allTransactions: Transaction[] = allTransactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+
+            const validExpenseSubcats: Record<string, string[]> = {};
+            for(const cat in expenseCategories) {
+                validExpenseSubcats[cat] = expenseCategories[cat].subcategories.map(s => s.name);
+            }
+            const validIncomeSubcats: Record<string, string[]> = {};
+             for(const cat in incomeCategories) {
+                validIncomeSubcats[cat] = incomeCategories[cat].subcategories.map(s => s.name);
+            }
+
+            const orphans: Record<string, OrphanedTransactionGroup> = {};
+
+            allTransactions.forEach(t => {
+                const isExpense = t.type === 'Uscita';
+                const validCategories = isExpense ? allValidExpenseCats : allValidIncomeCats;
+                const validSubcategories = isExpense ? validExpenseSubcats : validIncomeSubcats;
+
+                let isOrphan = false;
+                let orphanKey = '';
+
+                // Check for orphaned category
+                if (!validCategories.includes(t.category)) {
+                    isOrphan = true;
+                    orphanKey = `cat|${t.category}`;
+                    if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'category', name: t.category, count: 0, transactionIds: [] };
+                }
+                // Check for orphaned subcategory
+                else if (t.subcategory && !(validSubcategories[t.category] || []).includes(t.subcategory)) {
+                     isOrphan = true;
+                     orphanKey = `sub|${t.category}|${t.subcategory}`;
+                     if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'subcategory', name: t.subcategory, parentCategory: t.category, count: 0, transactionIds: [] };
+                }
+                
+                if(isOrphan && orphans[orphanKey]){
+                    orphans[orphanKey].count++;
+                    orphans[orphanKey].transactionIds.push(t.id);
+                }
+            });
+            
+            setOrphanedGroups(Object.values(orphans));
+
+        } catch (e: any) {
+            setError(`Impossibile analizzare le transazioni: ${e.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [expenseCategories, incomeCategories, loadingCategories, allValidExpenseCats, allValidIncomeCats]);
+
+    React.useEffect(() => {
+        findOrphanedTransactions();
+    }, [findOrphanedTransactions]);
+
+    const handleMigration = async (group: OrphanedTransactionGroup) => {
+        const target = selectedMigrationTarget[group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`];
+        if (!target) {
+            toast({ title: 'Azione Richiesta', description: 'Per favore, seleziona una nuova categoria/sottocategoria di destinazione.', variant: 'destructive' });
+            return;
+        }
+
+        const [newCategory, newSubcategory] = target.split('__');
+        
+        setIsLoading(true);
+        try {
+            const batch = writeBatch(db);
+            group.transactionIds.forEach(id => {
+                const docRef = doc(db, 'transactions', id);
+                batch.update(docRef, {
+                    category: newCategory,
+                    subcategory: newSubcategory || ""
+                });
+            });
+            await batch.commit();
+            
+            toast({ title: 'Migrazione Completata!', description: `${group.count} transazioni sono state aggiornate con successo.` });
+            incrementTransactionsVersion(); // This will trigger a re-fetch of transactions and re-evaluation of orphans
+            findOrphanedTransactions(); // Re-run check immediately
+
+        } catch (e: any) {
+            setError(`Errore durante l'aggiornamento delle transazioni: ${e.message}`);
+            toast({ title: 'Errore di Migrazione', description: `Non è stato possibile aggiornare le transazioni: ${e.message}`, variant: 'destructive'});
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-24">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p className="ml-2 text-muted-foreground">Analisi dati in corso...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+         return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Errore</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
+    }
+
+    if (orphanedGroups.length === 0 && !isLoading) {
+         return (
+             <Alert variant="default" className="border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/30">
+                <WandSparkles className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertTitle className="text-green-800 dark:text-green-300">Dati Coerenti</AlertTitle>
+                <AlertDescription className="text-green-700 dark:text-green-500">
+                    Congratulazioni! Tutte le tue transazioni utilizzano categorie e sottocategorie valide. Non è richiesta alcuna azione.
+                </AlertDescription>
+            </Alert>
+         );
+    }
+    
+    const getTargetOptions = (group: OrphanedTransactionGroup) => {
+        const isExpense = allValidExpenseCats.includes(group.parentCategory || group.name);
+        const source = isExpense ? expenseCategories : incomeCategories;
+
+        let options: { value: string; label: string }[] = [];
+         for (const cat in source) {
+            options.push({ value: cat, label: cat });
+            if (source[cat].subcategories.length > 0) {
+                 source[cat].subcategories.forEach(sub => {
+                    options.push({ value: `${cat}__${sub.name}`, label: `  ↳ ${sub.name}` });
+                 });
+            }
+        }
+        return options;
+    }
+
+    return (
+        <div className="space-y-4">
+            {orphanedGroups.map((group, index) => {
+                const key = group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`;
+                return (
+                    <div key={key} className="p-4 border rounded-lg bg-background">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                            <div className="md:col-span-1">
+                                <p className="font-semibold text-destructive">{group.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {group.count} transazioni in {group.type === 'category' ? 'categoria obsoleta' : `sottocategoria obsoleta di "${group.parentCategory}"`}
+                                </p>
+                            </div>
+                             <div className="md:col-span-2 flex items-center gap-2">
+                                <MoveRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <Select onValueChange={value => setSelectedMigrationTarget(prev => ({ ...prev, [key]: value }))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Scegli nuova destinazione..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {getTargetOptions(group).map(opt => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                 <Button onClick={() => handleMigration(group)} disabled={!selectedMigrationTarget[key]}>
+                                    Correggi
+                                </Button>
+                             </div>
+                         </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+
+// ----- Main Settings Page Component -----
 export default function SettingsPage() {
     const { expenseCategories, incomeCategories, loading, error, updateCategories } = useCategories();
     const { toast } = useToast();
 
-    const [newCategoryName, setNewCategoryName] = useState('');
-    const [addingCategoryType, setAddingCategoryType] = useState<'uscite' | 'entrate' | null>(null);
+    const [newCategoryName, setNewCategoryName] = React.useState('');
+    const [addingCategoryType, setAddingCategoryType] = React.useState<'uscite' | 'entrate' | null>(null);
 
     const handleUpdate = async (type: 'uscite' | 'entrate', newCats: CategoryDefinition) => {
         try {
@@ -304,16 +505,29 @@ export default function SettingsPage() {
                 description="Gestisci le categorie e sottocategorie per le tue transazioni e la loro classificazione nelle previsioni."
             />
             
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <WandSparkles className="mr-2 h-5 w-5 text-primary"/>
+                        Utility di Migrazione Dati
+                    </CardTitle>
+                    <CardDescription>Correggi le transazioni che usano categorie o sottocategorie non più valide. Questa sezione appare solo se vengono trovate incongruenze.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <MigrationUtility />
+                </CardContent>
+            </Card>
+
             {loading && (
                  <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
             )}
 
-            {error && (
+            {error && !loading && (
                 <Alert variant="destructive" className="mb-6">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Errore</AlertTitle>
+                    <AlertTitle>Errore Caricamento Categorie</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
@@ -398,3 +612,5 @@ export default function SettingsPage() {
         </>
     );
 }
+
+    
