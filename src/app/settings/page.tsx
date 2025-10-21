@@ -289,7 +289,7 @@ const MigrationUtility = () => {
     }, [findOrphanedTransactions]);
 
     const handleMigration = async (group: OrphanedTransactionGroup) => {
-        const key = group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`;
+        const key = group.type === 'category' ? `cat|${group.name}` : `sub|${group.parentCategory}|${group.name}`;
         const target = selectedMigrationTarget[key];
         
         if (!target) {
@@ -312,8 +312,8 @@ const MigrationUtility = () => {
             await batch.commit();
             
             toast({ title: 'Migrazione Completata!', description: `${group.count} transazioni sono state aggiornate con successo.` });
-            incrementTransactionsVersion(); // This will trigger a re-fetch of transactions and re-evaluation of orphans
-            findOrphanedTransactions(); // Re-run check immediately
+            incrementTransactionsVersion(); 
+            findOrphanedTransactions();
 
         } catch (e: any) {
             setError(`Errore durante l'aggiornamento delle transazioni: ${e.message}`);
@@ -323,6 +323,22 @@ const MigrationUtility = () => {
         }
     };
 
+
+    const getTargetOptions = (group: OrphanedTransactionGroup) => {
+        const isExpenseGroup = group.transactionType === 'Uscita';
+        const source = isExpenseGroup ? expenseCategories : incomeCategories;
+
+        let options: { value: string; label: string }[] = [];
+         for (const cat in source) {
+            options.push({ value: cat, label: cat });
+            if (source[cat].subcategories.length > 0) {
+                 source[cat].subcategories.forEach(sub => {
+                    options.push({ value: `${cat}__${sub.name}`, label: `  ↳ ${sub.name}` });
+                 });
+            }
+        }
+        return options;
+    }
 
     if (isLoading) {
         return (
@@ -349,33 +365,24 @@ const MigrationUtility = () => {
          );
     }
     
-    const getTargetOptions = (group: OrphanedTransactionGroup) => {
-        const isExpenseGroup = group.transactionType === 'Uscita';
-        const source = isExpenseGroup ? expenseCategories : incomeCategories;
-
-        let options: { value: string; label: string }[] = [];
-         for (const cat in source) {
-            options.push({ value: cat, label: cat });
-            if (source[cat].subcategories.length > 0) {
-                 source[cat].subcategories.forEach(sub => {
-                    options.push({ value: `${cat}__${sub.name}`, label: `  ↳ ${sub.name}` });
-                 });
-            }
-        }
-        return options;
-    }
-
     return (
         <div className="space-y-4">
             {orphanedGroups.map((group) => {
-                const key = group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`;
+                const key = group.type === 'category' ? `cat|${group.name}` : `sub|${group.parentCategory}|${group.name}`;
                 return (
                     <div key={key} className="p-4 border rounded-lg bg-background">
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 items-center">
                             <div className="md:col-span-1">
-                                <p className="font-semibold text-destructive">{group.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {group.count} transazioni in {group.type === 'category' ? `categoria obsoleta` : `sottocategoria obsoleta di "${group.parentCategory}"`} ({group.transactionType})
+                                {group.type === 'category' ? (
+                                    <p className="font-semibold text-destructive">Categoria Obsoleta: "{group.name}"</p>
+                                ) : (
+                                    <>
+                                        <p className="font-semibold text-destructive">Sottocategoria Obsoleta: "{group.name}"</p>
+                                        <p className="text-xs text-muted-foreground">(della categoria: "{group.parentCategory}")</p>
+                                    </>
+                                )}
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    {group.count} transazioni ({group.transactionType})
                                 </p>
                             </div>
                              <div className="md:col-span-2 flex items-center gap-2">
@@ -616,3 +623,5 @@ export default function SettingsPage() {
         </>
     );
 }
+
+    
