@@ -63,6 +63,16 @@ interface DetailCardData {
   topItems: Array<{ name: string; amount: number }>;
   colorClasses: { bg: string; text: string; border: string; textMuted?: string; bgAlt?: string };
 }
+const categoryCardColors = [
+    { bg: "bg-sky-50 dark:bg-sky-900/30", text: "text-sky-800 dark:text-sky-200", border: "border-sky-200 dark:border-sky-800", textMuted: "text-sky-600 dark:text-sky-400" },
+    { bg: "bg-teal-50 dark:bg-teal-900/30", text: "text-teal-800 dark:text-teal-200", border: "border-teal-200 dark:border-teal-800", textMuted: "text-teal-600 dark:text-teal-400" },
+    { bg: "bg-amber-50 dark:bg-amber-900/30", text: "text-amber-800 dark:text-amber-200", border: "border-amber-200 dark:border-amber-800", textMuted: "text-amber-600 dark:text-amber-400" },
+    { bg: "bg-rose-50 dark:bg-rose-900/30", text: "text-rose-800 dark:text-rose-200", border: "border-rose-200 dark:border-rose-800", textMuted: "text-rose-600 dark:text-rose-400" },
+    { bg: "bg-indigo-50 dark:bg-indigo-900/30", text: "text-indigo-800 dark:text-indigo-200", border: "border-indigo-200 dark:border-indigo-800", textMuted: "text-indigo-600 dark:text-indigo-400" },
+    { bg: "bg-lime-50 dark:bg-lime-900/30", text: "text-lime-800 dark:text-lime-200", border: "border-lime-200 dark:border-lime-800", textMuted: "text-lime-600 dark:text-lime-400" },
+    { bg: "bg-pink-50 dark:bg-pink-900/30", text: "text-pink-800 dark:text-pink-200", border: "border-pink-200 dark:border-pink-800", textMuted: "text-pink-600 dark:text-pink-400" },
+    { bg: "bg-fuchsia-50 dark:bg-fuchsia-900/30", text: "text-fuchsia-800 dark:text-fuchsia-200", border: "border-fuchsia-200 dark:border-fuchsia-800", textMuted: "text-fuchsia-600 dark:text-fuchsia-400" },
+];
 
 // Helper function to generate available periods (similar to monthly-summary)
 const generateAvailablePeriodsForCategories = (transactions: Transaction[]) => {
@@ -484,7 +494,7 @@ export default function DashboardPage() {
         balance: currentMonthSummary.balance,
       };
       const result = await generateDashboardInsight(input);
-      setDashboardInsight(result.insightText);
+      setDashboardInsight(result.narrativeText);
     } catch (e: any) {
       console.error("Error generating dashboard insight:", e);
       const errorMessage = e.message || "Errore sconosciuto durante la generazione dell'insight.";
@@ -664,7 +674,7 @@ export default function DashboardPage() {
                 ) : (
                   <Wand2 className="mr-2 h-4 w-4" />
                 )}
-                Rigenera Insight AI
+                Genera Insight AI
               </Button>
               {isLoadingInsight && (
                 <div className="flex items-center justify-center p-4 text-muted-foreground">
@@ -693,7 +703,7 @@ export default function DashboardPage() {
                       ? "Caricamento dati transazioni in corso..."
                       : (currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0)
                           ? `Nessun dato finanziario per il mese corrente per generare un insight.`
-                          : `Insight AI non ancora disponibile. Prova a generarlo.`}
+                          : `Clicca il pulsante per generare un insight con l'AI.`}
                 </p>
               )}
             </CardContent>

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Un flusso Genkit per generare un breve insight sulla dashboard.
