@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, 'react';
+import * as React from 'react';
 import { useCategories, type CategoryDefinition, type ForecastType, type Subcategory } from '@/contexts/category-context';
 import PageHeader from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import { collection, getDocs, writeBatch, query, where, doc } from 'firebase/firestore';
 import type { Transaction } from '@/data/transactions-data';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -255,10 +255,10 @@ const MigrationUtility = () => {
                 let orphanKey = '';
 
                 // Check for orphaned category
-                if (!validCategories.includes(t.category)) {
+                if (!t.category || !validCategories.includes(t.category)) {
                     isOrphan = true;
-                    orphanKey = `cat|${t.category}`;
-                    if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'category', name: t.category, count: 0, transactionIds: [] };
+                    orphanKey = `cat|${t.category || 'Non Categoria'}`;
+                    if (!orphans[orphanKey]) orphans[orphanKey] = { type: 'category', name: t.category || 'Non Categoria', count: 0, transactionIds: [] };
                 }
                 // Check for orphaned subcategory
                 else if (t.subcategory && !(validSubcategories[t.category] || []).includes(t.subcategory)) {
@@ -287,7 +287,9 @@ const MigrationUtility = () => {
     }, [findOrphanedTransactions]);
 
     const handleMigration = async (group: OrphanedTransactionGroup) => {
-        const target = selectedMigrationTarget[group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`];
+        const key = group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`;
+        const target = selectedMigrationTarget[key];
+        
         if (!target) {
             toast({ title: 'Azione Richiesta', description: 'Per favore, seleziona una nuova categoria/sottocategoria di destinazione.', variant: 'destructive' });
             return;
@@ -346,8 +348,12 @@ const MigrationUtility = () => {
     }
     
     const getTargetOptions = (group: OrphanedTransactionGroup) => {
-        const isExpense = allValidExpenseCats.includes(group.parentCategory || group.name);
-        const source = isExpense ? expenseCategories : incomeCategories;
+        // Determine if the original group belongs to expense or income
+        const isExpenseGroup = group.type === 'category' 
+            ? allValidExpenseCats.includes(group.name) // Check if old category was an expense
+            : allValidExpenseCats.includes(group.parentCategory!); // Check if parent was an expense
+
+        const source = isExpenseGroup ? expenseCategories : incomeCategories;
 
         let options: { value: string; label: string }[] = [];
          for (const cat in source) {
@@ -363,7 +369,7 @@ const MigrationUtility = () => {
 
     return (
         <div className="space-y-4">
-            {orphanedGroups.map((group, index) => {
+            {orphanedGroups.map((group) => {
                 const key = group.type === 'category' ? group.name : `${group.parentCategory}__${group.name}`;
                 return (
                     <div key={key} className="p-4 border rounded-lg bg-background">
