@@ -375,7 +375,7 @@ const MigrationUtility = () => {
                             <div className="md:col-span-1">
                                 <p className="font-semibold text-destructive">{group.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {group.count} transazioni {group.transactionType === 'Uscita' ? 'di spesa' : 'di entrata'} in {group.type === 'category' ? 'categoria obsoleta' : `sottocategoria obsoleta di "${group.parentCategory}"`}
+                                    {group.count} transazioni in {group.type === 'category' ? `categoria obsoleta` : `sottocategoria obsoleta di "${group.parentCategory}"`} ({group.transactionType})
                                 </p>
                             </div>
                              <div className="md:col-span-2 flex items-center gap-2">
@@ -616,5 +616,3 @@ export default function SettingsPage() {
         </>
     );
 }
-
-    
