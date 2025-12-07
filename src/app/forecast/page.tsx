@@ -207,113 +207,142 @@ export default function ForecastPage() {
     
     const calculatedForecastData = useMemo((): ForecastRowData[] => {
         if (loadingCategories || isLoadingTransactions) return [];
-
+    
         const year = parseInt(selectedYear);
         const month = selectedPeriod !== 'total' ? parseInt(selectedPeriod) : -1;
-        
-        const getActualValue = (filterFn: (t: Transaction) => boolean): number => {
-            return transactions
-                .filter(t => {
-                    const date = parseISO(t.date);
-                    const isInYear = isValid(date) && getYear(date) === year;
-                    if (!isInYear) return false;
-                    const isInMonth = month === -1 ? true : getMonth(date) === month;
-                    return isInMonth && t.status === 'Completato' && filterFn(t);
-                })
-                .reduce((s, t) => s + Math.abs(t.amount), 0);
+    
+        const getFilteredTransactions = (filterFn: (t: Transaction) => boolean): Transaction[] => {
+            return transactions.filter(t => {
+                const date = parseISO(t.date);
+                const isInYear = isValid(date) && getYear(date) === year;
+                if (!isInYear) return false;
+                const isInMonth = month === -1 ? true : getMonth(date) === month;
+                return isInMonth && t.status === 'Completato' && filterFn(t);
+            });
         };
-
-
+    
+        const aggregateData = (
+            sourceCategories: Record<string, any>, 
+            transactionType: 'Entrata' | 'Uscita',
+            sectionTitle: string
+        ): { rows: ForecastRowData[], totalActual: number, totalBudget: number } => {
+            
+            let sectionRows: ForecastRowData[] = [];
+            let sectionTotalActual = 0;
+            let sectionTotalBudget = 0;
+    
+            Object.entries(sourceCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+                let subRows: ForecastRowData[] = [];
+                let categoryTotalActual = 0;
+                let categoryTotalBudget = 0;
+    
+                const subcategories = catData?.subcategories || [];
+                
+                // Add an "Uncategorized" sub-row if there are transactions with no subcategory
+                const uncategorizedTransactions = getFilteredTransactions(t => t.type === transactionType && t.category === cat && !t.subcategory);
+                if (uncategorizedTransactions.length > 0) {
+                     const subActual = uncategorizedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                     const subBudget = getBudgetValue(`${cat}__`, month);
+                     subRows.push({ label: "Non specificato", actual: subActual, budget: subBudget, isSubcategory: true });
+                     categoryTotalActual += subActual;
+                     categoryTotalBudget += subBudget;
+                }
+    
+                if (subcategories.length > 0) {
+                    subcategories.sort((a: any, b: any) => a.name.localeCompare(b.name)).forEach((sub: any) => {
+                        const subActual = getFilteredTransactions(t => t.type === transactionType && t.category === cat && t.subcategory === sub.name)
+                                          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                        const subBudget = getBudgetValue(`${cat}__${sub.name}`, month);
+                        
+                        if (subActual > 0 || subBudget > 0) { // Only add if there is data
+                            subRows.push({ label: sub.name, actual: subActual, budget: subBudget, isSubcategory: true });
+                            categoryTotalActual += subActual;
+                            categoryTotalBudget += subBudget;
+                        }
+                    });
+                }
+                
+                // The main category row now SUMS its sub-rows instead of doing its own calculation.
+                // const catActual = getFilteredTransactions(t => t.type === transactionType && t.category === cat).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                const catBudget = getBudgetValue(cat, month); // This budget might be a manual override for the whole cat
+                
+                // Use the sum of sub-rows if they exist, otherwise the category-level calculation.
+                const finalCatActual = subRows.length > 0 ? categoryTotalActual : getFilteredTransactions(t => t.type === transactionType && t.category === cat).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                const finalCatBudget = subRows.length > 0 ? categoryTotalBudget : catBudget;
+                
+                if (finalCatActual > 0 || finalCatBudget > 0) {
+                    sectionRows.push({ label: cat, actual: finalCatActual, budget: finalCatBudget, isExpandable: subRows.length > 0, subRows });
+                    sectionTotalActual += finalCatActual;
+                    sectionTotalBudget += finalCatBudget;
+                }
+            });
+    
+            return { rows: sectionRows, totalActual: sectionTotalActual, totalBudget: sectionTotalBudget };
+        };
+    
         let tableRows: ForecastRowData[] = [];
         
         // --- RICAVI ---
-        tableRows.push({ label: 'RICAVI', isMainSection: true, actual: 0, budget: 0 });
-        let totalRicaviActual = 0;
-        let totalRicaviBudget = 0;
-
-        Object.keys(incomeCategories).sort().forEach(cat => {
-            const actual = getActualValue(t => t.type === 'Entrata' && t.category === cat);
-            const budget = getBudgetValue(cat, month);
-            totalRicaviActual += actual;
-            totalRicaviBudget += budget;
-            tableRows.push({ label: cat, actual, budget });
-        });
-        tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, actual: totalRicaviActual, budget: totalRicaviBudget, isHighlighted: true });
+        const ricaviAggregation = aggregateData(incomeCategories, 'Entrata', 'RICAVI');
+        if (ricaviAggregation.totalActual > 0 || ricaviAggregation.totalBudget > 0) {
+            tableRows.push({ label: 'RICAVI', isMainSection: true, actual: 0, budget: 0 });
+            tableRows.push(...ricaviAggregation.rows);
+            tableRows.push({ label: 'TOTALE RICAVI', isTotal: true, actual: ricaviAggregation.totalActual, budget: ricaviAggregation.totalBudget, isHighlighted: true });
+        }
+        const totalRicaviActual = ricaviAggregation.totalActual;
+        const totalRicaviBudget = ricaviAggregation.totalBudget;
 
         // --- COSTI DI PRODUZIONE (variabili) ---
-        tableRows.push({ label: 'COSTI DI PRODUZIONE (variabili)', isMainSection: true, actual: 0, budget: 0 });
-        let totalCostiProduzioneActual = 0;
-        let totalCostiProduzioneBudget = 0;
-
-        Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi di Produzione').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
-            const catActual = getActualValue(t => t.type === 'Uscita' && t.category === cat);
-            const catBudget = getBudgetValue(cat, month);
-            totalCostiProduzioneActual += catActual;
-            totalCostiProduzioneBudget += catBudget;
-
-            let subRows: ForecastRowData[] = [];
-            if (catData?.subcategories?.length > 0) {
-                catData.subcategories.sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
-                     const subActual = getActualValue(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name);
-                     const subBudget = getBudgetValue(`${cat}__${sub.name}`, month);
-                     subRows.push({ label: sub.name, actual: subActual, budget: subBudget, isSubcategory: true });
-                });
-            }
-
-            tableRows.push({ label: cat, actual: catActual, budget: catBudget, isExpandable: subRows.length > 0, subRows });
-        });
-        tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE (variabili)', isTotal: true, actual: totalCostiProduzioneActual, budget: totalCostiProduzioneBudget, isHighlighted: true });
-
+        const costiProduzioneCategories = Object.fromEntries(Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi di Produzione'));
+        const costiProduzioneAggregation = aggregateData(costiProduzioneCategories, 'Uscita', 'COSTI DI PRODUZIONE (variabili)');
+        if(costiProduzioneAggregation.totalActual > 0 || costiProduzioneAggregation.totalBudget > 0) {
+            tableRows.push({ label: 'COSTI DI PRODUZIONE (variabili)', isMainSection: true, actual: 0, budget: 0 });
+            tableRows.push(...costiProduzioneAggregation.rows);
+            tableRows.push({ label: 'TOTALI COSTI DI PRODUZIONE (variabili)', isTotal: true, actual: costiProduzioneAggregation.totalActual, budget: costiProduzioneAggregation.totalBudget, isHighlighted: true });
+        }
+        const totalCostiProduzioneActual = costiProduzioneAggregation.totalActual;
+        const totalCostiProduzioneBudget = costiProduzioneAggregation.totalBudget;
 
         // --- MARGINE ---
         const margineActual = totalRicaviActual - totalCostiProduzioneActual;
         const margineBudget = totalRicaviBudget - totalCostiProduzioneBudget;
         const mocActual = totalRicaviActual > 0 ? (margineActual / totalRicaviActual) * 100 : 0;
         const mocBudget = totalRicaviBudget > 0 ? (margineBudget / totalRicaviBudget) * 100 : 0;
-        tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: margineBudget, isHighlighted: true });
-        tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: mocBudget });
-
-        // --- COSTI PRODUTTIVI (fissi) ---
-        tableRows.push({ label: 'COSTI PRODUTTIVI (fissi)', isMainSection: true, actual: 0, budget: 0 });
-        let totalCostiProduttiviActual = 0;
-        let totalCostiProduttiviBudget = 0;
-        Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi Produttivi').sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
-            const catActual = getActualValue(t => t.type === 'Uscita' && t.category === cat);
-            const catBudget = getBudgetValue(cat, month);
-            totalCostiProduttiviActual += catActual;
-            totalCostiProduttiviBudget += catBudget;
-            
-            let subRows: ForecastRowData[] = [];
-            if (catData?.subcategories?.length > 0) {
-                catData.subcategories.sort((a,b) => a.name.localeCompare(b.name)).forEach(sub => {
-                    const subActual = getActualValue(t => t.type === 'Uscita' && t.category === cat && t.subcategory === sub.name);
-                    const subBudget = getBudgetValue(`${cat}__${sub.name}`, month);
-                    subRows.push({ label: sub.name, actual: subActual, budget: subBudget, isSubcategory: true });
-                });
-            }
-
-            tableRows.push({ label: cat, actual: catActual, budget: catBudget, isExpandable: subRows.length > 0, subRows });
-        });
-        tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI (fissi)', isTotal: true, actual: totalCostiProduttiviActual, budget: totalCostiProduttiviBudget, isHighlighted: true });
-
-
-        // --- FINAL METRICS ---
-        const bepActual = mocActual > 0 ? totalCostiProduttiviActual / (mocActual / 100) : 0;
-        const bepBudget = mocBudget > 0 ? totalCostiProduttiviBudget / (mocBudget / 100) : 0;
-
-        const totalCostiActual = totalCostiProduzioneActual + totalCostiProduttiviActual;
-        const totalCostiBudget = totalCostiProduzioneBudget + totalCostiProduttiviBudget;
+        if (margineActual !== 0 || margineBudget !== 0 || totalRicaviActual !== 0 || totalRicaviBudget !== 0){
+            tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: margineBudget, isHighlighted: true });
+            tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: mocBudget });
+        }
         
-        const ebitdaActual = margineActual - totalCostiProduttiviActual;
-        const ebitdaBudget = margineBudget - totalCostiProduttiviBudget;
-
-        tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, actual: bepActual, budget: bepBudget });
-        tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: totalCostiBudget, isHighlighted: true });
-        tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: ebitdaBudget, isHighlighted: true });
-
+        // --- COSTI PRODUTTIVI (fissi) ---
+        const costiProduttiviCategories = Object.fromEntries(Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi Produttivi'));
+        const costiProduttiviAggregation = aggregateData(costiProduttiviCategories, 'Uscita', 'COSTI PRODUTTIVI (fissi)');
+        if(costiProduttiviAggregation.totalActual > 0 || costiProduttiviAggregation.totalBudget > 0){
+            tableRows.push({ label: 'COSTI PRODUTTIVI (fissi)', isMainSection: true, actual: 0, budget: 0 });
+            tableRows.push(...costiProduttiviAggregation.rows);
+            tableRows.push({ label: 'TOTALE COSTI PRODUTTIVI (fissi)', isTotal: true, actual: costiProduttiviAggregation.totalActual, budget: costiProduttiviAggregation.totalBudget, isHighlighted: true });
+        }
+        const totalCostiProduttiviActual = costiProduttiviAggregation.totalActual;
+        const totalCostiProduttiviBudget = costiProduttiviAggregation.totalBudget;
+        
+        // --- FINAL METRICS ---
+        if (totalCostiProduttiviActual > 0 || totalCostiProduttiviBudget > 0 || margineActual > 0 || margineBudget > 0) {
+            const bepActual = mocActual > 0 ? totalCostiProduttiviActual / (mocActual / 100) : 0;
+            const bepBudget = mocBudget > 0 ? totalCostiProduttiviBudget / (mocBudget / 100) : 0;
+    
+            const totalCostiActual = totalCostiProduzioneActual + totalCostiProduttiviActual;
+            const totalCostiBudget = totalCostiProduzioneBudget + totalCostiProduttiviBudget;
+            
+            const ebitdaActual = margineActual - totalCostiProduttiviActual;
+            const ebitdaBudget = margineBudget - totalCostiProduttiviBudget;
+    
+            tableRows.push({ label: 'BEP (Break Even Point)', isFinancialMetric: true, actual: bepActual, budget: bepBudget });
+            tableRows.push({ label: 'TOTALE COSTI', isFinancialMetric: true, actual: totalCostiActual, budget: totalCostiBudget, isHighlighted: true });
+            tableRows.push({ label: 'EBITDA', isFinancialMetric: true, actual: ebitdaActual, budget: ebitdaBudget, isHighlighted: true });
+        }
         return tableRows;
-
+    
     }, [selectedYear, selectedPeriod, transactions, expenseCategories, incomeCategories, loadingCategories, isLoadingTransactions, budgetData]);
+
 
     if (isLoadingTransactions || loadingCategories) {
         return (
@@ -338,8 +367,14 @@ export default function ForecastPage() {
 
     const renderRow = (row: ForecastRowData, index: number) => {
         if (row.isMainSection && !calculatedForecastData.slice(index + 1).some(r => !r.isMainSection && r.actual > 0)) {
-            return null; // Don't render empty main sections
+            // Check if the section is empty
+            const nextMainSectionIndex = calculatedForecastData.findIndex((r, i) => i > index && r.isMainSection);
+            const sectionRows = calculatedForecastData.slice(index + 1, nextMainSectionIndex > -1 ? nextMainSectionIndex : calculatedForecastData.length);
+            if (sectionRows.every(r => r.actual === 0 && r.budget === 0 && !r.isFinancialMetric && !r.isTotal)) {
+                 return null; // Don't render empty main sections
+            }
         }
+
 
         if (row.isMainSection) {
             return (
@@ -385,8 +420,9 @@ export default function ForecastPage() {
                     </TableCell>
                     <TableCell 
                         className="text-right"
-                        onClick={() => {
+                        onClick={(e) => {
                             if (!row.isFinancialMetric && !row.isTotal && currentPeriodIndex !== -1) {
+                                e.stopPropagation();
                                 setEditingCell({ label: row.isSubcategory ? `${calculatedForecastData.find(r => r.subRows?.some(sr => sr.label === row.label))?.label}__${row.label}` : row.label, period: currentPeriodIndex });
                                 setEditingValue(row.budget.toString());
                             }
@@ -401,6 +437,7 @@ export default function ForecastPage() {
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEdit(); }}
                                 autoFocus
                                 className="h-8 text-right"
+                                onClick={(e) => e.stopPropagation()}
                             />
                         ) : (
                             formatCurrency(row.budget)
