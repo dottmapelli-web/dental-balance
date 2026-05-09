@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       '6000-firebase-studio-1748943657178.cluster-3gc7bglotjgwuxlqpiut7yyqt4.cloudworkstations.dev',
     ],
   },
+  serverExternalPackages: ['genkit', '@genkit-ai/googleai', 'handlebars', '@opentelemetry/sdk-node'],
   typescript: {
     ignoreBuildErrors: true,
   },

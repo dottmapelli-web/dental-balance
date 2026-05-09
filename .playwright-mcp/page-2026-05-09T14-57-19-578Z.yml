@@ -1,0 +1,89 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Dental Balance" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: Dental Balance
+        - navigation [ref=e10]:
+          - link "Dashboard" [ref=e11] [cursor=pointer]:
+            - /url: /
+          - link "Transazioni" [ref=e12] [cursor=pointer]:
+            - /url: /transactions
+          - link "Previsioni" [ref=e13] [cursor=pointer]:
+            - /url: /forecast
+          - link "Report Mensile" [ref=e14] [cursor=pointer]:
+            - /url: /monthly-summary
+          - link "Report Annuale" [ref=e15] [cursor=pointer]:
+            - /url: /annual-summary
+          - link "Budget & Obiettivi" [ref=e16] [cursor=pointer]:
+            - /url: /budget-objectives
+          - link "Impostazioni" [ref=e17] [cursor=pointer]:
+            - /url: /settings
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - button [ref=e20] [cursor=pointer]:
+              - img
+            - button [ref=e21] [cursor=pointer]:
+              - img
+          - button [ref=e22] [cursor=pointer]:
+            - img
+          - button [ref=e23] [cursor=pointer]:
+            - img
+          - button "AD" [ref=e25] [cursor=pointer]:
+            - generic [ref=e27]: AD
+    - main [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - heading "Budget & Obiettivi" [level=1] [ref=e47]
+            - paragraph [ref=e48]: Imposta e monitora i budget di spesa e gli obiettivi finanziari dello studio.
+          - generic [ref=e50]:
+            - button "Suggerimenti AI" [ref=e51] [cursor=pointer]:
+              - img
+              - text: Suggerimenti AI
+            - button "Nuovo Budget/Obiettivo" [ref=e52] [cursor=pointer]:
+              - img
+              - text: Nuovo Budget/Obiettivo
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: Monitoraggio Budget
+              - generic [ref=e57]: Visualizza lo stato dei budget impostati (dati da Firestore).
+            - table [ref=e60]:
+              - rowgroup [ref=e61]:
+                - row "Categoria Budget Speso (Mese Corr.) Progresso Periodo Azioni" [ref=e62]:
+                  - columnheader "Categoria" [ref=e63]
+                  - columnheader "Budget" [ref=e64]
+                  - columnheader "Speso (Mese Corr.)" [ref=e65]
+                  - columnheader "Progresso" [ref=e66]
+                  - columnheader "Periodo" [ref=e67]
+                  - columnheader "Azioni" [ref=e68]
+              - rowgroup [ref=e69]:
+                - row "Spesa Studio €1000,00 €0,00 0% Mensile Modifica Budget Elimina Budget" [ref=e70]:
+                  - cell "Spesa Studio" [ref=e71]
+                  - cell "€1000,00" [ref=e72]
+                  - cell "€0,00" [ref=e73]
+                  - cell "0%" [ref=e74]:
+                    - progressbar "0% speso" [ref=e75]
+                    - generic [ref=e77]: 0%
+                  - cell "Mensile" [ref=e78]:
+                    - generic [ref=e79]: Mensile
+                  - cell "Modifica Budget Elimina Budget" [ref=e80]:
+                    - button "Modifica Budget" [ref=e81] [cursor=pointer]:
+                      - img
+                      - generic [ref=e82]: Modifica Budget
+                    - button "Elimina Budget" [ref=e83] [cursor=pointer]:
+                      - img
+                      - generic [ref=e84]: Elimina Budget
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - generic [ref=e87]: Obiettivi Finanziari
+              - generic [ref=e88]: Traccia il progresso verso gli obiettivi chiave (dati da Firestore).
+            - paragraph [ref=e90]: Nessun obiettivo finanziario impostato in Firestore.
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]

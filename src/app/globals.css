@@ -1,107 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-inter), sans-serif; /* Fallback to sans-serif if Inter is not loaded */
-}
-
 @layer base {
   :root {
-    --background: 208 100% 97%; /* Very light blue (AliceBlue #F0F8FF) */
-    --foreground: 220 15% 25%; /* Dark Cool Gray */
-
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 220 15% 25%; /* Dark Cool Gray */
-
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 220 15% 25%; /* Dark Cool Gray */
-
-    --primary: 203 59% 82%; /* Light, desaturated blue (#A7D1EA) */
-    --primary-foreground: 220 15% 25%; /* Dark Cool Gray for contrast on light primary */
-
-    --secondary: 210 30% 90%; /* Lighter Cool Gray */
-    --secondary-foreground: 220 30% 25%; /* Darker Cool Gray */
-
-    --muted: 210 30% 94%; /* Light Cool Gray for subtle backgrounds/text */
-    --muted-foreground: 210 30% 50%; /* Grayish Cool, less prominent text */
-
-    --accent: 240 100% 25%; /* Navy blue (#000080) */
-    --accent-foreground: 0 0% 100%; /* White for contrast on navy */
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 210 20% 88%; /* Light Gray */
-    --input: 210 20% 92%; /* Slightly darker light gray for inputs */
-    --ring: 203 59% 70%; /* Adjusted ring color based on new primary */
+    --background: 45 30% 98%; /* Warm off-white background */
+    --foreground: 222 47% 11%;
     
-    --radius: 0.5rem;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 222 47% 11%; /* Dark accent from the image */
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 45 100% 70%; /* Yellow/Gold highlight */
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --accent: 45 100% 70%;
+    --accent-foreground: 222 47% 11%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+    
+    --radius: 2rem;
 
-    /* Chart Colors - Vivid Pastel Palette (Kept as is, can be adjusted if needed) */
-    --chart-1: 145 60% 68%;   /* Vivid Pastel Green (Income) */
-    --chart-2: 0 75% 72%;    /* Vivid Pastel Red/Pink (Expenses) */
-    --chart-3: 200 75% 70%;   /* Vivid Pastel Blue (Profit/Accent) */
-    --chart-4: 260 70% 75%;   /* Vivid Pastel Purple Accent */
-    --chart-5: 30 80% 72%;   /* Vivid Pastel Orange/Peach Accent */
+    /* Custom Design Tokens */
+    --warm-glow: rgba(255, 225, 120, 0.15);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --dark-pill: #1D1D1D;
 
-    /* Sidebar specific colors (light theme example) */
-    --sidebar-background: 208 80% 96%; /* Slightly darker than main background, more blueish */
-    --sidebar-foreground: 220 15% 30%; /* Dark grey for text */
-    --sidebar-border: 208 50% 88%; /* Softer blue-grey border */
-    --sidebar-primary: 203 59% 82%; /* New Primary for active item background */
-    --sidebar-primary-foreground: 220 15% 25%; /* Dark text for new light primary background */
-    --sidebar-accent: 203 59% 90%; /* Very light version of primary for hover background */
-    --sidebar-accent-foreground: 203 59% 40%; /* Darker blue for text on hover */
-    --sidebar-ring: 203 59% 70%; /* Adjusted ring for sidebar */
+    /* Recharts chart palette — income green / expenses rose / profit blue / amber / violet */
+    --chart-1: 160 84% 39%;
+    --chart-2: 350 95% 60%;
+    --chart-3: 217 91% 60%;
+    --chart-4: 38 93% 50%;
+    --chart-5: 263 69% 64%;
   }
 
   .dark {
-    --background: 220 25% 12%; /* Darker Blue-Gray */
-    --foreground: 210 30% 90%; /* Lighter Gray for text */
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 6%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11.2%;
+    
+    --secondary: 45 100% 70%;
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 45 100% 70%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 45 100% 70%;
 
-    --card: 220 25% 15%; /* Slightly lighter than background */
-    --card-foreground: 210 30% 90%;
+    --warm-glow: rgba(255, 225, 120, 0.05);
+    --glass-bg: rgba(0, 0, 0, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.1);
 
-    --popover: 220 25% 15%;
-    --popover-foreground: 210 30% 90%;
-
-    --primary: 203 59% 55%; /* Dark mode version of new primary */
-    --primary-foreground: 0 0% 98%; /* Almost white */
-
-    --secondary: 220 20% 25%; /* Darker Muted Blue-Gray */
-    --secondary-foreground: 210 30% 85%;
-
-    --muted: 220 20% 20%;
-    --muted-foreground: 210 30% 65%;
-
-    --accent: 240 80% 60%; /* Dark mode version of new accent (brighter navy) */
-    --accent-foreground: 0 0% 98%; /* Almost white */
-
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 20% 30%;
-    --input: 220 20% 35%;
-    --ring: 203 59% 45%; /* Adjusted ring for dark mode */
-
-    /* Chart Colors - Dark Mode Vivid Pastel Palette (Kept as is) */
-    --chart-1: 145 55% 62%; /* Dark Vivid Pastel Green */
-    --chart-2: 0 65% 68%;  /* Dark Vivid Pastel Red/Pink */
-    --chart-3: 200 65% 65%; /* Dark Vivid Pastel Blue */
-    --chart-4: 260 60% 72%; /* Dark Vivid Pastel Purple */
-    --chart-5: 30 70% 70%;  /* Dark Vivid Pastel Orange/Peach */
-
-    /* Sidebar specific colors (dark theme example) */
-    --sidebar-background: 220 20% 15%; /* Darker than main dark background */
-    --sidebar-foreground: 210 30% 85%; /* Light grey text */
-    --sidebar-border: 220 15% 28%; /* Dark border */
-    --sidebar-primary: 203 59% 55%; /* New Dark Primary for active item background */
-    --sidebar-primary-foreground: 0 0% 98%; /* Almost white text for new dark primary background */
-    --sidebar-accent: 203 59% 25%; /* Darker version of new dark primary for hover background */
-    --sidebar-accent-foreground: 203 59% 75%; /* Lighter blue for text on dark hover */
-    --sidebar-ring: 203 59% 45%; /* Adjusted ring for dark sidebar */
+    --chart-1: 160 60% 50%;
+    --chart-2: 350 80% 65%;
+    --chart-3: 217 80% 68%;
+    --chart-4: 38 85% 60%;
+    --chart-5: 263 60% 72%;
   }
 }
 
@@ -111,72 +97,124 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1,"calt" 1; /* Enable common ligatures */
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-image: 
+      radial-gradient(circle at 100% 0%, var(--warm-glow) 0%, transparent 40%),
+      radial-gradient(circle at 0% 100%, var(--warm-glow) 0%, transparent 30%);
+    background-attachment: fixed;
   }
 }
 
-@media print {
-  body {
-    background-color: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact; /* For Chrome, Safari */
-    print-color-adjust: exact; /* Standard */
+@layer components {
+  .glass-card {
+    @apply bg-white/60 dark:bg-black/40 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.04)];
   }
-  .print-hidden {
-    display: none !important;
-  }
-  header, aside, .app-shell-header, .sidebar-provider, .sidebar, .sidebar-inset > header { /* Specific selectors for your layout might be needed */
-    display: none !important;
-  }
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  #monthly-report-printable-area, #annual-report-printable-area {
-    width: 100%;
-    margin: 0;
-    padding: 1cm; /* Add some padding for print */
-    box-shadow: none !important;
-    border: none !important;
-  }
-  .card { /* Ensure cards don't have excessive shadows or borders in print */
-    box-shadow: none !important;
-    border: 1px solid #ccc !important; /* Light border for cards */
-  }
-  .recharts-responsive-container, .recharts-wrapper { /* Ensure charts take full width */
-    width: 100% !important;
-    height: auto !important; /* Or a fixed height suitable for print */
-  }
-  /* Force backgrounds and colors for charts if they don't print by default */
-  .recharts-legend-item-text, .recharts-text, .recharts-label, .recharts-cartesian-axis-tick-value {
-    fill: black !important; /* Ensure text is black */
-  }
-  .recharts-line-stroke, .recharts-bar-rectangle {
-    stroke-width: 1.5px !important; /* Make lines a bit thicker for print */
-  }
-   /* Override chart colors for print if needed, or ensure they use `print-color-adjust: exact` */
-  :root { /* Re-declare chart colors in print context if they are not showing up */
-    --chart-1-print: var(--chart-1); 
-    --chart-2-print: var(--chart-2);
-    --chart-3-print: var(--chart-3);
-  }
-  .recharts-line path[name="Entrate"] { stroke: var(--chart-1-print) !important; }
-  .recharts-line path[name="Uscite"] { stroke: var(--chart-2-print) !important; }
-  .recharts-line path[name="Saldo Mensile"] { stroke: var(--chart-3-print) !important; }
-  .recharts-line path[name="Profitto Netto Mensile"] { stroke: var(--chart-3-print) !important; }
 
-  .recharts-bar[name="Entrate Totali Annuali"] rect, .recharts-bar[name="Entrate Mensili"] rect { fill: var(--chart-1-print) !important; }
-  .recharts-bar[name="Uscite Totali Annuali"] rect, .recharts-bar[name="Uscite Mensili"] rect { fill: var(--chart-2-print) !important; }
-
-  .recharts-legend-item-icon[fill="var(--color-income)"] { fill: var(--chart-1-print) !important; }
-  .recharts-legend-item-icon[fill="var(--color-expenses)"] { fill: var(--chart-2-print) !important; }
-  .recharts-legend-item-icon[fill="var(--color-balance)"] { fill: var(--chart-3-print) !important; }
-  .recharts-legend-item-icon[fill="var(--color-profit)"] { fill: var(--chart-3-print) !important; }
-  .recharts-legend-item-icon[fill="var(--color-totalIncome)"] { fill: var(--chart-1-print) !important; }
-  .recharts-legend-item-icon[fill="var(--color-totalExpenses)"] { fill: var(--chart-2-print) !important; }
-  
-  @page {
-    size: A4 portrait;
-    margin: 1cm; /* Adjust margins as needed */
+  .glass-nav {
+    @apply bg-white/40 dark:bg-black/20 backdrop-blur-md border border-white/60 dark:border-white/5;
   }
+
+  .premium-pill {
+    @apply rounded-full px-6 py-2 transition-all duration-300;
+  }
+
+  .active-pill {
+    @apply bg-[#1D1D1D] text-white dark:bg-white dark:text-black shadow-lg;
+  }
+
+  .bento-grid {
+    @apply grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-12;
+  }
+
+  .bento-item {
+    @apply rounded-[2rem] p-6 glass-card flex flex-col;
+  }
+
+  .bento-col-4 {
+    @apply lg:col-span-4;
+  }
+
+  .bento-col-5 {
+    @apply lg:col-span-5;
+  }
+
+  .bento-col-7 {
+    @apply lg:col-span-7;
+  }
+
+  .bento-col-8 {
+    @apply lg:col-span-8;
+  }
+
+  .bento-col-12 {
+    @apply lg:col-span-12;
+  }
+
+  .bento-col-md-full {
+    @apply md:col-span-2 lg:col-span-4;
+  }
+
+  .card-dark {
+    @apply bg-[#1D1D1D] text-white border-transparent shadow-xl;
+  }
+
+  .card-yellow {
+    @apply bg-[#FFD747] text-[#1D1D1D] border-transparent;
+  }
+
+  .kpi-number {
+    @apply text-5xl font-bold tracking-tight;
+  }
+
+  .kpi-label {
+    @apply text-[10px] uppercase tracking-widest font-semibold opacity-60;
+  }
+
+  .btn-modern {
+    @apply rounded-full px-6 py-2.5 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2;
+  }
+
+  .btn-primary-modern {
+    @apply bg-[#1D1D1D] text-white hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-200 shadow-sm;
+  }
+
+  .btn-secondary-modern {
+    @apply bg-white border border-gray-200 text-black hover:bg-gray-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white dark:hover:bg-zinc-800;
+  }
+
+  .btn-accent-modern {
+    @apply bg-[#FFD747] text-black hover:bg-[#FFC700] shadow-md shadow-yellow-200/50 dark:shadow-none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/30;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; scale: 0.95; }
+  to { opacity: 1; scale: 1; }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

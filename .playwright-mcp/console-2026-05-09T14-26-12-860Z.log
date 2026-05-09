@@ -1,0 +1,105 @@
+[    2178ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[    2506ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[    2509ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[    2627ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    3023ms] [LOG] [Fast Refresh] done in 396ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[    4663ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[    4666ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[    4666ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[    4666ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[    4670ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[    4670ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[    7462ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    7508ms] [LOG] [Fast Refresh] done in 47ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  202937ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  204662ms] [LOG] [Fast Refresh] done in 1725ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  224384ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  226261ms] [LOG] [Fast Refresh] done in 1842ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  233503ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  234444ms] [LOG] [Fast Refresh] done in 941ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  264190ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  267145ms] [LOG] [Fast Refresh] done in 2955ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  281052ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  282083ms] [LOG] [Fast Refresh] done in 982ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  290557ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  291519ms] [LOG] [Fast Refresh] done in 963ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  298784ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  299624ms] [LOG] [Fast Refresh] done in 839ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  322126ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  323333ms] [LOG] [Fast Refresh] done in 1045ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  330051ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  330890ms] [LOG] [Fast Refresh] done in 839ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  337771ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  339271ms] [LOG] [Fast Refresh] done in 1358ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  343237ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  343938ms] [LOG] [Fast Refresh] done in 660ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  355546ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  361623ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_61dcf9ba._.js:33
+[  363590ms] [LOG] [Fast Refresh] done in 6079ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  364062ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[  364351ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[  364354ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[  364426ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  364503ms] [LOG] [Fast Refresh] done in 78ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  364545ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  364604ms] [LOG] [Fast Refresh] done in 58ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  366012ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[  366020ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[  366020ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[  366020ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[  366023ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[  366023ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[  396963ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  397852ms] [LOG] [Fast Refresh] done in 866ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  403878ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  404835ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[  404836ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1408
+[  404884ms] [LOG] [Fast Refresh] done in 923ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  405151ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[  405155ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[  405155ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[  405155ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1414
+[  405158ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1438
+[  405158ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_b9bbe632._.js:1453
+[  414105ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  415024ms] [LOG] [Fast Refresh] done in 844ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  419794ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  420607ms] [LOG] [Fast Refresh] done in 782ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  426795ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  431285ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_61dcf9ba._.js:33
+[  432486ms] [LOG] [Fast Refresh] done in 4493ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  433152ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[  433388ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:641
+[  433390ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:641
+[  433450ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  433505ms] [LOG] [Fast Refresh] done in 56ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  433511ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  433543ms] [LOG] [Fast Refresh] done in 31ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  434982ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:647
+[  434986ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:671
+[  434986ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:686
+[  434986ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:647
+[  434990ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:671
+[  434990ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:686
+[  437227ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  437843ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Ftransactions%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:146
+[  437876ms] [LOG] [Fast Refresh] done in 597ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  438109ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Ftransactions%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:152
+[  438113ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Ftransactions%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:176
+[  438113ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js?id=%255Bproject%255D%252Fsrc%252Fapp%252Ftransactions%252Fpage.tsx+%255Bapp-client%255D+%2528ecmascript%2529:191
+[  444985ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  445037ms] [LOG] [Fast Refresh] done in 52ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560

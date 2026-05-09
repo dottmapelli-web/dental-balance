@@ -1,0 +1,1601 @@
+"use client";
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import {
+  TrendingUp,
+  TrendingDown,
+  CircleDollarSign,
+  BotMessageSquare,
+  Loader2,
+  AlertCircle,
+  Wand2,
+  FileText,
+  Landmark,
+  Edit,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  Target as TargetIcon,
+  Camera,
+  ArrowRight,
+} from "lucide-react";
+import type { ChartConfig } from "@/components/ui/chart";
+import DashboardBarChart from "@/components/charts/dashboard-bar-chart";
+import DashboardPieChart from "@/components/charts/dashboard-pie-chart";
+import DashboardCashflowLineChart from "@/components/charts/dashboard-cashflow-line-chart";
+import InvoiceScannerModal from "@/components/invoice-scanner-modal";
+import {
+  generateDashboardInsight,
+  type GenerateDashboardInsightInput,
+  type GenerateDashboardInsightOutput,
+} from "@/ai/flows/generate-dashboard-insight-flow";
+import { type Transaction } from "@/data/transactions-data";
+import type { ObjectiveListItem } from "@/app/budget-objectives/page";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+  orderBy,
+  doc,
+  getDoc,
+  setDoc,
+  limit,
+  runTransaction,
+  writeBatch,
+} from "firebase/firestore";
+import {
+  format,
+  parseISO,
+  isValid,
+  getMonth,
+  getYear,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  eachDayOfInterval,
+  isEqual,
+  isSameMonth,
+  isSameYear,
+} from "date-fns";
+import { it } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { siteConfig } from "@/config/site";
+import { useRouter } from "next/navigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useCategories } from "@/contexts/category-context";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/auth-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const dashboardChartConfig = {
+  income: { label: "Entrate", color: "#8B7355" },
+  expenses: { label: "Uscite", color: "#E8E2D2" },
+} satisfies ChartConfig;
+
+const cashflowChartConfig = {
+  cashflow: { label: "Flusso di Cassa", color: "#4A3E2E" },
+} satisfies ChartConfig;
+
+const BANK_BALANCE_DOC_PATH = "studioInfo/mainBalance";
+const pieChartColors = [
+  "#8B7355", // Brown/Gold
+  "#4A3E2E", // Dark text color
+  "#E8E2D2", // Light border color
+  "#A69076", // Muted text
+  "#D4C4A8", // Mid-tone
+];
+
+interface DetailCardData {
+  category: string;
+  totalAmount: number;
+  itemCount: number;
+  topItems: Array<{ name: string; amount: number }>;
+  colorClasses: {
+    bg: string;
+    text: string;
+    border: string;
+    textMuted?: string;
+    bgAlt?: string;
+  };
+}
+const categoryCardColors = [
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+  {
+    bg: "bg-[#FDFCF7] dark:bg-zinc-900",
+    text: "text-[#8B7355] dark:text-[#D4AF37]",
+    border: "border-[#E8E2D2] dark:border-zinc-800",
+    textMuted: "text-[#A69076] dark:text-[#A69076]",
+  },
+];
+
+// Helper function to generate available periods (similar to monthly-summary)
+const generateAvailablePeriodsForCategories = (transactions: Transaction[]) => {
+  const periods = new Set<string>();
+  if (transactions.length === 0) {
+    periods.add(format(new Date(), "yyyy-MM"));
+  } else {
+    transactions.forEach((t) => {
+      const date = parseISO(t.date);
+      if (isValid(date)) {
+        periods.add(format(date, "yyyy-MM"));
+      }
+    });
+  }
+
+  const sortedPeriods = Array.from(periods).sort().reverse();
+
+  const years = new Set<string>();
+  const monthsByYear: Record<string, { value: string; label: string }[]> = {};
+
+  sortedPeriods.forEach((period) => {
+    const [yearStr, monthStr] = period.split("-");
+    years.add(yearStr);
+    if (!monthsByYear[yearStr]) {
+      monthsByYear[yearStr] = [];
+    }
+    const monthIndex = parseInt(monthStr, 10) - 1;
+    monthsByYear[yearStr].push({
+      value: monthIndex.toString(),
+      label: format(new Date(parseInt(yearStr), monthIndex), "MMMM", {
+        locale: it,
+      }),
+    });
+  });
+  for (const year in monthsByYear) {
+    monthsByYear[year] = Array.from(
+      new Set(monthsByYear[year].map((m) => m.value)),
+    )
+      .map((value) => monthsByYear[year].find((m) => m.value === value)!)
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value));
+  }
+
+  const sortedYearsArray = Array.from(years).sort(
+    (a, b) => parseInt(b) - parseInt(a),
+  );
+  if (sortedYearsArray.length === 0 && years.size === 0) {
+    const currentYr = getYear(new Date()).toString();
+    sortedYearsArray.push(currentYr);
+    monthsByYear[currentYr] = [
+      {
+        value: getMonth(new Date()).toString(),
+        label: format(new Date(), "MMMM", { locale: it }),
+      },
+    ];
+  }
+
+  return {
+    years: sortedYearsArray,
+    monthsByYear,
+  };
+};
+
+export default function DashboardPage() {
+  const [isClient, setIsClient] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  const [transactionsError, setTransactionsError] = useState<string | null>(
+    null,
+  );
+  const { toast } = useToast();
+  const router = useRouter();
+  const { transactionsVersion, incrementTransactionsVersion } = useAuth(); // Per aggiornare i dati
+  const { expenseCategories } = useCategories();
+
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+
+  const [currentMonthSummary, setCurrentMonthSummary] = useState<{
+    income: number;
+    expenses: number;
+    balance: number;
+  }>({ income: 0, expenses: 0, balance: 0 });
+  const [lastSixMonthsChartData, setLastSixMonthsChartData] = useState<
+    Array<{ month: string; income: number; expenses: number }>
+  >([]);
+
+  const [dashboardInsight, setDashboardInsight] = useState<string | null>(null);
+  const [isLoadingInsight, setIsLoadingInsight] = useState<boolean>(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
+
+  const [bankBalance, setBankBalance] = useState<number>(0);
+  const [isLoadingBankBalance, setIsLoadingBankBalance] =
+    useState<boolean>(true);
+  const [isEditingBankBalance, setIsEditingBankBalance] =
+    useState<boolean>(false);
+  const [newBankBalanceValue, setNewBankBalanceValue] = useState<string>("");
+
+  const [expenseBreakdownCurrentMonth, setExpenseBreakdownCurrentMonth] =
+    useState<Array<{ name: string; value: number; fill: string }>>([]);
+  const [isLoadingExpenseBreakdown, setIsLoadingExpenseBreakdown] =
+    useState(true);
+
+  const [cashflowCurrentMonth, setCashflowCurrentMonth] = useState<
+    Array<{ date: string; cashflow: number }>
+  >([]);
+  const [isLoadingCashflow, setIsLoadingCashflow] = useState(true);
+
+  const [detailedExpenseCategoryCards, setDetailedExpenseCategoryCards] =
+    useState<DetailCardData[]>([]);
+  const [isLoadingDetailedCategories, setIsLoadingDetailedCategories] =
+    useState(true);
+
+  const [keyFinancialObjectives, setKeyFinancialObjectives] = useState<
+    ObjectiveListItem[]
+  >([]);
+  const [isLoadingObjectives, setIsLoadingObjectives] = useState(true);
+
+  const {
+    years: availableYearsForCategories,
+    monthsByYear: monthsByYearForCategories,
+  } = useMemo(
+    () => generateAvailablePeriodsForCategories(transactions),
+    [transactions],
+  );
+  const [categoriesSelectedYear, setCategoriesSelectedYear] = useState<string>(
+    () => availableYearsForCategories[0] || getYear(new Date()).toString(),
+  );
+  const [categoriesSelectedMonth, setCategoriesSelectedMonth] =
+    useState<string>(() => {
+      const initialYear =
+        availableYearsForCategories[0] || getYear(new Date()).toString();
+      const yearMonths = monthsByYearForCategories[initialYear] || [];
+      const currentMonthActual = getMonth(new Date()).toString();
+      return (
+        yearMonths.find((m) => m.value === currentMonthActual)?.value ||
+        yearMonths[0]?.value ||
+        getMonth(new Date()).toString()
+      );
+    });
+  const [
+    availableMonthsForCategoriesCard,
+    setAvailableMonthsForCategoriesCard,
+  ] = useState(monthsByYearForCategories[categoriesSelectedYear] || []);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const handleScannerItemsAccepted = async (items: any[]) => {
+    console.log(`Attempting to save ${items.length} items from scanner.`);
+    try {
+      const batch = writeBatch(db);
+      for (const data of items) {
+        const transactionDataToSave: any = {
+          date: Timestamp.fromDate(data.date),
+          description: data.description || "",
+          category: data.category,
+          subcategory: data.subcategory || "",
+          type: data.type,
+          amount:
+            data.type === "Uscita"
+              ? -Math.abs(data.amount)
+              : Math.abs(data.amount),
+          status: data.status,
+          isRecurring: false,
+          originalRecurringId: null,
+          recurrenceDetails: null,
+        };
+        const newDocRef = doc(collection(db, "transactions"));
+        batch.set(newDocRef, transactionDataToSave);
+      }
+      await batch.commit();
+      toast({
+        title: "Importazione Completata",
+        description: `${items.length} voci salvate con successo.`,
+      });
+      incrementTransactionsVersion();
+    } catch (error: any) {
+      console.error("!!! ERROR saving scanned transactions:", error);
+      toast({
+        title: "Errore Importazione",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchBankBalance = useCallback(async () => {
+    setIsLoadingBankBalance(true);
+    try {
+      const balanceDocRef = doc(db, BANK_BALANCE_DOC_PATH);
+      const docSnap = await getDoc(balanceDocRef);
+      if (docSnap.exists()) {
+        setBankBalance(docSnap.data().balance || 0);
+        setNewBankBalanceValue((docSnap.data().balance || 0).toString());
+      } else {
+        setBankBalance(0);
+        setNewBankBalanceValue("0");
+      }
+    } catch (error) {
+      console.error("Errore caricamento giacenza bancaria:", error);
+      toast({
+        title: "Errore Giacenza Bancaria",
+        description: "Impossibile caricare la giacenza bancaria da Firestore.",
+        variant: "destructive",
+      });
+      setBankBalance(0);
+      setNewBankBalanceValue("0");
+    } finally {
+      setIsLoadingBankBalance(false);
+    }
+  }, [toast]);
+
+  const handleUpdateBankBalance = async () => {
+    const newBalance = parseFloat(newBankBalanceValue);
+    if (isNaN(newBalance)) {
+      // Check for NaN, allow negative balance if needed by business logic
+      toast({
+        title: "Valore Non Valido",
+        description: "Inserisci un importo valido per la giacenza bancaria.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsLoadingBankBalance(true);
+    try {
+      const balanceDocRef = doc(db, BANK_BALANCE_DOC_PATH);
+      // Using a Firestore transaction to safely update the balance
+      await runTransaction(db, async (transaction) => {
+        // No need to read if we are just setting it to a new manual value
+        transaction.set(
+          balanceDocRef,
+          { balance: newBalance },
+          { merge: true },
+        );
+      });
+      setBankBalance(newBalance);
+      toast({
+        title: "Giacenza Aggiornata",
+        description: `La giacenza bancaria è stata aggiornata a €${newBalance.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+      });
+      setIsEditingBankBalance(false);
+    } catch (error) {
+      console.error("Errore aggiornamento giacenza bancaria:", error);
+      toast({
+        title: "Errore Aggiornamento Giacenza",
+        description:
+          "Impossibile aggiornare la giacenza bancaria in Firestore.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingBankBalance(false);
+    }
+  };
+
+  const fetchFirestoreTransactions = useCallback(async () => {
+    setIsLoadingTransactions(true);
+    setTransactionsError(null);
+    try {
+      const transactionsCollectionRef = collection(db, "transactions");
+      const q = query(transactionsCollectionRef, orderBy("date", "asc"));
+      const querySnapshot = await getDocs(q);
+      const fetchedTransactions: Transaction[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        fetchedTransactions.push({
+          id: doc.id,
+          date:
+            data.date instanceof Timestamp
+              ? format(data.date.toDate(), "yyyy-MM-dd")
+              : data.date,
+          description: data.description,
+          category: data.category,
+          subcategory: data.subcategory,
+          type: data.type,
+          amount: data.amount,
+          status: data.status as Transaction["status"],
+          isRecurring: data.isRecurring || false,
+          recurrenceDetails: data.recurrenceDetails
+            ? {
+                ...data.recurrenceDetails,
+                startDate:
+                  data.recurrenceDetails.startDate instanceof Timestamp
+                    ? format(
+                        data.recurrenceDetails.startDate.toDate(),
+                        "yyyy-MM-dd",
+                      )
+                    : data.recurrenceDetails.startDate,
+                endDate:
+                  data.recurrenceDetails.endDate &&
+                  data.recurrenceDetails.endDate instanceof Timestamp
+                    ? format(
+                        data.recurrenceDetails.endDate.toDate(),
+                        "yyyy-MM-dd",
+                      )
+                    : undefined,
+              }
+            : undefined,
+          originalRecurringId: data.originalRecurringId,
+        });
+      });
+      setTransactions(fetchedTransactions);
+
+      const { years: yearsFromDataCat, monthsByYear: monthsFromDataCat } =
+        generateAvailablePeriodsForCategories(fetchedTransactions);
+      if (yearsFromDataCat.length > 0) {
+        const initialCatYear = yearsFromDataCat.includes(
+          getYear(new Date()).toString(),
+        )
+          ? getYear(new Date()).toString()
+          : yearsFromDataCat[0];
+        setCategoriesSelectedYear(initialCatYear);
+
+        const initialCatMonths = monthsFromDataCat[initialCatYear] || [];
+        const currentActualCatMonth = getMonth(new Date()).toString();
+        const defaultCatMonth =
+          initialCatMonths.find((m) => m.value === currentActualCatMonth)
+            ?.value ||
+          initialCatMonths[0]?.value ||
+          getMonth(new Date()).toString();
+        setCategoriesSelectedMonth(defaultCatMonth);
+      }
+    } catch (error: any) {
+      console.error(
+        "Errore caricamento transazioni da Firestore (Dashboard):",
+        error,
+      );
+      let detailedError =
+        "Impossibile caricare le transazioni da Firestore per la dashboard.";
+      if (error.message) detailedError += ` Dettaglio: ${error.message}`;
+      if (error.code) detailedError += ` (Codice: ${error.code})`;
+      setTransactionsError(detailedError);
+      toast({
+        title: "Errore Caricamento Dati Dashboard",
+        description: detailedError,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  }, [toast]);
+
+  const fetchKeyObjectives = useCallback(async () => {
+    setIsLoadingObjectives(true);
+    try {
+      const objectivesCol = collection(db, "objectives");
+      const qObjectives = query(objectivesCol, orderBy("name"), limit(3));
+      const objectivesSnapshot = await getDocs(qObjectives);
+      const fetchedObjectives: ObjectiveListItem[] = [];
+      objectivesSnapshot.forEach((docSnap) => {
+        fetchedObjectives.push({
+          id: docSnap.id,
+          ...docSnap.data(),
+        } as ObjectiveListItem);
+      });
+      setKeyFinancialObjectives(fetchedObjectives);
+    } catch (error) {
+      console.error("Errore caricamento obiettivi chiave:", error);
+      // Non mostriamo un toast per questo, potrebbe essere meno critico per la dashboard principale
+    } finally {
+      setIsLoadingObjectives(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFirestoreTransactions();
+    fetchBankBalance();
+    fetchKeyObjectives();
+  }, [
+    fetchFirestoreTransactions,
+    fetchBankBalance,
+    fetchKeyObjectives,
+    transactionsVersion,
+  ]);
+
+  // Effect for Category Card period selection
+  useEffect(() => {
+    const newAvailableMonths =
+      monthsByYearForCategories[categoriesSelectedYear] || [];
+    setAvailableMonthsForCategoriesCard(newAvailableMonths);
+    if (!newAvailableMonths.find((m) => m.value === categoriesSelectedMonth)) {
+      const newDefaultMonth =
+        newAvailableMonths[0]?.value || getMonth(new Date()).toString();
+      setCategoriesSelectedMonth(newDefaultMonth);
+    }
+  }, [
+    categoriesSelectedYear,
+    monthsByYearForCategories,
+    categoriesSelectedMonth,
+  ]);
+
+  useEffect(() => {
+    if (isLoadingTransactions || transactionsError) {
+      setCurrentMonthSummary({ income: 0, expenses: 0, balance: 0 });
+      setLastSixMonthsChartData([]);
+      setExpenseBreakdownCurrentMonth([]);
+      setCashflowCurrentMonth([]);
+      // Do not reset detailedExpenseCategoryCards here, it's handled by its own effect
+      setIsLoadingExpenseBreakdown(false);
+      setIsLoadingCashflow(false);
+      return;
+    }
+
+    const today = new Date();
+    const currentMonthValue = getMonth(today);
+    const currentYearValue = getYear(today);
+
+    let cmIncome = 0;
+    let cmExpenses = 0;
+    const currentMonthTransactions = transactions.filter((t) => {
+      const transactionDate = parseISO(t.date);
+      return (
+        isValid(transactionDate) &&
+        getYear(transactionDate) === currentYearValue &&
+        getMonth(transactionDate) === currentMonthValue &&
+        t.status === "Completato"
+      );
+    });
+
+    currentMonthTransactions.forEach((t) => {
+      if (t.type === "Entrata") cmIncome += t.amount;
+      else if (t.type === "Uscita") cmExpenses += Math.abs(t.amount);
+    });
+    setCurrentMonthSummary({
+      income: cmIncome,
+      expenses: cmExpenses,
+      balance: cmIncome - cmExpenses,
+    });
+
+    const sixMonthChartData: Array<{
+      month: string;
+      income: number;
+      expenses: number;
+    }> = [];
+    for (let i = 5; i >= 0; i--) {
+      const dateIterator = subMonths(today, i);
+      const monthForChart = getMonth(dateIterator);
+      const yearForChart = getYear(dateIterator);
+      let monthlyIncome = 0;
+      let monthlyExpenses = 0;
+      transactions.forEach((t) => {
+        const transactionDate = parseISO(t.date);
+        if (
+          isValid(transactionDate) &&
+          getYear(transactionDate) === yearForChart &&
+          getMonth(transactionDate) === monthForChart &&
+          t.status === "Completato"
+        ) {
+          if (t.type === "Entrata") monthlyIncome += t.amount;
+          else if (t.type === "Uscita") monthlyExpenses += Math.abs(t.amount);
+        }
+      });
+      sixMonthChartData.push({
+        month: format(dateIterator, "MMM", { locale: it }),
+        income: monthlyIncome,
+        expenses: monthlyExpenses,
+      });
+    }
+    setLastSixMonthsChartData(sixMonthChartData);
+
+    setIsLoadingExpenseBreakdown(true);
+    const currentMonthExpensesByCategory: Record<string, number> = {};
+    currentMonthTransactions
+      .filter((t) => t.type === "Uscita")
+      .forEach((t) => {
+        currentMonthExpensesByCategory[t.category] =
+          (currentMonthExpensesByCategory[t.category] || 0) +
+          Math.abs(t.amount);
+      });
+    setExpenseBreakdownCurrentMonth(
+      Object.entries(currentMonthExpensesByCategory)
+        .map(([name, value], index) => ({
+          name,
+          value,
+          fill: pieChartColors[index % pieChartColors.length],
+        }))
+        .filter((item) => item.value > 0),
+    );
+    setIsLoadingExpenseBreakdown(false);
+
+    setIsLoadingCashflow(true);
+    const firstDayOfMonth = startOfMonth(today);
+    const lastDayOfMonth = endOfMonth(today);
+    const daysInMonth = eachDayOfInterval({
+      start: firstDayOfMonth,
+      end: lastDayOfMonth,
+    });
+
+    let dailyRunningBalance = 0;
+    const cashflowData = daysInMonth.map((day) => {
+      let dailyNet = 0;
+      transactions.forEach((t) => {
+        const transactionDate = parseISO(t.date);
+        // Check if transaction date is the same as the current day in the loop
+        if (
+          isValid(transactionDate) &&
+          isSameYear(transactionDate, day) &&
+          isSameMonth(transactionDate, day) &&
+          transactionDate.getDate() === day.getDate() &&
+          t.status === "Completato"
+        ) {
+          dailyNet += t.amount;
+        }
+      });
+      dailyRunningBalance += dailyNet;
+      return { date: format(day, "dd"), cashflow: dailyRunningBalance };
+    });
+    setCashflowCurrentMonth(cashflowData);
+    setIsLoadingCashflow(false);
+  }, [transactions, isLoadingTransactions, transactionsError, bankBalance]);
+
+  // useEffect for detailedExpenseCategoryCards based on selected period
+  useEffect(() => {
+    if (
+      isLoadingTransactions ||
+      transactionsError ||
+      Object.keys(expenseCategories).length === 0
+    ) {
+      setDetailedExpenseCategoryCards([]);
+      setIsLoadingDetailedCategories(false);
+      return;
+    }
+    setIsLoadingDetailedCategories(true);
+
+    const year = parseInt(categoriesSelectedYear);
+    const month = parseInt(categoriesSelectedMonth);
+
+    const transactionsForSelectedPeriod = transactions.filter((t) => {
+      const transactionDate = parseISO(t.date);
+      return (
+        isValid(transactionDate) &&
+        getYear(transactionDate) === year &&
+        getMonth(transactionDate) === month &&
+        t.status === "Completato"
+      );
+    });
+
+    const mainCategoriesForCards = Object.keys(expenseCategories);
+    const cardDataArray: DetailCardData[] = [];
+
+    mainCategoriesForCards.forEach((category, index) => {
+      const categoryTrans = transactionsForSelectedPeriod.filter(
+        (t) => t.category === category && t.type === "Uscita",
+      );
+
+      if (categoryTrans.length === 0) return;
+
+      const totalAmount = categoryTrans.reduce(
+        (sum, t) => sum + Math.abs(t.amount),
+        0,
+      );
+
+      const subCategoryExpenses: Record<string, number> = {};
+      categoryTrans.forEach((t) => {
+        const itemKey =
+          t.subcategory || t.description || "Voce non specificata";
+        subCategoryExpenses[itemKey] =
+          (subCategoryExpenses[itemKey] || 0) + Math.abs(t.amount);
+      });
+
+      const itemCount = Object.keys(subCategoryExpenses).length;
+      const topItems = Object.entries(subCategoryExpenses)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 2)
+        .map(([name, amount]) => ({ name, amount }));
+
+      cardDataArray.push({
+        category,
+        totalAmount,
+        itemCount,
+        topItems,
+        colorClasses: categoryCardColors[index % categoryCardColors.length],
+      });
+    });
+    setDetailedExpenseCategoryCards(cardDataArray);
+    setIsLoadingDetailedCategories(false);
+  }, [
+    transactions,
+    isLoadingTransactions,
+    transactionsError,
+    categoriesSelectedYear,
+    categoriesSelectedMonth,
+    expenseCategories,
+  ]);
+
+  const handleGenerateInsight = useCallback(async () => {
+    if (
+      currentMonthSummary.income === 0 &&
+      currentMonthSummary.expenses === 0 &&
+      !isLoadingTransactions
+    ) {
+      setDashboardInsight(
+        "Nessun dato di entrate o uscite per il mese corrente per generare un insight dettagliato.",
+      );
+      setInsightError(null);
+      return;
+    }
+    setIsLoadingInsight(true);
+    setInsightError(null);
+    setDashboardInsight(null);
+    try {
+      const input: GenerateDashboardInsightInput = {
+        totalIncome: currentMonthSummary.income,
+        totalExpenses: currentMonthSummary.expenses,
+        balance: currentMonthSummary.balance,
+      };
+      const result = await generateDashboardInsight(input);
+      setDashboardInsight(result.insightText);
+    } catch (e: any) {
+      console.error("Error generating dashboard insight:", e);
+      const errorMessage =
+        e.message || "Errore sconosciuto durante la generazione dell'insight.";
+      setInsightError(`Errore AI: ${errorMessage}`);
+      setDashboardInsight(null);
+      toast({
+        title: "Errore Generazione Insight",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingInsight(false);
+    }
+  }, [currentMonthSummary, toast, isLoadingTransactions]);
+
+  const mainContentLoading = isLoadingTransactions || isLoadingBankBalance;
+
+  const selectedPeriodForCategoriesTitle = useMemo(() => {
+    if (
+      isLoadingTransactions ||
+      availableYearsForCategories.length === 0 ||
+      availableMonthsForCategoriesCard.length === 0
+    ) {
+      return format(new Date(), "MMMM yyyy", { locale: it });
+    }
+    const monthLabel =
+      availableMonthsForCategoriesCard.find(
+        (m) => m.value === categoriesSelectedMonth,
+      )?.label ||
+      format(
+        new Date(
+          parseInt(categoriesSelectedYear),
+          parseInt(categoriesSelectedMonth),
+        ),
+        "MMMM",
+        { locale: it },
+      );
+    return `${monthLabel} ${categoriesSelectedYear}`;
+  }, [
+    categoriesSelectedYear,
+    categoriesSelectedMonth,
+    availableYearsForCategories,
+    availableMonthsForCategoriesCard,
+    isLoadingTransactions,
+  ]);
+
+  // Show spinner until client is hydrated AND all initial data is fetched.
+  // This prevents both the blank-flash and the hydration mismatch.
+  if (!isClient || mainContentLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-lg text-muted-foreground">
+          Caricamento dati dashboard...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6"
+      >
+        <div>
+          <h1 className="text-4xl font-serif font-bold text-[#4A3E2E] dark:text-[#FDFCF7] tracking-tight">
+            Dashboard Principale
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="h-[1px] w-8 bg-[#8B7355]/30" />
+            <p className="text-sm text-[#8B7355] font-medium tracking-wide">
+              Resoconto Finanziario •{" "}
+              <span className="font-bold">
+                {format(new Date(), "MMMM yyyy", { locale: it })}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3 sm:ml-auto">
+          <Button
+            onClick={() => setIsScannerModalOpen(true)}
+            className="h-11 px-6 rounded-full bg-[#8B7355] hover:bg-[#725E45] text-white shadow-sm transition-all duration-300"
+          >
+            <div className="flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              <span className="text-sm font-semibold">Importa Fattura</span>
+            </div>
+          </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => router.push("/monthly-summary")}
+              variant="outline"
+              className="h-11 px-5 rounded-full border-[#E8E2D2] hover:bg-[#FDFCF7] dark:border-zinc-800 dark:hover:bg-zinc-800 text-[#8B7355] transition-all duration-300"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              <span className="text-sm font-medium">Mensile</span>
+            </Button>
+            
+            <Button
+              onClick={() => router.push("/annual-summary")}
+              variant="outline"
+              className="h-11 px-5 rounded-full border-[#E8E2D2] hover:bg-[#FDFCF7] dark:border-zinc-800 dark:hover:bg-zinc-800 text-[#8B7355] transition-all duration-300"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              <span className="text-sm font-medium">Annuale</span>
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="space-y-8 pb-12">
+        {transactionsError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Errore Caricamento Dati</AlertTitle>
+            <AlertDescription>{transactionsError}</AlertDescription>
+          </Alert>
+        )}
+
+        {!transactionsError && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <Card className="warm-card relative overflow-hidden group">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <div>
+                    <CardTitle className="text-lg font-serif font-semibold flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                      <div className="p-2 rounded-full bg-[#FDFCF7] dark:bg-zinc-800 border-[#E8E2D2] dark:border-zinc-700 mr-3 shadow-sm">
+                        <Landmark className="h-4 w-4 text-[#8B7355]" />
+                      </div>
+                      Giacenza Bancaria Totale
+                    </CardTitle>
+                    <CardDescription className="text-[#8B7355]/70 dark:text-[#A69076] ml-12 text-xs">
+                      Liquidità attuale certificata
+                    </CardDescription>
+                  </div>
+                  <AlertDialog
+                    open={isEditingBankBalance}
+                    onOpenChange={setIsEditingBankBalance}
+                  >
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-[#8B7355] hover:text-[#4A3E2E] hover:bg-[#FDFCF7] dark:hover:bg-zinc-800"
+                        onClick={() =>
+                          setNewBankBalanceValue(bankBalance.toString())
+                        }
+                      >
+                        <Edit className="mr-1.5 h-3.5 w-3.5" />
+                        Modifica
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-[#FDFCF7] dark:bg-zinc-900 border-[#E8E2D2] dark:border-zinc-800">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="font-serif text-[#4A3E2E] dark:text-[#FDFCF7]">
+                          Modifica Giacenza Bancaria
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-[#8B7355]">
+                          Aggiorna l'importo della liquidità disponibile.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-4">
+                        <Label
+                          htmlFor="bankBalanceInput"
+                          className="text-[#4A3E2E] dark:text-[#FDFCF7] font-medium mb-1.5 block"
+                        >
+                          Importo (€)
+                        </Label>
+                        <Input
+                          id="bankBalanceInput"
+                          type="number"
+                          step="0.01"
+                          value={newBankBalanceValue}
+                          onChange={(e) =>
+                            setNewBankBalanceValue(e.target.value)
+                          }
+                          className="border-[#E8E2D2] focus:ring-[#8B7355] text-xl h-12 rounded-xl"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-full">
+                          Annulla
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleUpdateBankBalance}
+                          disabled={isLoadingBankBalance}
+                          className="bg-[#8B7355] hover:bg-[#725E45] text-white rounded-full"
+                        >
+                          {isLoadingBankBalance && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Salva
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardHeader>
+                <CardContent className="pt-2 pb-6">
+                  {isLoadingBankBalance ? (
+                    <div className="flex items-center h-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-[#E8E2D2]" />
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl font-bold tracking-tight text-[#4A3E2E] dark:text-[#FDFCF7]">
+                        €
+                        {isClient
+                          ? bankBalance.toLocaleString("it-IT", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                          : bankBalance.toFixed(2)}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-[#E8E2D2] text-[#8B7355]">
+                        Aggiornato
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-10">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <Card className="warm-card hover:bg-[#FDFCF7]/80 dark:hover:bg-zinc-800/80 transition-colors duration-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-[#8B7355]/70">
+                      Entrate del Mese
+                    </CardTitle>
+                    <div className="p-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20">
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      +€
+                      {isClient
+                        ? currentMonthSummary.income.toLocaleString("it-IT", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : currentMonthSummary.income.toFixed(2)}
+                    </div>
+                    <div className="mt-3 h-1 w-full bg-[#E8E2D2]/30 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "70%" }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        className="h-full bg-emerald-500/40"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <Card className="warm-card hover:bg-[#FDFCF7]/80 dark:hover:bg-zinc-800/80 transition-colors duration-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-[#8B7355]/70">
+                      Uscite del Mese
+                    </CardTitle>
+                    <div className="p-1.5 rounded-full bg-rose-50 dark:bg-rose-900/20">
+                      <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-rose-600">
+                      -€
+                      {isClient
+                        ? currentMonthSummary.expenses.toLocaleString("it-IT", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : currentMonthSummary.expenses.toFixed(2)}
+                    </div>
+                    <div className="mt-3 h-1 w-full bg-[#E8E2D2]/30 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "45%" }}
+                        transition={{ duration: 1.2, ease: "easeOut", delay: 0.1 }}
+                        className="h-full bg-rose-500/40"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <Card className="warm-card hover:bg-[#FDFCF7]/80 dark:hover:bg-zinc-800/80 transition-colors duration-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-[#8B7355]/70">
+                      Saldo del Mese
+                    </CardTitle>
+                    <div className={cn(
+                      "p-1.5 rounded-full",
+                      currentMonthSummary.balance >= 0 ? "bg-emerald-50" : "bg-rose-50"
+                    )}>
+                      <CircleDollarSign className={cn(
+                        "h-3.5 w-3.5",
+                        currentMonthSummary.balance >= 0 ? "text-emerald-600" : "text-rose-600"
+                      )} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      currentMonthSummary.balance >= 0 ? "text-emerald-600" : "text-rose-600"
+                    )}>
+                      €
+                      {isClient
+                        ? currentMonthSummary.balance.toLocaleString("it-IT", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : currentMonthSummary.balance.toFixed(2)}
+                    </div>
+                    <div className="mt-3 h-1 w-full bg-[#E8E2D2]/30 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }}
+                        className={cn(
+                          "h-full",
+                          currentMonthSummary.balance >= 0 ? "bg-emerald-500/20" : "bg-rose-500/20"
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+            >
+              <Card className="warm-card overflow-hidden relative border-[#E8E2D2]">
+                <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                  <BotMessageSquare size={120} className="text-[#8B7355]" />
+                </div>
+                <CardHeader className="relative z-10 pb-4">
+                  <CardTitle className="text-xl flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                    <div className="p-2 rounded-xl bg-[#F5F1E6] dark:bg-[#4A3E2E] text-[#8B7355] mr-3 border border-[#E8E2D2]">
+                      <Wand2 className="h-5 w-5" />
+                    </div>
+                    Financial Insight AI
+                  </CardTitle>
+                  <CardDescription className="text-[#8B7355]/80">
+                    Analisi basata sull'intelligenza artificiale per ottimizzare la gestione dello studio.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 relative z-10 pt-2">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <Button
+                      onClick={handleGenerateInsight}
+                      disabled={
+                        isLoadingInsight ||
+                        isLoadingTransactions ||
+                        (!isLoadingTransactions &&
+                          currentMonthSummary.income === 0 &&
+                          currentMonthSummary.expenses === 0)
+                      }
+                      className="bg-[#4A3E2E] text-[#FDFCF7] hover:bg-[#3D3326] transition-all duration-300 rounded-lg px-6"
+                    >
+                      {isLoadingInsight ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <BotMessageSquare className="mr-2 h-4 w-4" />
+                      )}
+                      {dashboardInsight ? "Rigenera Analisi" : "Genera Insight"}
+                    </Button>
+                    
+                    {!dashboardInsight && !isLoadingInsight && !insightError && (
+                      <p className="text-xs text-[#8B7355] italic">
+                        {isLoadingTransactions
+                          ? "Sincronizzazione dati..."
+                          : currentMonthSummary.income === 0 && currentMonthSummary.expenses === 0
+                            ? "Nessun dato transazionale rilevato per questo mese."
+                            : "Pronto per l'analisi dei flussi di cassa."}
+                      </p>
+                    )}
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    {isLoadingInsight && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex flex-col items-center justify-center p-10 bg-[#F5F1E6]/30 dark:bg-zinc-800/30 rounded-2xl border border-dashed border-[#E8E2D2]"
+                      >
+                        <Loader2 className="h-10 w-10 animate-spin text-[#8B7355] mb-4" />
+                        <p className="text-[#8B7355] text-sm font-medium">
+                          Elaborazione dati in corso...
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {dashboardInsight && !isLoadingInsight && !insightError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="relative p-6 bg-[#FDFCF7] dark:bg-zinc-900/50 border border-[#E8E2D2] rounded-2xl shadow-sm"
+                      >
+                        <div className="absolute -left-px top-8 bottom-8 w-1 bg-[#8B7355] rounded-full" />
+                        <p className="text-[#4A3E2E] dark:text-[#FDFCF7] leading-relaxed text-base font-medium whitespace-pre-wrap italic pl-2">
+                          "{dashboardInsight}"
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {insightError && !isLoadingInsight && (
+                    <Alert
+                      variant="destructive"
+                      className="bg-rose-50 border-rose-100 text-rose-900 rounded-xl"
+                    >
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Errore</AlertTitle>
+                      <AlertDescription>{insightError}</AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+            >
+              <Card className="warm-card mb-10 overflow-hidden border-[#E8E2D2]">
+                <CardHeader className="border-b border-[#E8E2D2]/50 bg-[#F5F1E6]/20">
+                  <CardTitle className="text-lg text-[#4A3E2E] dark:text-[#FDFCF7] flex items-center">
+                    <Landmark className="mr-2 h-5 w-5 text-[#8B7355]" />
+                    Andamento Finanziario (6 Mesi)
+                  </CardTitle>
+                  <CardDescription className="text-[#8B7355]/70">
+                    Visualizzazione dei flussi in entrata e uscita degli ultimi sei mesi.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-8">
+                  {lastSixMonthsChartData.length > 0 &&
+                  lastSixMonthsChartData.some(
+                    (d) => d.income > 0 || d.expenses > 0,
+                  ) ? (
+                    <div className="h-[350px] w-full">
+                      <DashboardBarChart
+                        data={lastSixMonthsChartData}
+                        config={dashboardChartConfig}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-[350px] flex flex-col items-center justify-center text-[#8B7355]/40 italic">
+                      {isLoadingTransactions ? (
+                        <Loader2 className="h-10 w-10 animate-spin mb-2" />
+                      ) : (
+                        <FileText size={48} className="mb-2 opacity-20" />
+                      )}
+                      <p>
+                        {isLoadingTransactions
+                          ? "Caricamento..."
+                          : "Nessun dato storico disponibile."}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.7 }}
+              >
+                <Card className="warm-card h-full border-[#E8E2D2]">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                      <PieChartIcon className="mr-2 h-5 w-5 text-[#8B7355]" />
+                      Asset Allocation Uscite
+                    </CardTitle>
+                    <CardDescription className="text-[#8B7355]/70">
+                      Ripartizione delle spese correnti per categoria.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex items-center justify-center pt-4">
+                    {isLoadingExpenseBreakdown ? (
+                      <Loader2 className="h-10 w-10 animate-spin text-[#E8E2D2]" />
+                    ) : expenseBreakdownCurrentMonth.length > 0 ? (
+                      <div className="w-full max-w-[400px]">
+                        <DashboardPieChart
+                          data={expenseBreakdownCurrentMonth}
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-[#8B7355]/40 italic h-[300px] flex flex-col items-center justify-center">
+                        <PieChartIcon size={48} className="mb-2 opacity-20" />
+                        <p>Nessun dato registrato questo mese.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.7 }}
+              >
+                <Card className="warm-card h-full border-[#E8E2D2]">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                      <LineChartIcon className="mr-2 h-5 w-5 text-[#8B7355]" />
+                      Liquidità Operativa (30gg)
+                    </CardTitle>
+                    <CardDescription className="text-[#8B7355]/70">
+                      Andamento giornaliero del saldo operativo.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    {isLoadingCashflow ? (
+                      <Loader2 className="h-10 w-10 animate-spin text-[#E8E2D2]" />
+                    ) : (
+                      <div className="h-[300px] w-full">
+                        <DashboardCashflowLineChart
+                          data={cashflowCurrentMonth}
+                          config={cashflowChartConfig}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            <Card className="warm-card mb-6 border-[#E8E2D2]">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex-grow">
+                    <CardTitle className="text-lg flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                      <div className="p-1.5 rounded-lg bg-[#F5F1E6] dark:bg-zinc-800 mr-2 border border-[#E8E2D2]">
+                        <FileText className="h-4 w-4 text-[#8B7355]" />
+                      </div>
+                      Spese per Categoria
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-[#8B7355]/70">
+                      Dettaglio delle uscite nel periodo: <span className="font-medium text-[#4A3E2E] dark:text-[#FDFCF7]">{selectedPeriodForCategoriesTitle}</span>
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2 items-center flex-shrink-0">
+                    <div className="flex bg-[#F5F1E6]/50 dark:bg-zinc-900 p-1 rounded-lg border border-[#E8E2D2]">
+                      <Select
+                        value={categoriesSelectedMonth}
+                        onValueChange={setCategoriesSelectedMonth}
+                        disabled={
+                          availableMonthsForCategoriesCard.length === 0 ||
+                          isLoadingTransactions ||
+                          !!transactionsError
+                        }
+                      >
+                        <SelectTrigger className="w-[110px] h-8 text-[10px] uppercase tracking-wider bg-transparent border-none shadow-none focus:ring-0">
+                          <SelectValue placeholder="Mese" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableMonthsForCategoriesCard.length > 0 ? (
+                            availableMonthsForCategoriesCard.map((m) => (
+                              <SelectItem
+                                key={m.value}
+                                value={m.value.toString()}
+                                className="text-xs"
+                              >
+                                {m.label}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem
+                              value={getMonth(new Date()).toString()}
+                              disabled
+                            >
+                              {format(new Date(), "MMMM", { locale: it })}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <div className="w-px h-4 bg-[#E8E2D2] self-center" />
+                      <Select
+                        value={categoriesSelectedYear}
+                        onValueChange={(value) => {
+                          setCategoriesSelectedYear(value);
+                          const newYearMonths =
+                            monthsByYearForCategories[value] || [];
+                          const currentActualMonth = getMonth(
+                            new Date(),
+                          ).toString();
+                          const newDefaultMonth =
+                            newYearMonths.find(
+                              (m) => m.value === categoriesSelectedMonth,
+                            )?.value ||
+                            newYearMonths.find(
+                              (m) => m.value === currentActualMonth,
+                            )?.value ||
+                            newYearMonths[0]?.value ||
+                            getMonth(new Date()).toString();
+                          setCategoriesSelectedMonth(newDefaultMonth);
+                        }}
+                        disabled={
+                          availableYearsForCategories.length === 0 ||
+                          isLoadingTransactions ||
+                          !!transactionsError
+                        }
+                      >
+                        <SelectTrigger className="w-[80px] h-8 text-[10px] uppercase tracking-wider bg-transparent border-none shadow-none focus:ring-0">
+                          <SelectValue placeholder="Anno" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableYearsForCategories.length > 0 ? (
+                            availableYearsForCategories.map((y) => (
+                              <SelectItem key={y} value={y} className="text-xs">
+                                {y}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem
+                              value={getYear(new Date()).toString()}
+                              disabled
+                            >
+                              {getYear(new Date()).toString()}
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingDetailedCategories ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#E8E2D2]" />
+                  </div>
+                ) : detailedExpenseCategoryCards.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {detailedExpenseCategoryCards.map((card) => (
+                      <div
+                        key={card.category}
+                        className={cn(
+                          "group relative p-4 rounded-2xl border border-[#E8E2D2] bg-[#FDFCF7] dark:bg-zinc-900 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5",
+                        )}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h4 className="text-sm font-bold text-[#4A3E2E] dark:text-[#FDFCF7] group-hover:text-[#8B7355] transition-colors">
+                              {card.category}
+                            </h4>
+                            <p className="text-[10px] text-[#8B7355] uppercase tracking-widest mt-0.5">
+                              {card.itemCount} {card.itemCount === 1 ? "operazione" : "operazioni"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-[#4A3E2E] dark:text-[#FDFCF7]">
+                              €{isClient ? card.totalAmount.toLocaleString("it-IT", { minimumFractionDigits: 2 }) : card.totalAmount.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 mb-4">
+                          {card.topItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-[11px]">
+                              <span className="text-[#8B7355] truncate max-w-[140px]" title={item.name}>
+                                {item.name}
+                              </span>
+                              <span className="text-[#4A3E2E] dark:text-[#FDFCF7] font-medium">
+                                €{isClient ? item.amount.toLocaleString("it-IT", { minimumFractionDigits: 2 }) : item.amount.toFixed(2)}
+                              </span>
+                            </div>
+                          ))}
+                          {card.topItems.length === 0 && (
+                            <p className="text-[10px] text-[#8B7355]/50 italic">
+                              Dettagli non disponibili.
+                            </p>
+                          )}
+                        </div>
+
+                        <Link
+                          href="/transactions"
+                          className="flex items-center justify-center w-full py-2 rounded-lg bg-[#F5F1E6]/50 dark:bg-zinc-800 text-[10px] text-[#8B7355] uppercase tracking-widest font-bold hover:bg-[#E8E2D2] transition-colors"
+                        >
+                          Dettagli transazioni
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-[#F5F1E6]/10 rounded-2xl border border-dashed border-[#E8E2D2]">
+                    <p className="text-[#8B7355] italic text-sm">
+                      Nessuna uscita registrata per il periodo selezionato.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="warm-card mb-6 border-[#E8E2D2]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center text-[#4A3E2E] dark:text-[#FDFCF7]">
+                  <TargetIcon className="mr-2 h-5 w-5 text-[#8B7355]" />
+                  Obiettivi Finanziari
+                </CardTitle>
+                <CardDescription className="text-[#8B7355]/70">
+                  Stato degli obiettivi impostati per il periodo corrente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {isLoadingObjectives ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#E8E2D2]" />
+                  </div>
+                ) : keyFinancialObjectives.length > 0 ? (
+                  <div className="grid gap-4">
+                    {keyFinancialObjectives.map((obj) => (
+                      <div key={obj.id} className="p-4 bg-[#F5F1E6]/10 dark:bg-zinc-800/20 border border-[#E8E2D2]/60 rounded-xl transition-all hover:bg-[#F5F1E6]/30">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-semibold text-[#4A3E2E] dark:text-[#FDFCF7]">{obj.name}</h4>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] uppercase tracking-wider",
+                              obj.current >= obj.target 
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800" 
+                                : "bg-[#FDFCF7] text-[#8B7355] border-[#E8E2D2]"
+                            )}
+                          >
+                            {obj.current >= obj.target ? "Traguardo Raggiunto" : "In Progress"}
+                          </Badge>
+                        </div>
+                        <Progress
+                          value={obj.target > 0 ? Math.min((obj.current / obj.target) * 100, 100) : 0}
+                          className="h-1.5 bg-[#E8E2D2]/30"
+                        />
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-[10px] text-[#8B7355] uppercase tracking-tighter">
+                            Avanzamento: {obj.target > 0 ? Math.round((obj.current / obj.target) * 100) : 0}%
+                          </span>
+                          <p className="text-xs font-bold text-[#4A3E2E] dark:text-[#FDFCF7]">
+                            €{isClient ? obj.current.toLocaleString("it-IT") : obj.current.toFixed(0)} 
+                            <span className="text-[#8B7355] font-normal mx-1">/</span> 
+                            €{isClient ? obj.target.toLocaleString("it-IT") : obj.target.toFixed(0)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-[#F5F1E6]/10 rounded-xl border border-dashed border-[#E8E2D2]">
+                    <TargetIcon size={32} className="mx-auto mb-2 text-[#E8E2D2]" />
+                    <p className="text-sm text-[#8B7355] italic">
+                      Nessun obiettivo attivo trovato.
+                    </p>
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push("/budget-objectives")}
+                  className="w-full text-[#8B7355] hover:text-[#4A3E2E] hover:bg-[#F5F1E6]/40 text-xs"
+                >
+                  Gestisci tutti gli obiettivi <ArrowRight className="ml-2 h-3 w-3" />
+                </Button>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+      <InvoiceScannerModal
+        isOpen={isScannerModalOpen}
+        onOpenChange={setIsScannerModalOpen}
+        onItemsAccepted={handleScannerItemsAccepted}
+      />
+    </>
+  );
+}

@@ -151,12 +151,12 @@ export default function BudgetObjectiveModal({
                         </Select>
                     )}
                     />
-                    {errors.category && <p className="text-sm text-destructive mt-1">{errors.category.message}</p>}
+                    {(errors as any).category && <p className="text-sm text-destructive mt-1">{(errors as any).category.message}</p>}
                 </div>
                 <div>
                     <Label htmlFor="budgeted">Importo Preventivato (€)</Label>
-                    <Input id="budgeted" type="number" step="0.01" {...register("budgeted")} />
-                    {errors.budgeted && <p className="text-sm text-destructive mt-1">{errors.budgeted.message}</p>}
+                    <Input id="budgeted" type="number" step="0.01" {...register("budgeted" as any)} />
+                    {(errors as any).budgeted && <p className="text-sm text-destructive mt-1">{(errors as any).budgeted.message}</p>}
                 </div>
                 {editingItem && modalType === 'budget' && 'actual' in editingItem && (
                     <div>
@@ -178,7 +178,7 @@ export default function BudgetObjectiveModal({
                         </Select>
                     )}
                     />
-                    {errors.period && <p className="text-sm text-destructive mt-1">{errors.period.message}</p>}
+                    {(errors as any).period && <p className="text-sm text-destructive mt-1">{(errors as any).period.message}</p>}
                 </div>
                 </>
             )}
@@ -187,23 +187,23 @@ export default function BudgetObjectiveModal({
                 <>
                 <div>
                     <Label htmlFor="name">Nome Obiettivo</Label>
-                    <Input id="name" {...register("name")} />
-                    {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+                    <Input id="name" {...register("name" as any)} />
+                    {(errors as any).name && <p className="text-sm text-destructive mt-1">{(errors as any).name.message}</p>}
                 </div>
                 <div>
                     <Label htmlFor="target">Valore Target</Label>
-                    <Input id="target" type="number" step="0.01" {...register("target")} />
-                    {errors.target && <p className="text-sm text-destructive mt-1">{errors.target.message}</p>}
+                    <Input id="target" type="number" step="0.01" {...register("target" as any)} />
+                    {(errors as any).target && <p className="text-sm text-destructive mt-1">{(errors as any).target.message}</p>}
                 </div>
                 <div>
                     <Label htmlFor="current">Valore Corrente</Label>
-                    <Input id="current" type="number" step="0.01" {...register("current")} />
-                    {errors.current && <p className="text-sm text-destructive mt-1">{errors.current.message}</p>}
+                    <Input id="current" type="number" step="0.01" {...register("current" as any)} />
+                    {(errors as any).current && <p className="text-sm text-destructive mt-1">{(errors as any).current.message}</p>}
                 </div>
                 <div>
                     <Label htmlFor="unit">Unità (es. %, €, n°)</Label>
-                    <Input id="unit" {...register("unit")} />
-                    {errors.unit && <p className="text-sm text-destructive mt-1">{errors.unit.message}</p>}
+                    <Input id="unit" {...register("unit" as any)} />
+                    {(errors as any).unit && <p className="text-sm text-destructive mt-1">{(errors as any).unit.message}</p>}
                 </div>
                 </>
             )}

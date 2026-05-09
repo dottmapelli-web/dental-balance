@@ -1,0 +1,55 @@
+[    2400ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[    2593ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    3032ms] [LOG] [Fast Refresh] done in 439ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[    3417ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    3452ms] [LOG] [Fast Refresh] done in 36ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[    4791ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    4791ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    4817ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    4817ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   18203ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[   18253ms] [LOG] [Fast Refresh] done in 50ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[   40739ms] [WARNING] The width(0) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40739ms] [WARNING] The width(0) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40740ms] [WARNING] The width(0) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40740ms] [WARNING] The width(0) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40743ms] [WARNING] The width(125) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40743ms] [WARNING] The width(125) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40761ms] [WARNING] The width(125) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40761ms] [WARNING] The width(125) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40797ms] [WARNING] The width(125) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40798ms] [WARNING] The width(125) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40799ms] [WARNING] The width(125) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[   40799ms] [WARNING] The width(125) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625137ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625137ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625163ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625163ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625185ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625185ms] [WARNING] The width(124) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625187ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  625187ms] [WARNING] The width(124) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170

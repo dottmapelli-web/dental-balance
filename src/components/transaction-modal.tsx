@@ -31,9 +31,9 @@ export const transactionFormSchema = z.object({
   amount: z.coerce.number().positive({ message: "L'importo deve essere positivo." }),
   category: z.string().min(1, { message: "La categoria è obbligatoria." }),
   subcategory: z.string().optional(),
-  status: z.enum(transactionStatuses as [string, ...string[]]),
+  status: z.enum(transactionStatuses as unknown as [string, ...string[]]),
   isRecurring: z.boolean().default(false),
-  recurrenceFrequency: z.enum(recurrenceFrequencies as [string, ...string[]]).optional(),
+  recurrenceFrequency: z.enum(recurrenceFrequencies as unknown as [string, ...string[]]).optional(),
   recurrenceEndDate: z.date().optional(),
 }).refine(data => {
   if (data.isRecurring) {

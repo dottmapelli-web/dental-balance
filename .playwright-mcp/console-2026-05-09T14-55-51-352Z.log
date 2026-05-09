@@ -1,0 +1,13 @@
+[      90ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[     133ms] [LOG] [Fast Refresh] done in 43ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[     212ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[     254ms] [LOG] [Fast Refresh] done in 43ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[     688ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[     957ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[     964ms] [LOG] [Fast Refresh] done in 7ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[    2078ms] [WARNING] The width(1096) and height(400) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_b82680d1._.js:170
+[    2079ms] [WARNING] The width(1096) and height(400) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_b82680d1._.js:170
+[   33748ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[   33808ms] [LOG] [Fast Refresh] done in 60ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560

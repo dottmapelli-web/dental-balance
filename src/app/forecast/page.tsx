@@ -215,7 +215,7 @@ export default function ForecastPage() {
                 const date = parseISO(t.date);
                 if (!isValid(date) || getYear(date) !== year) return false;
                 const isInMonth = month === -1 ? true : getMonth(date) === month;
-                return isInMonth && t.status === 'Completato' && filterFn(t);
+                return isInMonth && filterFn(t);
             });
         };
     
@@ -228,7 +228,10 @@ export default function ForecastPage() {
             let sectionTotalActual = 0;
             let sectionTotalBudget = 0;
     
+            const processedCategoryNames = new Set<string>();
+
             Object.entries(sourceCategories).sort(([catA], [catB]) => catA.localeCompare(catB)).forEach(([cat, catData]) => {
+                processedCategoryNames.add(cat);
                 let subRows: ForecastRowData[] = [];
                 let categoryTotalActual = 0;
                 let categoryTotalBudget = 0;
@@ -256,9 +259,22 @@ export default function ForecastPage() {
                     categoryTotalBudget += subBudget;
                 });
                 
-                const catActual = subRows.length > 0 
-                    ? categoryTotalActual 
-                    : getFilteredTransactions(t => t.type === transactionType && t.category === cat).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                const allCatTransactions = getFilteredTransactions(t => t.type === transactionType && t.category === cat);
+                let catActual = 0;
+
+                if (subRows.length > 0) {
+                    const validSubcategories = new Set(subcategories.map((s: any) => s.name));
+                    const unmappedSubTransactions = allCatTransactions.filter(t => t.subcategory && !validSubcategories.has(t.subcategory));
+                    
+                    if (unmappedSubTransactions.length > 0) {
+                        const unmappedSubActual = unmappedSubTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                        subRows.push({ label: "Altre Sottocategorie (Da Migrare)", actual: unmappedSubActual, budget: 0, isSubcategory: true });
+                        categoryTotalActual += unmappedSubActual;
+                    }
+                    catActual = categoryTotalActual;
+                } else {
+                    catActual = allCatTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                }
 
                 const catBudget = subRows.length > 0
                     ? categoryTotalBudget
@@ -269,6 +285,19 @@ export default function ForecastPage() {
                 sectionTotalBudget += catBudget;
             });
     
+            // Catch-all for unmapped/obsolete categories
+            const unmappedTransactions = getFilteredTransactions(t => t.type === transactionType && !processedCategoryNames.has(t.category));
+            if (unmappedTransactions.length > 0) {
+                const unmappedActual = unmappedTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                sectionRows.push({ 
+                    label: `Altre ${transactionType === 'Entrata' ? 'Entrate' : 'Uscite'} (Da Migrare)`, 
+                    actual: unmappedActual, 
+                    budget: 0,
+                    isExpandable: false 
+                });
+                sectionTotalActual += unmappedActual;
+            }
+
             return { rows: sectionRows, totalActual: sectionTotalActual, totalBudget: sectionTotalBudget };
         };
     
@@ -296,7 +325,7 @@ export default function ForecastPage() {
         tableRows.push({ label: 'MARGINE DI CONTRIBUZIONE', isFinancialMetric: true, actual: margineActual, budget: margineBudget, isHighlighted: true });
         tableRows.push({ label: 'MOC %', isFinancialMetric: true, actual: mocActual, budget: mocBudget });
         
-        const costiProduttiviCategories = Object.fromEntries(Object.entries(expenseCategories).filter(([,data]) => data?.forecastType === 'Costi Produttivi'));
+        const costiProduttiviCategories = Object.fromEntries(Object.entries(expenseCategories).filter(([,data]) => data?.forecastType !== 'Costi di Produzione'));
         const costiProduttiviAggregation = aggregateData(costiProduttiviCategories, 'Uscita');
         tableRows.push({ label: 'COSTI PRODUTTIVI (fissi)', isMainSection: true, actual: 0, budget: 0 });
         tableRows.push(...costiProduttiviAggregation.rows);

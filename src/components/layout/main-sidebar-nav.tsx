@@ -30,25 +30,25 @@ export default function MainSidebarNav({ items }: MainSidebarNavProps) {
         
         return (
           <SidebarMenuItem key={index}>
-            <Link href={item.disabled ? "#" : item.href} asChild>
-              <SidebarMenuButton
-                isActive={isActive}
-                aria-disabled={item.disabled}
-                className={cn(
-                  "w-full justify-start",
-                  isActive && "font-semibold",
-                  item.disabled && "cursor-not-allowed opacity-80"
-                )}
-                tooltip={item.title}
-                // Pass onClick to prevent default if disabled and href is "#"
-                // Link component itself should handle not navigating for href="#"
-                // For truly disabled items, ensure Link's href leads to non-navigation
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
+              aria-disabled={item.disabled}
+              className={cn(
+                "w-full justify-start",
+                isActive && "font-semibold",
+                item.disabled && "cursor-not-allowed opacity-80"
+              )}
+              tooltip={item.title}
+            >
+              <Link
+                href={item.disabled ? "#" : item.href}
                 onClick={item.disabled ? (e: React.MouseEvent) => e.preventDefault() : undefined}
               >
                 {Icon && <Icon className="mr-2 h-5 w-5 flex-shrink-0" />}
                 <span className="truncate">{item.title}</span>
-              </SidebarMenuButton>
-            </Link>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         );
       })}

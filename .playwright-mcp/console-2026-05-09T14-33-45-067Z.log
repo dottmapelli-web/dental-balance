@@ -1,0 +1,71 @@
+[      71ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[     268ms] [LOG] [Fast Refresh] done in 197ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[     281ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[     380ms] [LOG] [Fast Refresh] done in 98ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[     904ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_2ce9398a._.js:16329
+[    1210ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    1397ms] [LOG] [Fast Refresh] done in 188ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[    2990ms] [WARNING] The width(610) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    2990ms] [WARNING] The width(610) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    3019ms] [WARNING] The width(400) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    3019ms] [WARNING] The width(400) and height(300) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    3029ms] [WARNING] The width(610) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    3029ms] [WARNING] The width(610) and height(250) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[    5559ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[    5608ms] [LOG] [Fast Refresh] done in 50ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[   34103ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[   34165ms] [LOG] [Fast Refresh] done in 62ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  160617ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  160689ms] [LOG] [Fast Refresh] done in 73ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  730612ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  730649ms] [LOG] [Fast Refresh] done in 38ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  730745ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  730781ms] [LOG] [Fast Refresh] done in 35ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  730884ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  730911ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:642
+[  730912ms] [LOG] fetchTransactions: Attempting to fetch transactions from Firestore... @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:642
+[  730939ms] [LOG] [Fast Refresh] done in 55ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  731414ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:648
+[  731418ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:672
+[  731418ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:687
+[  731418ms] [LOG] fetchTransactions: querySnapshot received, size: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:648
+[  731421ms] [LOG] fetchTransactions: Successfully fetched and set transactions. Count: 623 @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:672
+[  731421ms] [LOG] fetchTransactions: setIsLoading(false) @ http://localhost:3000/_next/static/chunks/src_aca691d6._.js:687
+[  743541ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  746834ms] [LOG] [Fast Refresh] done in 3293ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  746842ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  747462ms] [LOG] [Fast Refresh] done in 620ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  812167ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  814701ms] [LOG] [Fast Refresh] done in 2533ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[  814714ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[  815341ms] [WARNING] The width(1096) and height(400) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  815341ms] [WARNING] The width(1096) and height(400) are both fixed numbers,
+       maybe you don't need to use a ResponsiveContainer. @ http://localhost:3000/_next/static/chunks/node_modules_recharts_es6_259a8b60._.js:170
+[  815583ms] [LOG] [Fast Refresh] done in 869ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1206909ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1208788ms] [LOG] [Fast Refresh] done in 1830ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1217462ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1218914ms] [LOG] [Fast Refresh] done in 1269ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1223653ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1223968ms] [LOG] [Fast Refresh] done in 316ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1230849ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1231268ms] [LOG] [Fast Refresh] done in 418ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1243751ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1244322ms] [LOG] [Fast Refresh] done in 570ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1249903ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1249937ms] [LOG] [Fast Refresh] done in 34ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1260299ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1260730ms] [LOG] [Fast Refresh] done in 432ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1264115ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1267925ms] [LOG] [Fast Refresh] done in 3784ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1272006ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1272375ms] [LOG] [Fast Refresh] done in 369ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560
+[ 1293090ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14731
+[ 1294239ms] [LOG] [Fast Refresh] done in 1052ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_fdf37019._.js:14560

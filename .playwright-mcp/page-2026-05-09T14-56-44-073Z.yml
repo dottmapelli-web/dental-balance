@@ -1,0 +1,200 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Dental Balance" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: Dental Balance
+        - navigation [ref=e10]:
+          - link "Dashboard" [ref=e11] [cursor=pointer]:
+            - /url: /
+          - link "Transazioni" [ref=e12] [cursor=pointer]:
+            - /url: /transactions
+          - link "Previsioni" [ref=e13] [cursor=pointer]:
+            - /url: /forecast
+          - link "Report Mensile" [ref=e14] [cursor=pointer]:
+            - /url: /monthly-summary
+          - link "Report Annuale" [ref=e15] [cursor=pointer]:
+            - /url: /annual-summary
+          - link "Budget & Obiettivi" [ref=e16] [cursor=pointer]:
+            - /url: /budget-objectives
+          - link "Impostazioni" [ref=e17] [cursor=pointer]:
+            - /url: /settings
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - button [ref=e20] [cursor=pointer]:
+              - img
+            - button [ref=e21] [cursor=pointer]:
+              - img
+          - button [ref=e22] [cursor=pointer]:
+            - img
+          - button [ref=e23] [cursor=pointer]:
+            - img
+          - button "AD" [ref=e25] [cursor=pointer]:
+            - generic [ref=e27]: AD
+    - main [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - heading "Report Annuale" [level=1] [ref=e47]
+            - paragraph [ref=e48]: Analisi storica delle performance finanziarie dello studio.
+          - generic [ref=e50]:
+            - combobox [ref=e51] [cursor=pointer]:
+              - generic: "2026"
+              - img [ref=e52]
+            - button "Stampa Report" [ref=e54] [cursor=pointer]:
+              - img
+              - text: Stampa Report
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]:
+                - generic [ref=e59]: Entrate Annuali (2026)
+                - img [ref=e60]
+              - generic [ref=e64]: €93.016,50
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - generic [ref=e67]: Uscite Annuali (2026)
+                - img [ref=e68]
+              - generic [ref=e72]: €90.347,27
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - generic [ref=e75]: Profitto Netto (2026)
+                - img [ref=e76]
+              - generic [ref=e80]: €2669,23
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]:
+                - img [ref=e84]
+                - text: Commento Finanziario Annuale (AI) - 2026
+              - generic [ref=e87]: Un riepilogo generato dall'AI sulla performance finanziaria dell'anno selezionato.
+            - generic [ref=e88]:
+              - button "Genera Commento AI per il 2026" [ref=e89] [cursor=pointer]:
+                - img
+                - text: Genera Commento AI per il 2026
+              - paragraph [ref=e90]: Clicca il pulsante sopra per generare un commento AI sull'anno 2026.
+          - generic [ref=e91]:
+            - generic [ref=e92]:
+              - generic [ref=e93]:
+                - generic [ref=e94]: Andamento Annuale Complessivo (Entrate vs Uscite)
+                - generic [ref=e95]: Confronto delle entrate e uscite totali per ogni anno.
+              - generic [ref=e100]:
+                - img [ref=e101]:
+                  - generic [ref=e105]:
+                    - generic [ref=e107]: "2025"
+                    - generic [ref=e109]: "2026"
+                  - generic [ref=e111]:
+                    - generic [ref=e113]: €0k
+                    - generic [ref=e115]: €70k
+                    - generic [ref=e117]: €140k
+                    - generic [ref=e119]: €210k
+                    - generic [ref=e121]: €280k
+                - generic [ref=e137]:
+                  - generic [ref=e138]: Entrate Totali Annuali
+                  - generic [ref=e140]: Uscite Totali Annuali
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - generic [ref=e144]: Andamento Mensile Entrate/Uscite - 2026
+                - generic [ref=e145]: Dettaglio entrate e uscite mese per mese per l'anno selezionato.
+              - generic [ref=e150]:
+                - img [ref=e151]:
+                  - generic [ref=e155]:
+                    - generic [ref=e157]: gen
+                    - generic [ref=e159]: feb
+                    - generic [ref=e161]: mar
+                    - generic [ref=e163]: apr
+                    - generic [ref=e165]: mag
+                    - generic [ref=e167]: giu
+                    - generic [ref=e169]: lug
+                    - generic [ref=e171]: ago
+                    - generic [ref=e173]: set
+                    - generic [ref=e175]: ott
+                    - generic [ref=e177]: nov
+                    - generic [ref=e179]: dic
+                  - generic [ref=e181]:
+                    - generic [ref=e183]: €0k
+                    - generic [ref=e185]: €9.5k
+                    - generic [ref=e187]: €19k
+                    - generic [ref=e189]: €28.5k
+                    - generic [ref=e191]: €38k
+                - generic [ref=e213]:
+                  - generic [ref=e214]: Entrate Mensili
+                  - generic [ref=e216]: Uscite Mensili
+          - generic [ref=e218]:
+            - generic [ref=e219]:
+              - generic [ref=e220]:
+                - generic [ref=e221]: Andamento Profitto Netto Mensile - 2026
+                - generic [ref=e222]: Evoluzione del profitto netto mese per mese per l'anno selezionato.
+              - generic [ref=e227]:
+                - img [ref=e228]:
+                  - generic [ref=e232]:
+                    - generic [ref=e234]: gen
+                    - generic [ref=e236]: feb
+                    - generic [ref=e238]: mar
+                    - generic [ref=e240]: apr
+                    - generic [ref=e242]: mag
+                    - generic [ref=e244]: giu
+                    - generic [ref=e246]: lug
+                    - generic [ref=e248]: ago
+                    - generic [ref=e250]: set
+                    - generic [ref=e252]: ott
+                    - generic [ref=e254]: nov
+                    - generic [ref=e256]: dic
+                  - generic [ref=e258]:
+                    - generic [ref=e260]: €-3.5k
+                    - generic [ref=e262]: €0k
+                    - generic [ref=e264]: €3.5k
+                    - generic [ref=e266]: €7k
+                    - generic [ref=e268]: €10.5k
+                - generic [ref=e286]: Profitto Netto Mensile
+            - generic [ref=e288]:
+              - generic [ref=e289]:
+                - generic [ref=e290]: Ripartizione Uscite per Categoria (2026)
+                - generic [ref=e291]: Distribuzione delle uscite per l'anno selezionato.
+              - img [ref=e297]:
+                - generic [ref=e298]:
+                  - generic [ref=e299]:
+                    - img [ref=e301] [cursor=pointer]
+                    - img [ref=e303] [cursor=pointer]
+                    - img [ref=e305] [cursor=pointer]
+                    - img [ref=e307] [cursor=pointer]
+                    - img [ref=e309] [cursor=pointer]
+                    - img [ref=e311] [cursor=pointer]
+                    - img [ref=e313] [cursor=pointer]
+                    - img [ref=e315] [cursor=pointer]
+                    - img [ref=e317] [cursor=pointer]
+                  - generic [ref=e318]:
+                    - generic [ref=e321]: Spese Finanziarie e Legali (36%)
+                    - generic [ref=e324]: Materiali (12%)
+                    - generic [ref=e329]: Servizi esterni (14%)
+                    - generic [ref=e334]: Compensi Medici (21%)
+                    - generic [ref=e339]: Marketing e Sviluppo (5%)
+          - generic [ref=e362]:
+            - generic [ref=e363]:
+              - generic [ref=e364]: Riepilogo Dettagliato Annuale Complessivo
+              - generic [ref=e365]: Entrate, uscite e saldo per ogni anno di attività registrato. Clicca su una riga per vedere i dettagli.
+            - table [ref=e368]:
+              - rowgroup [ref=e369]:
+                - row "Anno Entrate Totali Uscite Totali Saldo Annuale" [ref=e370]:
+                  - columnheader "Anno" [ref=e371]
+                  - columnheader "Entrate Totali" [ref=e372]
+                  - columnheader "Uscite Totali" [ref=e373]
+                  - columnheader "Saldo Annuale" [ref=e374]
+              - rowgroup [ref=e375]:
+                - row "2025 €261.705,86 €217.201,97 €44.503,89" [ref=e376] [cursor=pointer]:
+                  - cell "2025" [ref=e377]
+                  - cell "€261.705,86" [ref=e378]
+                  - cell "€217.201,97" [ref=e379]
+                  - cell "€44.503,89" [ref=e380]
+                - row "2026 €93.016,50 €90.347,27 €2669,23" [ref=e381] [cursor=pointer]:
+                  - cell "2026" [ref=e382]
+                  - cell "€93.016,50" [ref=e383]
+                  - cell "€90.347,27" [ref=e384]
+                  - cell "€2669,23" [ref=e385]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]
+  - generic [ref=e386]: €-3.5k

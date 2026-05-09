@@ -13,11 +13,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format, parseISO, isValid, getMonth, getYear, startOfToday, addMonths, set, subMonths, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, isWithinInterval, addDays } from "date-fns";
 import { it } from "date-fns/locale";
 import { type RecurrenceFrequency, type TransactionStatus, transactionStatuses, recurrenceFrequencies } from "@/config/transaction-categories";
-import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit, Loader2 } from "lucide-react";
+import { CalendarPlus, CalendarMinus, Edit3, Trash2, Search, Repeat, ChevronsUpDown, Filter, Copy, Edit, Loader2, Camera } from "lucide-react";
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import TransactionModal, { type TransactionFormData } from '@/components/transaction-modal';
 import BulkStatusUpdateDialog from '../../components/bulk-status-update-dialog';
+import InvoiceScannerModal from '@/components/invoice-scanner-modal';
 import { useToast } from '@/hooks/use-toast';
 import { type Transaction } from '@/data/transactions-data';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -75,7 +76,10 @@ export default function TransactionsPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
+  // Default to previous month if current month has no data yet (avoids "no results" on open)
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    getMonth(new Date()) > 0 ? (getMonth(new Date()) - 1).toString() : "0"
+  );
   const [selectedStatus, setSelectedStatus] = useState<typeof statusOptions[number]>("all");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null; direction: 'ascending' | 'descending' }>({ key: 'date', direction: 'descending' });
@@ -83,6 +87,7 @@ export default function TransactionsPage() {
   const { transactionsVersion, incrementTransactionsVersion } = useAuth();
 
   const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
 
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -299,6 +304,36 @@ export default function TransactionsPage() {
     setEditingTransaction(null);
   };
 
+  const handleScannerItemsAccepted = async (items: any[]) => {
+    console.log(`Attempting to save ${items.length} items from scanner.`);
+    try {
+      const batch = writeBatch(db);
+      for (const data of items) {
+        const transactionDataToSave: any = { 
+          date: Timestamp.fromDate(data.date),
+          description: data.description || "",
+          category: data.category,
+          subcategory: data.subcategory || "",
+          type: data.type,
+          amount: data.type === 'Uscita' ? -Math.abs(data.amount) : Math.abs(data.amount),
+          status: data.status as TransactionStatus,
+          isRecurring: false,
+          originalRecurringId: null,
+          recurrenceDetails: null,
+        };
+        const newDocRef = doc(collection(db, "transactions"));
+        batch.set(newDocRef, transactionDataToSave);
+      }
+      await batch.commit();
+      toast({ title: "Importazione Completata", description: `${items.length} voci salvate con successo.` });
+      incrementTransactionsVersion();
+    } catch (error: any) {
+      console.error("!!! ERROR saving scanned transactions:", error);
+      toast({ title: "Errore Importazione", description: error.message, variant: "destructive" });
+    }
+  };
+
+
 
   const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
@@ -487,8 +522,9 @@ export default function TransactionsPage() {
         description="Visualizza e gestisci tutte le entrate e uscite."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { toast({title: "Importa non implementato"}) }} variant="outline">
-              Importa Dati
+            <Button onClick={() => setIsScannerModalOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Camera className="h-4 w-4 mr-2" />
+              Importa Fattura (AI)
             </Button>
             <Button onClick={() => { toast({title: "Esporta non implementato"}) }} variant="outline">
               Esporta Dati
@@ -505,23 +541,43 @@ export default function TransactionsPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openModalForNew('Entrata')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium text-green-600 dark:text-green-400">Nuova Entrata</CardTitle>
-            <CalendarPlus className="h-6 w-6 text-green-500" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="group cursor-pointer glass-panel border-[hsl(var(--gold-400)/0.2)] hover:border-[hsl(var(--gold-500))] transition-all duration-500 overflow-hidden relative" onClick={() => openModalForNew('Entrata')}>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-3xl group-hover:bg-emerald-500/10 transition-all duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-lg font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Nuova Entrata</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+              <CalendarPlus className="h-5 w-5 text-emerald-500" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Registra un nuovo incasso o entrata.</p>
+          <CardContent className="relative z-10">
+            <p className="text-sm text-muted-foreground/80 font-medium">Registra un nuovo incasso o entrata nel sistema.</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openModalForNew('Uscita')}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium text-red-600 dark:text-red-400">Nuova Uscita</CardTitle>
-            <CalendarMinus className="h-6 w-6 text-red-500" />
+        
+        <Card className="group cursor-pointer glass-panel border-[hsl(var(--gold-400)/0.2)] hover:border-[hsl(var(--gold-500))] transition-all duration-500 overflow-hidden relative" onClick={() => openModalForNew('Uscita')}>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 blur-3xl group-hover:bg-rose-500/10 transition-all duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-lg font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Nuova Uscita</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+              <CalendarMinus className="h-5 w-5 text-rose-500" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Registra una nuova spesa o uscita.</p>
+          <CardContent className="relative z-10">
+            <p className="text-sm text-muted-foreground/80 font-medium">Registra una nuova spesa o uscita per lo studio.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="group cursor-pointer glass-panel border-[hsl(var(--gold-400)/0.3)] hover:border-[hsl(var(--gold-500))] transition-all duration-500 overflow-hidden relative glow-gold-sm" onClick={() => setIsScannerModalOpen(true)}>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[hsl(var(--gold-500)/0.1)] blur-3xl group-hover:bg-[hsl(var(--gold-500)/0.2)] transition-all duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+            <CardTitle className="text-lg font-bold text-[hsl(var(--gold-600))] dark:text-[hsl(var(--gold-400))] uppercase tracking-wider">Importa (AI)</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-[hsl(var(--gold-500)/0.1)] flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+              <Camera className="h-5 w-5 text-[hsl(var(--gold-600))]" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <p className="text-sm text-muted-foreground/80 font-medium">Estrai spese automaticamente da scontrini o fatture.</p>
           </CardContent>
         </Card>
       </div>
@@ -534,6 +590,12 @@ export default function TransactionsPage() {
         onSubmitSuccess={handleTransactionSubmit}
       />
 
+      <InvoiceScannerModal
+        isOpen={isScannerModalOpen}
+        onOpenChange={setIsScannerModalOpen}
+        onItemsAccepted={handleScannerItemsAccepted}
+      />
+
       <BulkStatusUpdateDialog
         isOpen={isBulkStatusModalOpen}
         onOpenChange={setIsBulkStatusModalOpen}
@@ -542,15 +604,15 @@ export default function TransactionsPage() {
       />
 
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="font-headline flex items-center">
-            <Repeat className="mr-2 h-5 w-5 text-primary" />
-            Transazioni Ricorrenti Definite
+      <Card className="mb-8 glass-panel border-[hsl(var(--gold-400)/0.2)] overflow-hidden">
+        <CardHeader className="border-b border-[hsl(var(--gold-400)/0.1)] bg-[hsl(var(--gold-100)/0.05)]">
+          <CardTitle className="text-xl font-bold flex items-center text-[hsl(var(--gold-700))] dark:text-[hsl(var(--gold-200))]">
+            <Repeat className="mr-2 h-5 w-5 text-[hsl(var(--gold-500))]" />
+            Transazioni Ricorrenti
           </CardTitle>
-          <CardDescription>Elenco delle tue spese e entrate ricorrenti principali (solo definizioni).</CardDescription>
+          <CardDescription className="text-[hsl(var(--gold-700)/0.6)] dark:text-[hsl(var(--gold-200)/0.5)]">Configurazioni principali per le spese e entrate periodiche.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading && recurringTransactionsDefinitions.length === 0 && <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>}
           {!isLoading && recurringTransactionsDefinitions.length === 0 && !loadingError && (
             <p className="text-sm text-muted-foreground">Nessuna transazione ricorrente definita.</p>
@@ -632,65 +694,70 @@ export default function TransactionsPage() {
 
       <Separator className="my-6"/>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline">Elenco Transazioni (Istanze)</CardTitle>
-          <CardDescription>Visualizza tutte le transazioni, incluse quelle generate da definizioni ricorrenti.</CardDescription>
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mt-4">
-            <div className="flex flex-wrap gap-2 items-center">
+      <Card className="glass-panel border-[hsl(var(--gold-400)/0.2)] overflow-hidden mb-20 shadow-2xl">
+        <CardHeader className="border-b border-[hsl(var(--gold-400)/0.1)] bg-[hsl(var(--gold-100)/0.05)]">
+          <CardTitle className="text-xl font-bold text-[hsl(var(--gold-700))] dark:text-[hsl(var(--gold-200))]">Archivio Transazioni</CardTitle>
+          <CardDescription className="text-[hsl(var(--gold-700)/0.6)] dark:text-[hsl(var(--gold-200)/0.5)]">Visualizza e analizza tutte le movimentazioni finanziarie dello studio.</CardDescription>
+          
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mt-6">
+            <div className="flex flex-wrap gap-2 items-center w-full lg:w-auto">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px] rounded-full border-[hsl(var(--gold-400)/0.3)] bg-white/40 dark:bg-black/20 focus:ring-[hsl(var(--gold-500))]">
                   <SelectValue placeholder="Mese" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-panel border-[hsl(var(--gold-400)/0.2)]">
                   {months.map(m => <SelectItem key={m.value} value={m.value.toString()}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-full sm:w-[100px]">
+                <SelectTrigger className="w-full sm:w-[110px] rounded-full border-[hsl(var(--gold-400)/0.3)] bg-white/40 dark:bg-black/20 focus:ring-[hsl(var(--gold-500))]">
                   <SelectValue placeholder="Anno" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-panel border-[hsl(var(--gold-400)/0.2)]">
                   {generateYears().map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
+
               <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as typeof statusOptions[number])}>
-                <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectTrigger className="w-full sm:w-[160px] rounded-full border-[hsl(var(--gold-400)/0.3)] bg-white/40 dark:bg-black/20 focus:ring-[hsl(var(--gold-500))]">
                   <div className="flex items-center">
-                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <Filter className="mr-2 h-4 w-4 text-[hsl(var(--gold-500))]" />
                     <SelectValue placeholder="Stato" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="glass-panel border-[hsl(var(--gold-400)/0.2)]">
                   {statusOptions.map(s => <SelectItem key={s} value={s}>{s === "all" ? "Tutti gli Stati" : s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="relative w-full sm:w-auto sm:min-w-[250px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+
+            <div className="relative w-full lg:w-[350px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--gold-500))]" />
               <Input
                 type="search"
-                placeholder="Cerca per descrizione, categoria..."
-                className="pl-8 w-full"
+                placeholder="Cerca transazione..."
+                className="pl-10 w-full rounded-full border-[hsl(var(--gold-400)/0.3)] bg-white/40 dark:bg-black/20 focus:ring-[hsl(var(--gold-500))]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-           {selectedRows.size > 0 && (
-             <div className="mt-4 flex justify-start gap-2">
-                <Button variant="destructive" onClick={handleBulkDelete} size="sm">
+
+          {selectedRows.size > 0 && (
+             <div className="mt-4 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <Button variant="destructive" onClick={handleBulkDelete} size="sm" className="rounded-full px-4 shadow-lg shadow-rose-500/10">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Elimina Selezionate ({selectedRows.size})
                 </Button>
-                <Button variant="outline" onClick={() => setIsBulkStatusModalOpen(true)} size="sm">
-                    <Edit className="mr-2 h-4 w-4" />
+                <Button variant="outline" onClick={() => setIsBulkStatusModalOpen(true)} size="sm" className="rounded-full px-4 border-[hsl(var(--gold-400)/0.3)] hover:bg-[hsl(var(--gold-100))] dark:hover:bg-white/5">
+                    <Edit className="mr-2 h-4 w-4 text-[hsl(var(--gold-500))]" />
                     Modifica Stato ({selectedRows.size})
                 </Button>
              </div>
-            )}
+          )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading && transactions.length === 0 && <div className="text-center p-6"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Caricamento istanze transazioni...</p></div>}
           {!isLoading && transactions.length === 0 && !loadingError && (
              <p className="text-center text-muted-foreground py-10">Nessuna transazione trovata in Firestore. Inizia aggiungendone qualcuna!</p>
@@ -710,8 +777,8 @@ export default function TransactionsPage() {
                         <TableHead key={key} onClick={() => key !== 'actions' && handleSort(key as keyof Transaction)} className={key !== 'actions' ? "cursor-pointer hover:bg-muted/50" : ""}>
                             <div className="flex items-center">
                                 {columnDisplayNames[key as keyof Transaction | 'actions']}
-                                {sortConfig.key === key && key !== 'actions' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
-                                {sortConfig.key !== key && key !== 'actions' && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
+                                {sortConfig.key === (key as keyof Transaction) && key !== 'actions' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+                                {sortConfig.key !== (key as keyof Transaction) && key !== 'actions' && <ChevronsUpDown className="ml-2 h-3 w-3 text-muted-foreground" />}
                             </div>
                         </TableHead>
                     ))}
@@ -746,13 +813,17 @@ export default function TransactionsPage() {
                         <span className="truncate max-w-[200px] inline-block" title={transaction.description}>{transaction.description}</span>
                         {transaction.isRecurring && !transaction.originalRecurringId && (
                         <Tooltip>
-                            <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-blue-500 flex-shrink-0" /></TooltipTrigger>
+                            <TooltipTrigger asChild>
+                                <span><Repeat className="ml-2 h-3 w-3 text-blue-500 flex-shrink-0" /></span>
+                            </TooltipTrigger>
                             <TooltipContent><p>Transazione Ricorrente (Definizione)</p></TooltipContent>
                         </Tooltip>
                         )}
                         {transaction.originalRecurringId && (
                         <Tooltip>
-                            <TooltipTrigger asChild><Repeat className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0" /></TooltipTrigger>
+                            <TooltipTrigger asChild>
+                                <span><Repeat className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0" /></span>
+                            </TooltipTrigger>
                             <TooltipContent><p>Istanza di transazione ricorrente</p></TooltipContent>
                         </Tooltip>
                         )}

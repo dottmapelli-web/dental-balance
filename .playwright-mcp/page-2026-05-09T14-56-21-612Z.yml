@@ -1,0 +1,218 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Dental Balance" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: Dental Balance
+        - navigation [ref=e10]:
+          - link "Dashboard" [ref=e11] [cursor=pointer]:
+            - /url: /
+          - link "Transazioni" [ref=e12] [cursor=pointer]:
+            - /url: /transactions
+          - link "Previsioni" [ref=e13] [cursor=pointer]:
+            - /url: /forecast
+          - link "Report Mensile" [ref=e14] [cursor=pointer]:
+            - /url: /monthly-summary
+          - link "Report Annuale" [ref=e15] [cursor=pointer]:
+            - /url: /annual-summary
+          - link "Budget & Obiettivi" [ref=e16] [cursor=pointer]:
+            - /url: /budget-objectives
+          - link "Impostazioni" [ref=e17] [cursor=pointer]:
+            - /url: /settings
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - button [ref=e20] [cursor=pointer]:
+              - img
+            - button [ref=e21] [cursor=pointer]:
+              - img
+          - button [ref=e22] [cursor=pointer]:
+            - img
+          - button [ref=e23] [cursor=pointer]:
+            - img
+          - button "AD" [ref=e25] [cursor=pointer]:
+            - generic [ref=e27]: AD
+    - main [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - heading "Report Mensile" [level=1] [ref=e47]
+            - paragraph [ref=e48]: Analizza i dati finanziari mensili (da Firestore), genera riepiloghi e identifica anomalie con l'aiuto dell'IA.
+          - generic [ref=e50]:
+            - combobox [ref=e51] [cursor=pointer]:
+              - generic: "2026"
+              - img [ref=e52]
+            - button "Stampa Report" [ref=e54] [cursor=pointer]:
+              - img
+              - text: Stampa Report
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: Andamento Finanziario Mensile (2026)
+              - generic [ref=e59]: Visualizzazione delle entrate, uscite e saldo mensile per l'anno selezionato (dati da Firestore).
+            - generic [ref=e64]:
+              - img [ref=e65]:
+                - generic [ref=e69]:
+                  - generic [ref=e71]: gen
+                  - generic [ref=e73]: feb
+                  - generic [ref=e75]: mar
+                  - generic [ref=e77]: apr
+                  - generic [ref=e79]: mag
+                  - generic [ref=e81]: giu
+                  - generic [ref=e83]: lug
+                  - generic [ref=e85]: ago
+                  - generic [ref=e87]: set
+                  - generic [ref=e89]: ott
+                  - generic [ref=e91]: nov
+                  - generic [ref=e93]: dic
+                - generic [ref=e95]:
+                  - generic [ref=e97]: €-12.5k
+                  - generic [ref=e99]: €0k
+                  - generic [ref=e101]: €12.5k
+                  - generic [ref=e103]: €25k
+                  - generic [ref=e105]: €37.5k
+              - generic [ref=e152]:
+                - generic [ref=e153]: Entrate
+                - generic [ref=e155]: Uscite
+                - generic [ref=e157]: Saldo Mensile
+          - generic [ref=e159]:
+            - generic [ref=e160]:
+              - generic [ref=e161]: Riepilogo Dettagliato Mensile per il 2026
+              - generic [ref=e162]: Entrate, uscite e saldo per ogni mese dell'anno selezionato (dati da Firestore).
+            - table [ref=e165]:
+              - rowgroup [ref=e166]:
+                - row "Mese Entrate Totali Uscite Totali Saldo Mensile" [ref=e167]:
+                  - columnheader "Mese" [ref=e168]
+                  - columnheader "Entrate Totali" [ref=e169]
+                  - columnheader "Uscite Totali" [ref=e170]
+                  - columnheader "Saldo Mensile" [ref=e171]
+              - rowgroup [ref=e172]:
+                - row "gennaio €30.165,00 €23.597,52 €6567,48" [ref=e173]:
+                  - cell "gennaio" [ref=e174]
+                  - cell "€30.165,00" [ref=e175]
+                  - cell "€23.597,52" [ref=e176]
+                  - cell "€6567,48" [ref=e177]
+                - row "febbraio €26.847,00 €30.304,68 €-3457,68" [ref=e178]:
+                  - cell "febbraio" [ref=e179]
+                  - cell "€26.847,00" [ref=e180]
+                  - cell "€30.304,68" [ref=e181]
+                  - cell "€-3457,68" [ref=e182]
+                - row "marzo €36.004,50 €36.345,07 €-340,57" [ref=e183]:
+                  - cell "marzo" [ref=e184]
+                  - cell "€36.004,50" [ref=e185]
+                  - cell "€36.345,07" [ref=e186]
+                  - cell "€-340,57" [ref=e187]
+                - row "aprile €0,00 €100,00 €-100,00" [ref=e188]:
+                  - cell "aprile" [ref=e189]
+                  - cell "€0,00" [ref=e190]
+                  - cell "€100,00" [ref=e191]
+                  - cell "€-100,00" [ref=e192]
+                - row "maggio €0,00 €0,00 €0,00" [ref=e193]:
+                  - cell "maggio" [ref=e194]
+                  - cell "€0,00" [ref=e195]
+                  - cell "€0,00" [ref=e196]
+                  - cell "€0,00" [ref=e197]
+                - row "giugno €0,00 €0,00 €0,00" [ref=e198]:
+                  - cell "giugno" [ref=e199]
+                  - cell "€0,00" [ref=e200]
+                  - cell "€0,00" [ref=e201]
+                  - cell "€0,00" [ref=e202]
+                - row "luglio €0,00 €0,00 €0,00" [ref=e203]:
+                  - cell "luglio" [ref=e204]
+                  - cell "€0,00" [ref=e205]
+                  - cell "€0,00" [ref=e206]
+                  - cell "€0,00" [ref=e207]
+                - row "agosto €0,00 €0,00 €0,00" [ref=e208]:
+                  - cell "agosto" [ref=e209]
+                  - cell "€0,00" [ref=e210]
+                  - cell "€0,00" [ref=e211]
+                  - cell "€0,00" [ref=e212]
+                - row "settembre €0,00 €0,00 €0,00" [ref=e213]:
+                  - cell "settembre" [ref=e214]
+                  - cell "€0,00" [ref=e215]
+                  - cell "€0,00" [ref=e216]
+                  - cell "€0,00" [ref=e217]
+                - row "ottobre €0,00 €0,00 €0,00" [ref=e218]:
+                  - cell "ottobre" [ref=e219]
+                  - cell "€0,00" [ref=e220]
+                  - cell "€0,00" [ref=e221]
+                  - cell "€0,00" [ref=e222]
+                - row "novembre €0,00 €0,00 €0,00" [ref=e223]:
+                  - cell "novembre" [ref=e224]
+                  - cell "€0,00" [ref=e225]
+                  - cell "€0,00" [ref=e226]
+                  - cell "€0,00" [ref=e227]
+                - row "dicembre €0,00 €0,00 €0,00" [ref=e228]:
+                  - cell "dicembre" [ref=e229]
+                  - cell "€0,00" [ref=e230]
+                  - cell "€0,00" [ref=e231]
+                  - cell "€0,00" [ref=e232]
+          - generic [ref=e233]:
+            - generic [ref=e234]:
+              - generic [ref=e235]: Riepilogo Testuale e Analisi del Mese Selezionato
+              - generic [ref=e236]: Visualizza il riepilogo testuale generato o inserito per il mese di gennaio 2026e i risultati dell'analisi AI, se disponibili.
+            - generic [ref=e237]:
+              - generic [ref=e238]:
+                - text: "Riepilogo Testuale del Mese:"
+                - textbox [ref=e239]: Nessun riepilogo disponibile o generato per questo periodo.
+              - paragraph [ref=e240]: Nessuna analisi AI eseguita per questo periodo.
+        - generic [ref=e241]:
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - generic [ref=e244]: Inserisci Dati e Genera Riepilogo AI
+              - generic [ref=e245]: Seleziona mese/anno per il riepilogo, genera o scrivi un testo sull'attività finanziaria, e inserisci i relativi importi. Le entrate/uscite effettive sono pre-popolate da Firestore.
+            - generic [ref=e247]:
+              - generic [ref=e248]:
+                - text: Periodo per il Riepilogo AI
+                - generic [ref=e249]:
+                  - combobox [ref=e250] [cursor=pointer]:
+                    - generic: gennaio
+                    - img [ref=e251]
+                  - combobox [ref=e253]
+                  - combobox [ref=e254] [cursor=pointer]:
+                    - generic: "2026"
+                    - img [ref=e255]
+                  - combobox [ref=e257]
+              - generic [ref=e258]:
+                - generic [ref=e259]:
+                  - generic [ref=e260]: Riepilogo Testuale del Mese Selezionato
+                  - button "Genera con AI" [ref=e261] [cursor=pointer]:
+                    - img
+                    - text: Genera con AI
+                - textbox "Riepilogo Testuale del Mese Selezionato" [ref=e262]:
+                  - /placeholder: Descrivi dettagliatamente l'attività finanziaria del mese o genera un riepilogo con l'AI...
+              - generic [ref=e263]:
+                - text: Riepilogo Testuale del Mese Precedente (Opzionale)
+                - textbox "Riepilogo Testuale del Mese Precedente (Opzionale)" [ref=e264]:
+                  - /placeholder: Descrivi l'attività finanziaria del mese precedente, se disponibile...
+              - generic [ref=e265]:
+                - generic [ref=e266]:
+                  - text: Entrate Preventivate
+                  - spinbutton "Entrate Preventivate" [ref=e267]: "0"
+                - generic [ref=e268]:
+                  - text: Entrate Effettive (da Firestore)
+                  - spinbutton "Entrate Effettive (da Firestore)" [ref=e269]: "30165"
+              - generic [ref=e270]:
+                - generic [ref=e271]:
+                  - text: Uscite Preventivate
+                  - spinbutton "Uscite Preventivate" [ref=e272]: "0"
+                - generic [ref=e273]:
+                  - text: Uscite Effettive (da Firestore)
+                  - spinbutton "Uscite Effettive (da Firestore)" [ref=e274]: "23597.520000000004"
+              - button "Analizza Riepilogo" [ref=e275] [cursor=pointer]:
+                - img
+                - text: Analizza Riepilogo
+          - generic [ref=e276]:
+            - generic [ref=e277]:
+              - generic [ref=e278]:
+                - img [ref=e279]
+                - text: Risultati Analisi IA
+              - generic [ref=e282]: Anomalie e coerenza rilevate dall'intelligenza artificiale.
+            - paragraph [ref=e284]: Compila i dati e avvia l'analisi, oppure genera prima un riepilogo testuale con l'AI.
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]
+  - generic [ref=e285]: €-12.5k

@@ -1,0 +1,215 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;1,7..72,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 208 100% 97%; /* #F0F8FF - AliceBlue Background */
+    --foreground: 222 15% 23%; /* #363D49 - Dark Slate Gray Text */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 15% 23%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 15% 23%;
+    
+    --primary: 203 62% 82%; /* #B6D7EC - Medical Light Blue */
+    --primary-foreground: 240 100% 25%; /* #000080 - Navy Blue for contrast */
+    
+    --secondary: 210 100% 96%; /* #EDF5FD - Sidebar Background */
+    --secondary-foreground: 222 15% 23%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --accent: 203 62% 82%;
+    --accent-foreground: 240 100% 25%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 240 100% 25%; /* Navy for ring */
+    
+    --radius: 0.5rem;
+
+    /* Custom Design Tokens - Dental Balance Style */
+    --sidebar-bg: 210 100% 96%; /* #EDF5FD */
+    --sidebar-border: 214 32% 91%;
+    --navy-accent: 240 100% 25%; /* #000080 */
+    --font-serif: 'Literata', serif;
+    --font-sans: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 222 47% 4%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 6%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 203 62% 82%; /* Keep the same blue but it might need adjustment for dark mode */
+    --primary-foreground: 222 47% 11.2%;
+    
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 203 62% 82%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 203 62% 82%;
+    
+    /* Custom Design Tokens Dark - Dental Balance Style */
+    --sidebar-bg: 222 47% 6%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --navy-accent: 210 40% 98%; /* White/Light in dark mode */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    background-color: hsl(var(--warm-bg));
+  }
+}
+
+@layer components {
+  /* App Shell Styles */
+  .app-shell {
+    @apply min-h-screen flex flex-col;
+  }
+
+  .app-header {
+    @apply sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md;
+    border-color: hsl(var(--warm-border));
+  }
+
+  .app-header-inner {
+    @apply container flex h-16 items-center justify-between px-4 md:px-8 max-w-7xl mx-auto;
+  }
+
+  .app-logo {
+    @apply flex items-center gap-2 transition-opacity hover:opacity-80;
+  }
+
+  .app-logo-icon {
+    @apply flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground;
+  }
+
+  .app-logo-text {
+    @apply text-lg font-bold tracking-tight text-primary;
+  }
+
+  .app-nav-center {
+    @apply hidden md:flex flex-1 justify-center px-4;
+  }
+
+  .app-header-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .app-action-btn {
+    @apply font-semibold rounded-full px-4 h-9 transition-all active:scale-95;
+  }
+
+  .app-action-btn-income {
+    @apply bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-900/40;
+  }
+
+  .app-action-btn-expense {
+    @apply bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/40;
+  }
+
+  .app-icon-btn {
+    @apply h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors;
+  }
+
+  .app-header-divider {
+    @apply h-6 w-[1px] bg-border mx-1;
+  }
+
+  .app-avatar-btn {
+    @apply h-8 w-8 p-0 rounded-full overflow-hidden;
+  }
+
+  .app-avatar-fallback {
+    @apply bg-muted text-[10px] font-bold;
+  }
+
+  /* Navigation Pills */
+  .top-navbar-container {
+    @apply flex items-center justify-center;
+  }
+
+  .top-navbar-pills {
+    @apply flex items-center p-1.5 rounded-full border bg-muted/50;
+    border-color: hsl(var(--warm-border));
+  }
+
+  .top-navbar-pill {
+    @apply px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 text-muted-foreground hover:text-foreground;
+  }
+
+  .top-navbar-pill-active {
+    @apply bg-primary text-primary-foreground shadow-sm scale-[1.02];
+  }
+
+  /* Main Content Area */
+  .app-main {
+    @apply flex-1 flex flex-col pt-6;
+  }
+
+  .app-content-wrapper {
+    @apply container px-4 md:px-8 max-w-7xl mx-auto pb-12;
+  }
+
+  /* Dashboard Cards */
+  .dashboard-grid {
+    @apply grid gap-6 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .stats-card {
+    @apply border-none shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl overflow-hidden;
+    background-color: hsl(var(--card));
+  }
+
+  /* Login Screen */
+  .app-login-screen {
+    @apply flex-1 flex items-center justify-center bg-muted/30 p-4;
+  }
+
+  .app-login-card {
+    @apply w-full max-w-md border-none shadow-2xl rounded-3xl overflow-hidden;
+  }
+
+  .app-login-icon-wrapper {
+    @apply h-20 w-20 rounded-3xl bg-amber-100 dark:bg-amber-950/30 flex items-center justify-center mb-6;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}

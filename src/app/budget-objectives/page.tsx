@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { PlusCircle, Edit2, Target, CheckCircle, TrendingUp, Trash2, Loader2, AlertCircle, Wand2, Save } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import BudgetObjectiveModal, { type BudgetObjectiveFormData, type BudgetFormData as ModalBudgetFormData } from '@/components/budget-objective-modal';
 import { useToast } from '@/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -52,6 +53,15 @@ export interface ObjectiveListItem {
   iconName?: 'TrendingUp' | 'Target' | 'CheckCircle';
 }
 
+interface BudgetSuggestion {
+  category: string;
+  type: 'Entrata' | 'Uscita';
+  lastYearTotal: number;
+  lastYearMonthlyAvg: number;
+  suggested: number;
+  selected: boolean;
+}
+
 const getObjectiveIcon = (iconName?: ObjectiveListItem['iconName']) => {
   switch (iconName) {
     case 'TrendingUp': return <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400"/>;
@@ -82,6 +92,10 @@ export default function BudgetObjectivesPage() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const { transactionsVersion, incrementTransactionsVersion } = useAuth();
+
+  const [budgetSuggestions, setBudgetSuggestions] = useState<BudgetSuggestion[]>([]);
+  const [isSuggestionsPanelOpen, setIsSuggestionsPanelOpen] = useState(false);
+  const [isSavingSuggestions, setIsSavingSuggestions] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -241,6 +255,85 @@ export default function BudgetObjectivesPage() {
     });
   }, [definedBudgets, transactions, isLoadingTransactions, isLoadingBudgets, transactionsError]);
 
+  const generateSuggestions = () => {
+    const lastYear = getYear(new Date()) - 1;
+    const lastYearTxs = transactions.filter(t => {
+      const d = parseISO(t.date);
+      return isValid(d) && getYear(d) === lastYear && t.status !== 'Pianificato';
+    });
+
+    if (lastYearTxs.length === 0) {
+      setBudgetSuggestions([]);
+      setIsSuggestionsPanelOpen(true);
+      toast({ title: "Nessun dato storico", description: `Non ci sono transazioni registrate per il ${lastYear}.`, variant: "destructive" });
+      return;
+    }
+
+    const expenseMap: Record<string, number> = {};
+    const incomeMap: Record<string, number> = {};
+
+    lastYearTxs.forEach(t => {
+      if (t.type === 'Uscita') {
+        expenseMap[t.category] = (expenseMap[t.category] || 0) + Math.abs(t.amount);
+      } else if (t.type === 'Entrata') {
+        incomeMap[t.category] = (incomeMap[t.category] || 0) + t.amount;
+      }
+    });
+
+    const suggestions: BudgetSuggestion[] = [
+      ...Object.entries(expenseMap).map(([category, total]) => ({
+        category,
+        type: 'Uscita' as const,
+        lastYearTotal: total,
+        lastYearMonthlyAvg: total / 12,
+        suggested: Math.ceil((total / 12) * 1.05 / 10) * 10,
+        selected: true,
+      })),
+      ...Object.entries(incomeMap).map(([category, total]) => ({
+        category,
+        type: 'Entrata' as const,
+        lastYearTotal: total,
+        lastYearMonthlyAvg: total / 12,
+        suggested: Math.ceil((total / 12) * 1.05 / 10) * 10,
+        selected: true,
+      })),
+    ].sort((a, b) => b.lastYearTotal - a.lastYearTotal);
+
+    setBudgetSuggestions(suggestions);
+    setIsSuggestionsPanelOpen(true);
+    toast({ title: `Suggerimenti generati`, description: `${suggestions.length} categorie analizzate dal ${lastYear}.` });
+  };
+
+  const toggleSuggestion = (index: number) => {
+    setBudgetSuggestions(prev => prev.map((s, i) => i === index ? { ...s, selected: !s.selected } : s));
+  };
+
+  const saveSuggestions = async () => {
+    const selected = budgetSuggestions.filter(s => s.selected);
+    if (selected.length === 0) {
+      toast({ title: "Nessuna selezione", description: "Seleziona almeno un budget da salvare.", variant: "destructive" });
+      return;
+    }
+    setIsSavingSuggestions(true);
+    try {
+      for (const s of selected) {
+        await addDoc(collection(db, "budgets"), {
+          category: s.category,
+          budgeted: s.suggested,
+          period: "Mensile",
+        });
+      }
+      toast({ title: "Budget Salvati", description: `${selected.length} budget mensili salvati con successo.` });
+      setIsSuggestionsPanelOpen(false);
+      setBudgetSuggestions([]);
+      fetchDefinedBudgets();
+    } catch (error: any) {
+      toast({ title: "Errore Salvataggio", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSavingSuggestions(false);
+    }
+  };
+
   const handleOpenModal = (type: 'budget' | 'objective', item: BudgetListItem | ObjectiveListItem | null = null) => {
     setModalType(type);
     setEditingItem(item);
@@ -353,22 +446,32 @@ export default function BudgetObjectivesPage() {
         title="Budget & Obiettivi"
         description="Imposta e monitora i budget di spesa e gli obiettivi finanziari dello studio."
         actions={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={budgetsError || objectivesError || transactionsError}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nuovo Budget/Obiettivo
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onSelect={() => handleOpenModal('budget')} disabled={!!budgetsError}>
-                Aggiungi Nuovo Budget
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleOpenModal('objective')} disabled={!!objectivesError}>
-                Aggiungi Nuovo Obiettivo
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={generateSuggestions}
+              disabled={isLoadingTransactions || !!transactionsError}
+            >
+              <Wand2 className="mr-2 h-4 w-4" />
+              Suggerimenti AI
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={!!(budgetsError || objectivesError || transactionsError)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nuovo Budget/Obiettivo
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => handleOpenModal('budget')} disabled={!!budgetsError}>
+                  Aggiungi Nuovo Budget
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleOpenModal('objective')} disabled={!!objectivesError}>
+                  Aggiungi Nuovo Obiettivo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       />
 
@@ -403,8 +506,100 @@ export default function BudgetObjectivesPage() {
           modalType={modalType}
           editingItem={editingItem}
           onSave={handleSaveItem}
-          allExpenseCategories={Object.keys(expenseCategories)}
         />
+      )}
+
+      {isSuggestionsPanelOpen && (
+        <Card className="mb-6 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="font-headline flex items-center gap-2">
+                  <Wand2 className="h-5 w-5 text-amber-500" />
+                  Suggerimenti Budget ({getYear(new Date()) - 1})
+                </CardTitle>
+                <CardDescription>
+                  Budget mensili suggeriti in base alla media dell'anno precedente +5%. Seleziona quelli da salvare.
+                </CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setIsSuggestionsPanelOpen(false)}>
+                Chiudi
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {budgetSuggestions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nessun dato disponibile per il {getYear(new Date()) - 1}. Inserisci transazioni per quell'anno per ottenere suggerimenti.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    {budgetSuggestions.filter(s => s.selected).length} di {budgetSuggestions.length} selezionati
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setBudgetSuggestions(prev => prev.map(s => ({ ...s, selected: true })))}>
+                      Seleziona tutti
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBudgetSuggestions(prev => prev.map(s => ({ ...s, selected: false })))}>
+                      Deseleziona tutti
+                    </Button>
+                  </div>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8"></TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-right">Totale Anno Prec.</TableHead>
+                      <TableHead className="text-right">Media Mensile</TableHead>
+                      <TableHead className="text-right font-semibold">Budget Suggerito/mese</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {budgetSuggestions.map((s, idx) => (
+                      <TableRow key={idx} className={s.selected ? "" : "opacity-40"}>
+                        <TableCell>
+                          <Checkbox
+                            checked={s.selected}
+                            onCheckedChange={() => toggleSuggestion(idx)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{s.category}</TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            s.type === 'Entrata'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
+                          }`}>
+                            {s.type}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          €{isClient ? s.lastYearTotal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : s.lastYearTotal.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          €{isClient ? s.lastYearMonthlyAvg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : s.lastYearMonthlyAvg.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">
+                          €{isClient ? s.suggested.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : s.suggested.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={saveSuggestions} disabled={isSavingSuggestions || budgetSuggestions.filter(s => s.selected).length === 0}>
+                    {isSavingSuggestions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salva Selezionati ({budgetSuggestions.filter(s => s.selected).length})
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

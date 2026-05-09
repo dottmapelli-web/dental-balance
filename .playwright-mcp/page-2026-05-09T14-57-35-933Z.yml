@@ -1,0 +1,216 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Dental Balance" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e9]: Dental Balance
+        - navigation [ref=e10]:
+          - link "Dashboard" [ref=e11] [cursor=pointer]:
+            - /url: /
+          - link "Transazioni" [ref=e12] [cursor=pointer]:
+            - /url: /transactions
+          - link "Previsioni" [ref=e13] [cursor=pointer]:
+            - /url: /forecast
+          - link "Report Mensile" [ref=e14] [cursor=pointer]:
+            - /url: /monthly-summary
+          - link "Report Annuale" [ref=e15] [cursor=pointer]:
+            - /url: /annual-summary
+          - link "Budget & Obiettivi" [ref=e16] [cursor=pointer]:
+            - /url: /budget-objectives
+          - link "Impostazioni" [ref=e17] [cursor=pointer]:
+            - /url: /settings
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - button [ref=e20] [cursor=pointer]:
+              - img
+            - button [ref=e21] [cursor=pointer]:
+              - img
+          - button [ref=e22] [cursor=pointer]:
+            - img
+          - button [ref=e23] [cursor=pointer]:
+            - img
+          - button "AD" [ref=e25] [cursor=pointer]:
+            - generic [ref=e27]: AD
+    - main [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - heading "Budget & Obiettivi" [level=1] [ref=e47]
+            - paragraph [ref=e48]: Imposta e monitora i budget di spesa e gli obiettivi finanziari dello studio.
+          - generic [ref=e50]:
+            - button "Suggerimenti AI" [active] [ref=e51] [cursor=pointer]:
+              - img
+              - text: Suggerimenti AI
+            - button "Nuovo Budget/Obiettivo" [ref=e52] [cursor=pointer]:
+              - img
+              - text: Nuovo Budget/Obiettivo
+        - generic [ref=e91]:
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]:
+                - img [ref=e96]
+                - text: Suggerimenti Budget (2025)
+              - generic [ref=e99]: Budget mensili suggeriti in base alla media dell'anno precedente +5%. Seleziona quelli da salvare.
+            - button "Chiudi" [ref=e100] [cursor=pointer]
+          - generic [ref=e101]:
+            - generic [ref=e102]:
+              - paragraph [ref=e103]: 10 di 10 selezionati
+              - generic [ref=e104]:
+                - button "Seleziona tutti" [ref=e105] [cursor=pointer]
+                - button "Deseleziona tutti" [ref=e106] [cursor=pointer]
+            - table [ref=e108]:
+              - rowgroup [ref=e109]:
+                - row "Categoria Tipo Totale Anno Prec. Media Mensile Budget Suggerito/mese" [ref=e110]:
+                  - columnheader [ref=e111]
+                  - columnheader "Categoria" [ref=e112]
+                  - columnheader "Tipo" [ref=e113]
+                  - columnheader "Totale Anno Prec." [ref=e114]
+                  - columnheader "Media Mensile" [ref=e115]
+                  - columnheader "Budget Suggerito/mese" [ref=e116]
+              - rowgroup [ref=e117]:
+                - row "Pazienti Entrata €260.905,86 €21.742,16 €22.830,00" [ref=e118]:
+                  - cell [ref=e119]:
+                    - checkbox [checked] [ref=e120] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Pazienti" [ref=e121]
+                  - cell "Entrata" [ref=e122]
+                  - cell "€260.905,86" [ref=e123]
+                  - cell "€21.742,16" [ref=e124]
+                  - cell "€22.830,00" [ref=e125]
+                - row "Spese Finanziarie e Legali Uscita €118.841,87 €9903,49 €10.400,00" [ref=e126]:
+                  - cell [ref=e127]:
+                    - checkbox [checked] [ref=e128] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Spese Finanziarie e Legali" [ref=e129]
+                  - cell "Uscita" [ref=e130]
+                  - cell "€118.841,87" [ref=e131]
+                  - cell "€9903,49" [ref=e132]
+                  - cell "€10.400,00" [ref=e133]
+                - row "Servizi esterni Uscita €31.220,28 €2601,69 €2740,00" [ref=e134]:
+                  - cell [ref=e135]:
+                    - checkbox [checked] [ref=e136] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Servizi esterni" [ref=e137]
+                  - cell "Uscita" [ref=e138]
+                  - cell "€31.220,28" [ref=e139]
+                  - cell "€2601,69" [ref=e140]
+                  - cell "€2740,00" [ref=e141]
+                - row "Compensi Medici Uscita €22.137,06 €1844,76 €1940,00" [ref=e142]:
+                  - cell [ref=e143]:
+                    - checkbox [checked] [ref=e144] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Compensi Medici" [ref=e145]
+                  - cell "Uscita" [ref=e146]
+                  - cell "€22.137,06" [ref=e147]
+                  - cell "€1844,76" [ref=e148]
+                  - cell "€1940,00" [ref=e149]
+                - row "Materiali Uscita €20.931,66 €1744,31 €1840,00" [ref=e150]:
+                  - cell [ref=e151]:
+                    - checkbox [checked] [ref=e152] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Materiali" [ref=e153]
+                  - cell "Uscita" [ref=e154]
+                  - cell "€20.931,66" [ref=e155]
+                  - cell "€1744,31" [ref=e156]
+                  - cell "€1840,00" [ref=e157]
+                - row "Marketing e Sviluppo Uscita €16.086,80 €1340,57 €1410,00" [ref=e158]:
+                  - cell [ref=e159]:
+                    - checkbox [checked] [ref=e160] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Marketing e Sviluppo" [ref=e161]
+                  - cell "Uscita" [ref=e162]
+                  - cell "€16.086,80" [ref=e163]
+                  - cell "€1340,57" [ref=e164]
+                  - cell "€1410,00" [ref=e165]
+                - row "Spese Fisse Uscita €7491,46 €624,29 €660,00" [ref=e166]:
+                  - cell [ref=e167]:
+                    - checkbox [checked] [ref=e168] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Spese Fisse" [ref=e169]
+                  - cell "Uscita" [ref=e170]
+                  - cell "€7491,46" [ref=e171]
+                  - cell "€624,29" [ref=e172]
+                  - cell "€660,00" [ref=e173]
+                - row "Altre fonti di reddito Entrata €800,00 €66,67 €80,00" [ref=e174]:
+                  - cell [ref=e175]:
+                    - checkbox [checked] [ref=e176] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Altre fonti di reddito" [ref=e177]
+                  - cell "Entrata" [ref=e178]
+                  - cell "€800,00" [ref=e179]
+                  - cell "€66,67" [ref=e180]
+                  - cell "€80,00" [ref=e181]
+                - row "Altre spese Uscita €486,49 €40,54 €50,00" [ref=e182]:
+                  - cell [ref=e183]:
+                    - checkbox [checked] [ref=e184] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Altre spese" [ref=e185]
+                  - cell "Uscita" [ref=e186]
+                  - cell "€486,49" [ref=e187]
+                  - cell "€40,54" [ref=e188]
+                  - cell "€50,00" [ref=e189]
+                - row "Spesa Studio Uscita €6,35 €0,53 €10,00" [ref=e190]:
+                  - cell [ref=e191]:
+                    - checkbox [checked] [ref=e192] [cursor=pointer]:
+                      - generic:
+                        - img
+                  - cell "Spesa Studio" [ref=e193]
+                  - cell "Uscita" [ref=e194]
+                  - cell "€6,35" [ref=e195]
+                  - cell "€0,53" [ref=e196]
+                  - cell "€10,00" [ref=e197]
+            - button "Salva Selezionati (10)" [ref=e199] [cursor=pointer]:
+              - img
+              - text: Salva Selezionati (10)
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - generic [ref=e55]:
+              - generic [ref=e56]: Monitoraggio Budget
+              - generic [ref=e57]: Visualizza lo stato dei budget impostati (dati da Firestore).
+            - table [ref=e60]:
+              - rowgroup [ref=e61]:
+                - row "Categoria Budget Speso (Mese Corr.) Progresso Periodo Azioni" [ref=e62]:
+                  - columnheader "Categoria" [ref=e63]
+                  - columnheader "Budget" [ref=e64]
+                  - columnheader "Speso (Mese Corr.)" [ref=e65]
+                  - columnheader "Progresso" [ref=e66]
+                  - columnheader "Periodo" [ref=e67]
+                  - columnheader "Azioni" [ref=e68]
+              - rowgroup [ref=e69]:
+                - row "Spesa Studio €1000,00 €0,00 0% Mensile Modifica Budget Elimina Budget" [ref=e70]:
+                  - cell "Spesa Studio" [ref=e71]
+                  - cell "€1000,00" [ref=e72]
+                  - cell "€0,00" [ref=e73]
+                  - cell "0%" [ref=e74]:
+                    - progressbar "0% speso" [ref=e75]
+                    - generic [ref=e77]: 0%
+                  - cell "Mensile" [ref=e78]:
+                    - generic [ref=e79]: Mensile
+                  - cell "Modifica Budget Elimina Budget" [ref=e80]:
+                    - button "Modifica Budget" [ref=e81] [cursor=pointer]:
+                      - img
+                      - generic [ref=e82]: Modifica Budget
+                    - button "Elimina Budget" [ref=e83] [cursor=pointer]:
+                      - img
+                      - generic [ref=e84]: Elimina Budget
+          - generic [ref=e85]:
+            - generic [ref=e86]:
+              - generic [ref=e87]: Obiettivi Finanziari
+              - generic [ref=e88]: Traccia il progresso verso gli obiettivi chiave (dati da Firestore).
+            - paragraph [ref=e90]: Nessun obiettivo finanziario impostato in Firestore.
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]
